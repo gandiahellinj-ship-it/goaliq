@@ -288,7 +288,7 @@ Rules:
 - plate_distribution values must sum to 100
 - Return ONLY the JSON array, nothing else`;
 
-  const flatMeals = await callClaudeWithRetry(MEAL_SYSTEM, prompt, 8000, isFlatMealArray);
+  const flatMeals = await callClaudeWithRetry(MEAL_SYSTEM, prompt, 16000, isFlatMealArray);
   return flatMealsToNestedDays(flatMeals);
 }
 
