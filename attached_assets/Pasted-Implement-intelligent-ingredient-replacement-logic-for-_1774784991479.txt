@@ -1,0 +1,91 @@
+Implement intelligent ingredient replacement logic for meal swaps.
+
+Goal:
+When a user clicks "Swap" on an ingredient, the app must replace it with a smart alternative from the same food category, based on the user's diet type, goal, allergies, and disliked foods.
+
+Requirements:
+
+1. Ingredient categories
+Each ingredient must belong to a category such as:
+- protein
+- carbs
+- fats
+- vegetables
+- fruits
+- dairy
+- sauces / extras
+
+2. Swap logic
+When the user swaps an ingredient:
+- only suggest replacements from the same category
+- do NOT use random replacements
+- respect:
+  - user's diet_type
+  - user's goal
+  - allergies
+  - disliked foods
+- avoid ingredients that conflict with the selected diet
+
+Examples:
+- chicken breast → turkey breast, salmon, tofu (depending on diet)
+- rice → quinoa, potato, couscous (depending on diet)
+- milk → lactose-free milk, oat milk, soy milk (depending on restrictions)
+- avocado → olive oil, nuts, seeds (depending on allergies and diet)
+
+3. Goal-aware replacements
+Adjust replacements based on goal:
+- lose fat → leaner, lighter options
+- maintain weight → balanced equivalents
+- build muscle → high-protein / slightly more calorie-dense equivalents
+
+4. Diet-aware replacements
+Examples:
+- ketogenic → low-carb swaps only
+- vegetarian → no meat/fish
+- vegan → no animal products
+- high protein → prioritize higher protein swaps
+- balanced → flexible swaps
+
+5. Quantity handling
+When swapping:
+- preserve a similar functional portion
+- if exact unit conversion is not possible, use a reasonable equivalent
+Examples:
+- 180g chicken → 180g turkey or 160g salmon or 200g tofu
+- 100g rice → 120g potato or 90g quinoa
+
+6. UI behavior
+- Clicking "Swap" should open a small modal or dropdown with 2–4 smart alternatives
+- Each alternative should show:
+  - name
+  - quantity
+  - short reason (e.g. "higher protein", "keto-friendly", "dairy-free")
+- After selection, update:
+  - the meal card
+  - the shopping list
+  - any related meal totals / distribution
+
+7. Data model
+Create or improve a structured ingredient replacement system:
+- base ingredient
+- category
+- allowed diet types
+- goal suitability
+- allergen tags
+- replacement options
+- quantity equivalents
+
+8. Safety rules
+Never suggest:
+- allergens
+- disliked foods
+- foods excluded by the user's diet
+- replacements outside the ingredient's main category unless explicitly allowed
+
+9. Consistency
+The same replacement logic must be used in:
+- Meals page
+- Shopping list updates
+- Future regenerated plans if needed
+
+Make the replacement system feel smart, safe, and personalized.

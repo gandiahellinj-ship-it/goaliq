@@ -1,0 +1,103 @@
+Add a language selector with flags to the app.
+
+## Languages supported
+- English (default) — flag: 🇬🇧
+- Spanish (Spain) — flag: 🇪🇸
+
+## UI placement
+- Top right corner of the app, visible on every page
+- Show the current language flag as a small clickable button (28x28px)
+- On click: show a small dropdown with both flags + language name:
+  🇬🇧 English
+  🇪🇸 Español
+- Active language has a lime green #AAFF45 border/underline
+- Dropdown background: #1A1A1A, border 1px solid #2A2A2A, border-radius 8px
+
+## Behavior
+- Default language: English
+- When user switches to Spanish: entire app UI changes to Spanish instantly
+- Language preference saved in localStorage so it persists across sessions
+- If user has no saved preference: default to English
+
+## Translation coverage
+Translate ALL static UI text across the entire app:
+
+Navigation:
+- Home / Inicio
+- Meals / Comidas
+- Shopping / Compra
+- Workouts / Entrenamientos
+- Calendar / Calendario
+- Progress / Progreso
+
+Dashboard:
+- "Good morning, {name}" / "Buenos días, {name}"
+- "Good afternoon, {name}" / "Buenas tardes, {name}"
+- "Good evening, {name}" / "Buenas noches, {name}"
+- "Weekly Training" / "Entrenamiento semanal"
+- "Today's Meals" / "Comidas de hoy"
+- "This Week" / "Esta semana"
+- "Weight" / "Peso"
+- "Adherence" / "Adherencia"
+- "Workouts" / "Entrenamientos"
+
+Meals page:
+- "Weekly Menu" / "Menú semanal"
+- "New plan" / "Nuevo plan"
+- "Breakfast" / "Desayuno"
+- "Lunch" / "Comida"
+- "Dinner" / "Cena"
+- "Ingredients & Portions" / "Ingredientes y porciones"
+- "Replace ingredient" / "Cambiar ingrediente"
+- "Generating your new meal plan..." / "Generando tu nuevo plan de comidas..."
+
+Workouts page:
+- "Weekly Training" / "Entrenamiento semanal"
+- "Session Focus" / "Enfoque de sesión"
+- "Exercises" / "Ejercicios"
+- "View example" / "Ver ejemplo"
+- "New plan" / "Nuevo plan"
+- "Rest" / "Descanso"
+
+Calendar page:
+- "Calendar" / "Calendario"
+- "Flex Day Tracker" / "Registro Flex Day"
+- "Monthly adherence" / "Adherencia mensual"
+- "Completed" / "Completado"
+- "Planned workout" / "Entrenamiento planificado"
+- "Rest day" / "Día de descanso"
+- "Flex Day" / "Flex Day"
+
+Shopping page:
+- "Shopping List" / "Lista de la compra"
+- "Vegetables" / "Verduras"
+- "Fruits" / "Frutas"
+- "Protein" / "Proteína"
+- "Dairy" / "Lácteos"
+- "Carbs" / "Carbohidratos"
+- "Fats" / "Grasas"
+- "Other" / "Otros"
+- "Add custom item" / "Añadir artículo"
+- "Clear purchased" / "Limpiar comprados"
+
+Progress page:
+- "Progress" / "Progreso"
+- "Weight" / "Peso"
+- "Log weight" / "Registrar peso"
+
+Buttons:
+- "Start Free Trial" / "Empezar prueba gratis"
+- "Update Preferences" / "Actualizar preferencias"
+- "Generate new plan" / "Generar nuevo plan"
+- "Save" / "Guardar"
+- "Cancel" / "Cancelar"
+
+Motivational messages — translate all dynamic coaching messages too.
+
+## Implementation
+Use a simple React context (LanguageContext) with a useTranslation() hook:
+- t('key') returns the string in the current language
+- All components use t() instead of hardcoded English strings
+- Easy to add more languages later
+
+Do not change any functionality, only add translations and the flag selector UI.

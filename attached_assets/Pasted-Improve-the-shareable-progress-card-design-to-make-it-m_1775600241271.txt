@@ -1,0 +1,63 @@
+Improve the shareable progress card design to make it more professional and visually impressive.
+
+Keep the same canvas 1080x1080px but redesign with these improvements:
+
+## Background
+- Rich dark gradient: top-left #0A0A0A → bottom-right #0D1A0A (very subtle dark green tint)
+- Add a large lime green radial glow in the top-right corner: rgba(170, 255, 69, 0.08), radius 400px
+- Add a second smaller glow bottom-left: rgba(170, 255, 69, 0.04), radius 200px
+
+## Top section
+- GoalIQ logo top-left: "Goal" white + "IQ" #AAFF45, bold italic, 56px
+- Top-right: small pill badge "#AAFF45 background, #0A0A0A text" saying "MI PROGRESO" in 18px bold uppercase
+- Thin horizontal line separator in #1E1E1E after logo area
+
+## User section
+- "Semana del 6 — 12 de abril, 2026" in #555555, 22px
+- Full name (first + last name) in white, extrabold, 64px — use full name not just last name
+- Thin separator line #1E1E1E
+
+## Stats section — redesigned
+Three cards with more visual weight:
+Each card: background #141414, border 1px solid #222, border-radius 16px, more padding
+
+Card 1 — RACHA 🔥
+- Emoji large (40px)
+- Number in white, 80px extrabold
+- "días seguidos" in #555, 18px
+- If streak > 0: add small flame bar below (filled lime green rectangles showing streak intensity)
+
+Card 2 — ENTRENAMIENTOS 💪
+- Emoji large (40px)  
+- Number in #AAFF45, 80px extrabold
+- "esta semana" in #555, 18px
+- Add small dots below showing each day of week (filled = completed, empty = rest)
+
+Card 3 — ADHERENCIA 📊
+- Emoji large (40px)
+- Percentage in white, 80px extrabold
+- "plan seguido" in #555, 18px
+- Add a thin arc/progress bar below the number showing the percentage visually
+
+## Middle divider
+- Full width separator #1E1E1E
+- Flex Day status centered with more style:
+  * 0 used: "⚡ SEMANA PERFECTA · SIN FLEX DAYS" in #AAFF45, bold, uppercase, 22px
+  * 1+ used: "⚡ X FLEX DAY USADO" in #555, 22px
+
+## Motivational phrase
+- Large, centered, white, bold, 32px
+- Add subtle #AAFF45 left border accent (4px wide rectangle) to the left of the phrase
+- More padding around it
+
+## Bottom section
+- Thin separator #1E1E1E
+- Left: GoalIQ small logo again (20px)
+- Center: "goaliq.app" in #333, 18px
+- Right: "Únete gratis →" in #AAFF45, 18px bold
+- Very bottom: subtle tagline "Entrena más inteligente. Alcanza tus objetivos." in #2A2A2A, 16px
+
+## Fix user name
+Make sure the card shows the user's FULL name (nombre + apellido) from the profile, not just the last name.
+
+Do not change anything else in the app.

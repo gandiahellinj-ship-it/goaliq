@@ -1,0 +1,39 @@
+Redesign the workout sharing card to match GoalIQ's visual identity exactly.
+
+## Typography
+- Load Google Fonts on the canvas: "Barlow Condensed" for headings, "Inter" for body
+- Since canvas doesn't support Google Fonts directly, use this approach:
+  1. Create a hidden div with the fonts loaded
+  2. Wait for fonts to load with document.fonts.ready
+  3. Then draw the canvas using ctx.font = "bold 72px 'Barlow Condensed'"
+
+## Color corrections
+- "MI ENTRENAMIENTO" badge: background #AAFF45, text #0A0A0A (black) — currently looks washed out
+- GoalIQ logo: "Goal" in white, "IQ" in #AAFF45 — make sure the IQ part is clearly lime green
+- Workout type (CUERPO COMPLETO): #AAFF45, font "Barlow Condensed" bold, 42px uppercase
+- Exercise names: white, "Barlow Condensed" bold, 32px
+- Sets × reps: #AAFF45, "Inter" bold, 26px
+- Rest time: #666666, "Inter" regular, 22px
+- User name: white, "Barlow Condensed" extrabold, 72px
+- Stats pills: background rgba(255,255,255,0.08), border 1px solid rgba(255,255,255,0.15), text white
+- Motivational phrase: white, "Barlow Condensed" bold, 48px
+
+## Layout improvements
+- Add more padding between sections (at least 40px)
+- Add a thin #AAFF45 horizontal line (2px) between the stats row and the workout section
+- Add a thin #222222 separator between each exercise row
+- The photo background: increase overlay darkness to rgba(0,0,0,0.75) for better text readability
+- Add a subtle gradient at the bottom: rgba(0,0,0,0) to rgba(0,0,0,0.9) over last 300px — so the motivational phrase area is always readable
+
+## Bottom section redesign
+- Thin #222222 full-width separator line
+- Three columns: GoalIQ logo left | "goaliq.app" center in #444 | "Únete gratis →" right in #AAFF45
+- Add the tagline "Entrena más inteligente. Alcanza tus objetivos." in #222222 at very bottom, centered, 20px
+
+## Photo positioning fix
+Make sure the user's drag offset is correctly applied when drawing the image on canvas:
+- Store dragOffsetX and dragOffsetY from the drag interaction
+- When drawing: ctx.drawImage(img, dragOffsetX, dragOffsetY, imgWidth * scale, imgHeight * scale)
+- The scale should ensure the image always covers the full canvas width
+
+Do not change anything else.

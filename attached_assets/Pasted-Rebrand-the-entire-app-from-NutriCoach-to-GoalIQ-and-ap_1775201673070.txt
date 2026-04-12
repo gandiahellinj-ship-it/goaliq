@@ -1,0 +1,123 @@
+Rebrand the entire app from NutriCoach to GoalIQ and apply a complete visual redesign. The new aesthetic is dark, bold, and premium — inspired by the GoalIQ logo (black background, white bold italic text, lime green accent #AAFF45).
+
+## Brand identity
+
+App name: GoalIQ
+Tagline: "Train smarter. Eat better. Reach your goals."
+
+Color palette:
+- Background primary: #0A0A0A
+- Background secondary: #111111
+- Background card: #1A1A1A
+- Border/divider: #2A2A2A
+- Accent primary: #AAFF45 (lime green — use for CTAs, highlights, active states, progress)
+- Accent hover: #99EE34
+- Text primary: #FFFFFF
+- Text secondary: #A0A0A0
+- Text muted: #555555
+- Error: #FF4444
+- Success: #AAFF45
+
+Typography:
+- Use Google Font: "Inter" for body text
+- Use Google Font: "Barlow Condensed" bold/extrabold for headings and display text
+- Headings: uppercase or title case, bold, tight letter spacing
+- Body: clean, readable, medium weight
+
+## Logo integration
+
+Add the GoalIQ logo image to the app. The logo file will need to be uploaded — for now use a text logo treatment:
+- "Goal" in white bold italic + "IQ" in #AAFF45 bold italic
+- Same visual split as the logo
+- Use this text logo in: sidebar header, login page, onboarding header, PWA splash screen
+
+## Design system changes
+
+Remove ALL of the following from the current design:
+- Soft pastel colors (beige, light green, cream)
+- Rounded "wellness" aesthetic
+- Any soft shadows or gentle gradients
+- Emoji icons used as decorative elements
+
+Replace with:
+- Dark cards with subtle border: background #1A1A1A, border 1px solid #2A2A2A
+- Sharp or slightly rounded corners (border-radius: 8px max)
+- Lime green (#AAFF45) for all primary buttons, active nav items, progress bars, highlights
+- White text on dark backgrounds throughout
+- Clean iconography (keep lucide-react icons but style them white or #AAFF45)
+
+## Page-by-page changes
+
+Landing / login page:
+- Full dark background #0A0A0A
+- Large bold headline: "Train smarter. Eat better. Reach your goals."
+- Lime green CTA button: "Start Free Trial"
+- Minimal, premium feel
+
+Sidebar navigation:
+- Background: #111111
+- Active item: lime green left border + #AAFF45 text
+- Inactive items: #A0A0A0 text
+- GoalIQ logo text at top
+
+Dashboard:
+- Dark cards for stats
+- Lime green accent on progress indicators
+- Bold white numbers for metrics
+- Remove any pastel stat cards
+
+Meals page:
+- Dark cards for each meal
+- Lime green labels for meal types (BREAKFAST, LUNCH, DINNER)
+- Ingredient list on dark background
+- Distribution chart: use #AAFF45 as primary color
+
+Workouts page:
+- Same dark card treatment
+- Exercise list with lime green bullet/accent
+- Bold workout type labels
+
+Progress page:
+- Dark chart backgrounds
+- Lime green line/bar color for progress data
+
+Buttons:
+- Primary: background #AAFF45, text #0A0A0A, font-weight bold
+- Secondary: background transparent, border 1px solid #AAFF45, text #AAFF45
+- Destructive: background #FF4444, text white
+
+Forms and inputs:
+- Background: #1A1A1A
+- Border: 1px solid #2A2A2A
+- Focus border: #AAFF45
+- Text: white
+- Placeholder: #555555
+
+Trial/locked pages:
+- Keep the same lock mechanic but restyle with dark theme
+- CTA button in lime green
+
+## PWA manifest and meta
+
+Update the PWA:
+- App name: "GoalIQ"
+- Short name: "GoalIQ"
+- Theme color: #0A0A0A
+- Background color: #0A0A0A
+- Update page title to "GoalIQ — Train smarter. Eat better."
+
+## Text replacements
+
+Replace ALL instances of:
+- "NutriCoach" → "GoalIQ"
+- "Your personal nutrition coach" → "Train smarter. Eat better."
+- Any soft wellness copy → more direct, results-focused language
+
+Examples of tone shift:
+- Old: "Let's start your wellness journey"
+- New: "Let's build your plan"
+
+- Old: "You're doing great on your nutrition!"
+- New: "Consistent. Keep pushing."
+
+Keep the same app structure, functionality, Supabase integration, Stripe integration, and AI generation. Only change the visual design and branding.

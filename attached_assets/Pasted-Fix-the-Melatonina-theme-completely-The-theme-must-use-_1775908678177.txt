@@ -1,0 +1,81 @@
+Fix the Melatonina theme completely. The theme must use ONLY warm red/amber tones. No green, no lime, no blue anywhere.
+
+The Melatonina theme has ONE accent color: #FF6B2B (warm amber-orange)
+ALL instances of #AAFF45 (lime green) must become #FF6B2B in this theme.
+ALL instances of green color must become #FF6B2B in this theme.
+
+Here is the complete color override for theme-melatonina class:
+
+--bg-primary: #0D0500
+--bg-secondary: #110600  
+--bg-card: #1A0800
+--bg-card-hover: #220A00
+--border: #2A1200
+--text-primary: #FFE4C4
+--text-secondary: #C4875A
+--text-muted: #7A4A2A
+--accent: #FF6B2B
+--accent-hover: #E55A1A
+--accent-text: #0D0500
+
+Specific elements to fix in Melatonina theme:
+
+1. Calendar:
+- Today's cell: background #FF6B2B, NOT orange from system, NOT green
+- Completed workout circles: #FF6B2B filled
+- Planned workout circles: #FF6B2B border only
+- Flex Day icon ⚡: #FF6B2B
+- Adherence bar: #FF6B2B
+- "Completado" legend dot: #FF6B2B
+- "Entrenamiento planificado" legend dot: #FF6B2B border
+
+2. Navigation:
+- Active nav item: #FF6B2B background, #0D0500 text
+- Active nav item border: #FF6B2B
+
+3. Dashboard:
+- Streak badge: #FF6B2B background
+- Adherence percentage: #FF6B2B
+- Week circles (completed): #FF6B2B
+- Week circles (planned): #FF6B2B border
+- "Compartir mi progreso" button: #FF6B2B border and text
+- Motivation card left border: #FF6B2B
+- "Ver todas las comidas" link: #FF6B2B
+- "Desayuno" label: #FF6B2B (was lime)
+
+4. Meals page:
+- "DESAYUNO" label: #FF6B2B
+- Meal card left border accent: #FF6B2B
+- Time and calorie pills: #FF6B2B tint
+- Day selector active tab: #FF6B2B background
+
+5. Workouts page:
+- "SESSION FOCUS" label: #FF6B2B
+- Duration pills: #FF6B2B
+- Active day tab: #FF6B2B
+- "Ver ejemplo" link: #FF6B2B
+- Sets × reps: #FF6B2B
+- Muscle group tags: #FF6B2B
+
+6. Shopping list:
+- Category headers: #FF6B2B
+- Progress bar: #FF6B2B
+- Checked item checkmark: #FF6B2B
+
+7. Progress page:
+- Chart line: #FF6B2B
+- Chart dots: #FF6B2B
+- "Compartir mi progreso" button: #FF6B2B
+
+8. Buttons:
+- All primary buttons: #FF6B2B background, #0D0500 text
+- All outlined buttons: #FF6B2B border and text
+
+9. Theme selector button in Melatonina mode:
+- Background: #1A0800
+- Text: #FF6B2B
+- Border: #FF6B2B
+
+Make sure there is absolutely ZERO green color (#AAFF45 or any shade of green) visible anywhere when Melatonina theme is active. Every single accent, highlight, border, label, button, and indicator must use #FF6B2B.
+
+Do not change the Dark or Light themes.
