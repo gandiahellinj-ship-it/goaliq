@@ -9,10 +9,14 @@ function getPool(): pg.Pool {
 export async function ensureSupabaseTablesReady(): Promise<void> {
   const pool = getPool();
 
-  // 1. workout_plans — table already exists in Supabase with schema:
-  //    (id, user_id, week_start, days jsonb, generated_at, duration_minutes)
-  //    Just ensure unique constraint exists for safe UPSERT
-  await pool.query(`CREATE INDEX IF NOT EXISTS workout_plans_user_week ON public.workout_plans (user_id, week_start)`);
+  // 1. workout_plans — managed in Supabase; actual schema:
+  //    id uuid PK, user_id uuid, week_start date, days jsonb, generated_at timestamptz,
+  //    created_at timestamptz
+  //    Ensure 'days' JSONB and 'generated_at' columns exist (idempotent for pre-existing tables).
+  //    Ensure UNIQUE (user_id, week_start) exists for ON CONFLICT upserts.
+  await pool.query(`ALTER TABLE public.workout_plans ADD COLUMN IF NOT EXISTS days JSONB`);
+  await pool.query(`ALTER TABLE public.workout_plans ADD COLUMN IF NOT EXISTS generated_at TIMESTAMPTZ`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS workout_plans_user_week_idx ON public.workout_plans (user_id, week_start)`);
 
   await pool.query(`
     DO $$ BEGIN
@@ -26,19 +30,15 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     END $$
   `);
 
-  // 2. meal_plans — create if missing
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS public.meal_plans (
-      id           SERIAL PRIMARY KEY,
-      user_id      TEXT NOT NULL,
-      week_start   DATE NOT NULL,
-      days         JSONB NOT NULL DEFAULT '[]',
-      generated_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-  await pool.query(`CREATE INDEX IF NOT EXISTS meal_plans_user ON public.meal_plans (user_id)`);
+  // 2. meal_plans — managed in Supabase; actual schema:
+  //    id uuid PK, user_id uuid, week_start date, days jsonb, generated_at timestamptz,
+  //    created_at timestamptz
+  //    Ensure 'days' JSONB and 'generated_at' columns exist (idempotent for pre-existing tables).
+  //    Ensure UNIQUE (user_id, week_start) exists for ON CONFLICT upserts.
+  await pool.query(`ALTER TABLE public.meal_plans ADD COLUMN IF NOT EXISTS days JSONB`);
+  await pool.query(`ALTER TABLE public.meal_plans ADD COLUMN IF NOT EXISTS generated_at TIMESTAMPTZ`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS meal_plans_user_week_idx ON public.meal_plans (user_id, week_start)`);
 
-  // Add unique constraint if not present (pre-existing table may lack it)
   await pool.query(`
     DO $$ BEGIN
       IF NOT EXISTS (
@@ -51,7 +51,7 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     END $$
   `);
 
-  // 3. calendar_events — create if missing
+  // 3. calendar_events — create if missing; not defined in supabase-schema.sql
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public.calendar_events (
       id            SERIAL PRIMARY KEY,
@@ -66,7 +66,6 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
   `);
   await pool.query(`CREATE INDEX IF NOT EXISTS calendar_events_user_date_idx ON public.calendar_events (user_id, date)`);
 
-  // Add unique constraint if not present (pre-existing table may lack it)
   await pool.query(`
     DO $$ BEGIN
       IF NOT EXISTS (
