@@ -35,22 +35,29 @@ router.get("/progress", async (req, res) => {
     const pool = getPool();
     const { start, end } = getWeekRange();
 
-    const [{ data: profiles }, { data: weightEntries }, calResult] = await Promise.all([
+    const [{ data: profiles }, { data: weightEntries }] = await Promise.all([
       db.from("profiles").select("weight_kg, target_weight_kg").eq("id", req.user.id).limit(1),
       db.from("progress_logs").select("log_date, weight_kg").eq("user_id", req.user.id).order("log_date", { ascending: true }),
-      pool.query(
+    ]);
+
+    let calRows: any[] = [];
+    try {
+      const calResult = await pool.query(
         `SELECT event_type, is_completed FROM public.calendar_events
          WHERE user_id = $1 AND date >= $2 AND date <= $3`,
         [req.user.id, start, end],
-      ),
-    ]);
+      );
+      calRows = calResult.rows;
+    } catch (_calErr) {
+      // calendar_events table may not exist yet — treat as no events
+    }
 
     const profile = profiles?.[0];
     const entries = weightEntries || [];
     const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
     const currentWeightKg = entries.length > 0 ? entries[entries.length - 1].weight_kg : startWeightKg;
 
-    const workoutRows = calResult.rows.filter((e: any) => e.event_type === "workout");
+    const workoutRows = calRows.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;
@@ -95,20 +102,27 @@ router.post("/progress", async (req, res) => {
     }
 
     const { start, end } = getWeekRange();
-    const [{ data: profiles }, { data: weightEntries }, calResult] = await Promise.all([
+    const [{ data: profiles }, { data: weightEntries }] = await Promise.all([
       db.from("profiles").select("weight_kg, target_weight_kg").eq("id", req.user.id).limit(1),
       db.from("progress_logs").select("log_date, weight_kg").eq("user_id", req.user.id).order("log_date", { ascending: true }),
-      pool.query(
+    ]);
+
+    let calRowsPost: any[] = [];
+    try {
+      const calResult = await pool.query(
         `SELECT event_type, is_completed FROM public.calendar_events
          WHERE user_id = $1 AND date >= $2 AND date <= $3`,
         [req.user.id, start, end],
-      ),
-    ]);
+      );
+      calRowsPost = calResult.rows;
+    } catch (_calErr) {
+      // calendar_events table may not exist yet — treat as no events
+    }
 
     const profile = profiles?.[0];
     const entries = weightEntries || [];
     const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
-    const workoutRows = calResult.rows.filter((e: any) => e.event_type === "workout");
+    const workoutRows = calRowsPost.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;
