@@ -466,10 +466,13 @@ router.get("/qa/e2e", async (req, res) => {
       });
     }
 
-    const events = await sbFrom("calendar_events", token,
-      `select=date&user_id=eq.${userId}&event_type=eq.workout&is_completed=eq.true&order=date.desc`);
-
-    const completedDates = new Set(events.map((e: any) => e.date as string));
+    const calRes = await safeFetch(`${base()}/api/calendar`, { headers: apiHeaders(token) });
+    const calData = await calRes.json() as any;
+    const completedDates = new Set(
+      (calData.events ?? [])
+        .filter((e: any) => e.eventType === "workout" && e.isCompleted === true)
+        .map((e: any) => e.date as string)
+    );
     let streak = 0;
     const cursor = new Date();
     cursor.setHours(0, 0, 0, 0);

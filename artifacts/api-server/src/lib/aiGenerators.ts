@@ -177,7 +177,10 @@ function normalizeDay(raw: string): string {
 }
 
 function isFlatMealArray(val: unknown): val is any[] {
-  return Array.isArray(val) && val.length >= 21;
+  if (!Array.isArray(val) || val.length < 21) return false;
+  return val.every(
+    (meal: any) => Array.isArray(meal.ingredients) && meal.ingredients.length >= 3
+  );
 }
 
 function flatMealsToNestedDays(flatMeals: any[]): any[] {
