@@ -42,10 +42,10 @@ router.get("/workouts", async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, user_id, week_start::text, days, generated_at
+      `SELECT id, user_id, week_start::text, days
        FROM public.workout_plans
        WHERE user_id = $1 AND week_start = $2
-       ORDER BY generated_at DESC
+       ORDER BY id DESC
        LIMIT 1`,
       [req.user.id, weekStart],
     );

@@ -1,8 +1,15 @@
 import { Router, type IRouter } from "express";
 import { GetProgressResponse, UpdateProgressBody, UpdateProgressResponse } from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
+import pg from "pg";
 
 const router: IRouter = Router();
+
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) _pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  return _pool;
+}
 
 function getWeekRange() {
   const now = new Date();
@@ -25,12 +32,17 @@ router.get("/progress", async (req, res) => {
   }
   try {
     const db = createUserClient(req.supabaseToken!);
+    const pool = getPool();
     const { start, end } = getWeekRange();
 
-    const [{ data: profiles }, { data: weightEntries }, { data: weeklyEvents }] = await Promise.all([
+    const [{ data: profiles }, { data: weightEntries }, calResult] = await Promise.all([
       db.from("profiles").select("weight_kg, target_weight_kg").eq("id", req.user.id).limit(1),
       db.from("progress_logs").select("log_date, weight_kg").eq("user_id", req.user.id).order("log_date", { ascending: true }),
-      db.from("calendar_events").select("event_type, is_completed").eq("user_id", req.user.id).gte("date", start).lte("date", end),
+      pool.query(
+        `SELECT event_type, is_completed FROM public.calendar_events
+         WHERE user_id = $1 AND date >= $2 AND date <= $3`,
+        [req.user.id, start, end],
+      ),
     ]);
 
     const profile = profiles?.[0];
@@ -38,7 +50,7 @@ router.get("/progress", async (req, res) => {
     const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
     const currentWeightKg = entries.length > 0 ? entries[entries.length - 1].weight_kg : startWeightKg;
 
-    const workoutRows = (weeklyEvents || []).filter((e: any) => e.event_type === "workout");
+    const workoutRows = calResult.rows.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;
@@ -66,6 +78,7 @@ router.post("/progress", async (req, res) => {
   try {
     const body = UpdateProgressBody.parse(req.body);
     const db = createUserClient(req.supabaseToken!);
+    const pool = getPool();
     const today = new Date().toISOString().split("T")[0];
 
     const { data: existing } = await db
@@ -82,16 +95,20 @@ router.post("/progress", async (req, res) => {
     }
 
     const { start, end } = getWeekRange();
-    const [{ data: profiles }, { data: weightEntries }, { data: weeklyEvents }] = await Promise.all([
+    const [{ data: profiles }, { data: weightEntries }, calResult] = await Promise.all([
       db.from("profiles").select("weight_kg, target_weight_kg").eq("id", req.user.id).limit(1),
       db.from("progress_logs").select("log_date, weight_kg").eq("user_id", req.user.id).order("log_date", { ascending: true }),
-      db.from("calendar_events").select("event_type, is_completed").eq("user_id", req.user.id).gte("date", start).lte("date", end),
+      pool.query(
+        `SELECT event_type, is_completed FROM public.calendar_events
+         WHERE user_id = $1 AND date >= $2 AND date <= $3`,
+        [req.user.id, start, end],
+      ),
     ]);
 
     const profile = profiles?.[0];
     const entries = weightEntries || [];
     const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
-    const workoutRows = (weeklyEvents || []).filter((e: any) => e.event_type === "workout");
+    const workoutRows = calResult.rows.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;

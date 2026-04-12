@@ -46,7 +46,9 @@ router.get("/meals", async (req, res) => {
       userId: data.user_id,
       weekStart: data.week_start,
       days: data.days,
-      generatedAt: data.generated_at,
+      generatedAt: data.generated_at instanceof Date
+        ? data.generated_at.toISOString()
+        : String(data.generated_at ?? ""),
     }));
   } catch (err) {
     req.log.error({ err }, "[meals] GET failed");
