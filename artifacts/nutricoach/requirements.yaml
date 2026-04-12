@@ -1,0 +1,21 @@
+packages:
+  "framer-motion": "For elegant page transitions and micro-interactions"
+  "recharts": "For macro distribution pie charts and progress line charts"
+  "date-fns": "For calendar grid rendering and date manipulation"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to safely merge Tailwind classes"
+
+images:
+  - path: "artifacts/nutricoach/public/images/hero.png"
+    description: "Soft modern illustration of a balanced healthy meal and minimal fitness equipment, light sage green background, premium digital art style"
+    aspect_ratio: "16:9"
+  - path: "artifacts/nutricoach/public/images/avatar.png"
+    description: "A friendly stylized vector avatar of a health coach, soft pastel colors, clean minimal flat design"
+    aspect_ratio: "1:1"
+  - path: "artifacts/nutricoach/public/images/meal-placeholder.png"
+    description: "Abstract soft watercolor illustration of a healthy bowl of food, overhead view, pastel colors"
+    aspect_ratio: "4:3"
+
+notes:
+  - The frontend relies on generated TanStack Query hooks from @workspace/api-client-react
+  - Replit Auth is handled via @workspace/replit-auth-web
