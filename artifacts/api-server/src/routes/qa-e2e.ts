@@ -360,9 +360,15 @@ router.get("/qa/e2e", async (req, res) => {
   // ── TEST 7: Workout plan saved to database ────────────────────────────────
   const weekStart = currentMonday();
   results.push(await runTest(7, "Workout plan saved to database", async () => {
-    const rows = await sbFrom("workout_plans", token, `select=id,week_start&user_id=eq.${userId}&week_start=eq.${weekStart}`);
-    if (rows.length === 0) return { status: "fail", detail: "No workout_plans rows found for this week" };
-    return { status: "pass", detail: `${rows.length} workout plan row(s) for week ${weekStart}` };
+    // Use GET /api/workouts (pg.Pool, bypasses RLS) instead of sbFrom which uses
+    // Supabase REST — workout_plans has no authenticated SELECT policy so sbFrom
+    // always returns [] even when the row exists.
+    const getRes = await safeFetch(`${base()}/api/workouts`, { headers: apiHeaders(token) });
+    if (!getRes.ok) return { status: "fail", detail: `GET /workouts → ${getRes.status}` };
+    const data = await getRes.json() as any;
+    const count = (data.days ?? []).length;
+    if (count === 0) return { status: "fail", detail: "Workout plan has 0 days after POST" };
+    return { status: "pass", detail: `Workout plan saved (${count} training days, week ${data.weekStart ?? weekStart})` };
   }));
 
   // ── TEST 8: Shopping list (ingredients) ───────────────────────────────────

@@ -119,14 +119,17 @@ router.post("/workouts", async (req, res) => {
       notes: typeof d.notes === "string" ? d.notes : "",
     }));
 
-  // Save as single JSONB row (UPSERT on user_id + week_start unique constraint)
+  // Save as single JSONB row — delete existing for this week then re-insert to avoid
+  // ON CONFLICT dependency on a UNIQUE constraint that may not exist on all deployments.
   let savedId: number | null = null;
   try {
+    await pool.query(
+      `DELETE FROM public.workout_plans WHERE user_id = $1 AND week_start = $2`,
+      [req.user.id, weekStart],
+    );
     const { rows } = await pool.query(
       `INSERT INTO public.workout_plans (user_id, week_start, days, generated_at)
-       VALUES ($1, $2, $3::jsonb, NOW())
-       ON CONFLICT (user_id, week_start) DO UPDATE SET days = EXCLUDED.days, generated_at = NOW()
-       RETURNING id`,
+       VALUES ($1, $2, $3::jsonb, NOW()) RETURNING id`,
       [req.user.id, weekStart, JSON.stringify(workoutRows)],
     );
     savedId = rows[0]?.id ?? null;

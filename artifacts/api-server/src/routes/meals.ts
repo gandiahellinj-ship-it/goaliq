@@ -136,12 +136,17 @@ router.post("/meals", async (req, res) => {
 
   let savedId: number | null = null;
   try {
+    const daysJson = JSON.stringify(days);
+    // Delete existing row for this week then re-insert — avoids ON CONFLICT dependency
+    // on a UNIQUE constraint that may not exist on all deployments.
+    await pool.query(
+      `DELETE FROM public.meal_plans WHERE user_id = $1 AND week_start = $2`,
+      [req.user.id, weekStart],
+    );
     const { rows } = await pool.query(
       `INSERT INTO public.meal_plans (user_id, week_start, days, generated_at)
-       VALUES ($1, $2, $3::jsonb, NOW())
-       ON CONFLICT (user_id, week_start) DO UPDATE SET days = EXCLUDED.days, generated_at = NOW()
-       RETURNING id`,
-      [req.user.id, weekStart, JSON.stringify(days)],
+       VALUES ($1, $2, $3::jsonb, NOW()) RETURNING id`,
+      [req.user.id, weekStart, daysJson],
     );
     savedId = rows[0]?.id ?? null;
     req.log.info({ userId: req.user.id, id: savedId, weekStart }, "[meals] Meal plan saved to DB");

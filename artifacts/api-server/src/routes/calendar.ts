@@ -72,20 +72,35 @@ router.post("/calendar/complete", async (req, res) => {
   const pool = getPool();
 
   try {
-    const { rows } = await pool.query(
-      `INSERT INTO public.calendar_events (user_id, date, event_type, is_completed)
-       VALUES ($1, $2, 'workout', $3)
-       ON CONFLICT (user_id, date) DO UPDATE SET is_completed = EXCLUDED.is_completed
+    // Update existing row first — also forces event_type to 'workout' in case a 'rest'
+    // event was previously created for this date by the workout plan generator.
+    const upd = await pool.query(
+      `UPDATE public.calendar_events
+       SET is_completed = $3, event_type = 'workout'
+       WHERE user_id = $1 AND date = $2
        RETURNING id, user_id, date::text, event_type, workout_type, is_completed, notes`,
       [req.user.id, body.date, body.isCompleted],
     );
 
-    if (!rows[0]) {
+    let eventRow: any;
+    if ((upd.rowCount ?? 0) > 0) {
+      eventRow = upd.rows[0];
+    } else {
+      const ins = await pool.query(
+        `INSERT INTO public.calendar_events (user_id, date, event_type, is_completed)
+         VALUES ($1, $2, 'workout', $3)
+         RETURNING id, user_id, date::text, event_type, workout_type, is_completed, notes`,
+        [req.user.id, body.date, body.isCompleted],
+      );
+      eventRow = ins.rows[0];
+    }
+
+    if (!eventRow) {
       res.status(500).json({ error: "Failed to save calendar event" });
       return;
     }
 
-    res.json(MarkWorkoutCompleteResponse.parse(mapRow(rows[0])));
+    res.json(MarkWorkoutCompleteResponse.parse(mapRow(eventRow)));
   } catch (err) {
     req.log.error({ err }, "[calendar] POST /complete failed");
     res.status(500).json({ error: "Failed to save calendar event" });
