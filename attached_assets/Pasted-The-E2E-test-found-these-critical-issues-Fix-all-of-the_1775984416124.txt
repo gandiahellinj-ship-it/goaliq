@@ -1,0 +1,44 @@
+The E2E test found these critical issues. Fix all of them:
+
+## ISSUE 1: AI Meal plan generation fails (TEST 4)
+Error: POST /api/meals → 500: Meal plan generation failed
+The E2E test calls /api/meals but it's failing with 500.
+Debug the /api/meals endpoint:
+1. Check if ANTHROPIC_API_KEY is valid and has credits
+2. Check if the request body is being parsed correctly
+3. Add detailed error logging to identify the exact failure point
+4. The E2E test sends a profile object - make sure /api/meals accepts profile data in the request body
+
+## ISSUE 2: Workout plan generation fails (TEST 6)
+Error: POST /api/workouts → 500: Workout plan generation failed
+Same as above - debug /api/workouts endpoint.
+
+## ISSUE 3: Calendar mark complete fails (TEST 9)
+Error: POST /api/calendar/complete → 500: unknown
+The endpoint /api/calendar/complete is returning 500.
+Check the route exists and works correctly.
+If it doesn't exist, create it:
+POST /api/calendar/complete
+Body: { date: string, workout_type: string }
+Saves to Supabase calendar_events table with workout_completed: true
+
+## ISSUE 4: Streak calculation = 0 (TEST 12)
+The streak is 0 even after marking 3 consecutive days as complete.
+The streak calculation is not reading from calendar_events correctly.
+Fix the streak calculation to:
+1. Query calendar_events where user_id = current user AND workout_completed = true
+2. Sort by event_date DESC
+3. Count consecutive days from today backwards
+4. Skip rest days (days with no planned workout)
+
+## ISSUE 5: Tests 5, 7, 8 fail because Tests 4 and 6 fail
+These are cascade failures - if meal/workout generation works, these will pass automatically.
+
+## Fix order:
+1. First fix /api/meals and /api/workouts (Issues 1 & 2)
+2. Then fix /api/calendar/complete (Issue 3)
+3. Then fix streak calculation (Issue 4)
+
+After fixing, add better error logging to all endpoints so future E2E tests show the exact error message instead of just "500: unknown".
+
+Do not change anything else.

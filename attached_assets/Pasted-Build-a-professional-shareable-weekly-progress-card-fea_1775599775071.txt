@@ -1,0 +1,73 @@
+Build a professional shareable weekly progress card feature for GoalIQ.
+
+## Feature overview
+A "Compartir mi progreso" button that generates a beautiful shareable card image the user can download or share on Instagram/WhatsApp/Twitter.
+
+## Where to add the button
+- In the Dashboard, add a prominent button: "📤 Compartir mi progreso"
+- Also add it in the Progress page
+
+## Card design (generate as HTML canvas or SVG, then export as PNG)
+
+Card dimensions: 1080x1080px (Instagram square format)
+
+Background: 
+- Dark gradient: from #0A0A0A to #111111
+- Subtle lime green glow effect in the top right corner
+- GoalIQ logo top left (text logo: "Goal" white + "IQ" in #AAFF45, bold italic, 48px)
+
+Top section:
+- "MI PROGRESO SEMANAL" label in #AAFF45, uppercase, small, letter-spacing wide
+- User's name in white, bold, 52px (e.g. "Jose Gandía")
+- Current date range (e.g. "7 — 13 de abril, 2026") in #A0A0A0, 24px
+
+Middle section — 3 stat cards side by side, each with dark background #1A1A1A, rounded corners:
+Card 1: 🔥 Racha
+- Large number (e.g. "12") in white, bold, 72px
+- "días seguidos" in #A0A0A0, 20px
+
+Card 2: 💪 Entrenamientos
+- Large number (e.g. "4") in #AAFF45, bold, 72px  
+- "esta semana" in #A0A0A0, 20px
+
+Card 3: 🥗 Adherencia
+- Large percentage (e.g. "85%") in white, bold, 72px
+- "plan seguido" in #A0A0A0, 20px
+
+Bottom section:
+- Flex Day status: if 0 flex days used → "⚡ Semana perfecta — sin Flex Days" in #AAFF45
+- If flex days used → "⚡ X Flex Day usado esta semana" in #A0A0A0
+- Motivational phrase based on stats (dynamic):
+  * High streak (7+) + high adherence (80%+) → "🔥 Consistencia de élite. Imparable."
+  * Medium → "💪 Progresando cada día. Sigue así."
+  * Low → "⚡ Cada semana es una nueva oportunidad."
+
+Very bottom:
+- Subtle divider line in #2A2A2A
+- "goaliq.app" in #555555, small, centered (your future domain)
+- "Únete gratis en goaliq.app" in #AAFF45, small
+
+## Technical implementation
+Use HTML Canvas API to generate the card:
+1. Create an offscreen canvas 1080x1080
+2. Draw all elements programmatically
+3. Export as PNG using canvas.toDataURL()
+4. Trigger download OR show a preview modal first
+
+## Preview modal
+Before downloading, show a preview modal:
+- Dark overlay background
+- Card preview scaled to fit screen (max 400px wide)
+- Two buttons below:
+  * "⬇️ Descargar imagen" (primary, lime green) — downloads the PNG
+  * "Cerrar" (secondary, grey) — closes modal
+- Small text: "Comparte tu progreso en Instagram, WhatsApp o donde quieras 🚀"
+
+## Data to use (pull from existing app data):
+- User name: from profile
+- Weekly workouts completed: from calendar_events
+- Current streak: calculate from consecutive completed workout days
+- Weekly adherence: workouts completed / workouts planned this week
+- Flex days used this week: from flex_days table
+
+## Do not change anything else in the app.

@@ -1,0 +1,681 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 0.1.0
+  description: NutriCoach API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication
+  - name: onboarding
+    description: User onboarding profile
+  - name: meals
+    description: Meal plan operations
+  - name: workouts
+    description: Workout plan operations
+  - name: calendar
+    description: Calendar and schedule operations
+  - name: progress
+    description: Progress tracking
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /auth/user:
+    get:
+      operationId: getCurrentAuthUser
+      tags: [auth]
+      summary: Get current authenticated user
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCurrentAuthUserResponse"
+
+  /onboarding:
+    get:
+      operationId: getOnboarding
+      tags: [onboarding]
+      summary: Get user onboarding profile
+      responses:
+        "200":
+          description: Onboarding profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingProfile"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: saveOnboarding
+      tags: [onboarding]
+      summary: Save user onboarding profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OnboardingProfileInput"
+      responses:
+        "200":
+          description: Saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingProfile"
+
+  /meals:
+    get:
+      operationId: getMealPlan
+      tags: [meals]
+      summary: Get weekly meal plan
+      responses:
+        "200":
+          description: Weekly meal plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyMealPlan"
+    post:
+      operationId: generateMealPlan
+      tags: [meals]
+      summary: Generate or regenerate the weekly meal plan
+      responses:
+        "200":
+          description: Generated meal plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyMealPlan"
+
+  /meals/replace-ingredient:
+    post:
+      operationId: replaceIngredient
+      tags: [meals]
+      summary: Replace a specific ingredient in a meal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplaceIngredientInput"
+      responses:
+        "200":
+          description: Updated meal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Meal"
+
+  /workouts:
+    get:
+      operationId: getWorkoutPlan
+      tags: [workouts]
+      summary: Get weekly workout plan
+      responses:
+        "200":
+          description: Weekly workout plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyWorkoutPlan"
+    post:
+      operationId: generateWorkoutPlan
+      tags: [workouts]
+      summary: Generate or regenerate the weekly workout plan
+      responses:
+        "200":
+          description: Generated workout plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WeeklyWorkoutPlan"
+
+  /calendar:
+    get:
+      operationId: getCalendar
+      tags: [calendar]
+      summary: Get calendar events for a month
+      parameters:
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: month
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Calendar events
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarResponse"
+
+  /calendar/complete:
+    post:
+      operationId: markWorkoutComplete
+      tags: [calendar]
+      summary: Mark a workout as completed or uncompleted
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkWorkoutCompleteInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CalendarEvent"
+
+  /progress:
+    get:
+      operationId: getProgress
+      tags: [progress]
+      summary: Get user progress data
+      responses:
+        "200":
+          description: Progress data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressData"
+    post:
+      operationId: updateProgress
+      tags: [progress]
+      summary: Update current weight
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProgressInput"
+      responses:
+        "200":
+          description: Updated progress
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProgressData"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    GetCurrentAuthUserResponse:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/AuthUser"
+          nullable: true
+      required:
+        - user
+
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        firstName:
+          type: string
+          nullable: true
+        lastName:
+          type: string
+          nullable: true
+        profileImage:
+          type: string
+          nullable: true
+      required:
+        - id
+        - username
+
+    OnboardingProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        age:
+          type: integer
+        sex:
+          type: string
+          enum: [male, female, other]
+        heightCm:
+          type: number
+        weightKg:
+          type: number
+        goalType:
+          type: string
+          enum: [lose_fat, maintain, gain_muscle]
+        dietType:
+          type: string
+          enum: [balanced, keto, vegan, vegetarian, high_protein]
+        allergies:
+          type: array
+          items:
+            type: string
+        likedFoods:
+          type: array
+          items:
+            type: string
+        dislikedFoods:
+          type: array
+          items:
+            type: string
+        trainingLevel:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        trainingLocation:
+          type: string
+          enum: [gym, home, outdoor]
+        trainingDaysPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 7
+        targetWeightKg:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - age
+        - sex
+        - heightCm
+        - weightKg
+        - goalType
+        - dietType
+        - allergies
+        - likedFoods
+        - dislikedFoods
+        - trainingLevel
+        - trainingLocation
+        - trainingDaysPerWeek
+        - createdAt
+        - updatedAt
+
+    OnboardingProfileInput:
+      type: object
+      properties:
+        age:
+          type: integer
+        sex:
+          type: string
+          enum: [male, female, other]
+        heightCm:
+          type: number
+        weightKg:
+          type: number
+        goalType:
+          type: string
+          enum: [lose_fat, maintain, gain_muscle]
+        dietType:
+          type: string
+          enum: [balanced, keto, vegan, vegetarian, high_protein]
+        allergies:
+          type: array
+          items:
+            type: string
+        likedFoods:
+          type: array
+          items:
+            type: string
+        dislikedFoods:
+          type: array
+          items:
+            type: string
+        trainingLevel:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        trainingLocation:
+          type: string
+          enum: [gym, home, outdoor]
+        trainingDaysPerWeek:
+          type: integer
+          minimum: 1
+          maximum: 7
+        targetWeightKg:
+          type: number
+          nullable: true
+      required:
+        - age
+        - sex
+        - heightCm
+        - weightKg
+        - goalType
+        - dietType
+        - allergies
+        - likedFoods
+        - dislikedFoods
+        - trainingLevel
+        - trainingLocation
+        - trainingDaysPerWeek
+
+    Ingredient:
+      type: object
+      properties:
+        name:
+          type: string
+        amount:
+          type: string
+        category:
+          type: string
+          enum: [protein, carbs, vegetables, fats, dairy, fruit, other]
+      required:
+        - name
+        - amount
+        - category
+
+    PlateDistribution:
+      type: object
+      properties:
+        vegetables:
+          type: integer
+        protein:
+          type: integer
+        carbs:
+          type: integer
+        fats:
+          type: integer
+      required:
+        - vegetables
+        - protein
+        - carbs
+        - fats
+
+    Meal:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mealType:
+          type: string
+          enum: [breakfast, lunch, dinner, snack]
+        ingredients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Ingredient"
+        portionIdea:
+          type: string
+        plateDistribution:
+          $ref: "#/components/schemas/PlateDistribution"
+        calories:
+          type: integer
+      required:
+        - id
+        - name
+        - mealType
+        - ingredients
+        - portionIdea
+        - plateDistribution
+        - calories
+
+    DayMealPlan:
+      type: object
+      properties:
+        day:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        meals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Meal"
+      required:
+        - day
+        - meals
+
+    WeeklyMealPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/DayMealPlan"
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - weekStart
+        - days
+        - generatedAt
+
+    ReplaceIngredientInput:
+      type: object
+      properties:
+        mealPlanId:
+          type: integer
+        dayOfWeek:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        mealId:
+          type: string
+        ingredientName:
+          type: string
+      required:
+        - mealPlanId
+        - dayOfWeek
+        - mealId
+        - ingredientName
+
+    Exercise:
+      type: object
+      properties:
+        name:
+          type: string
+        sets:
+          type: integer
+          nullable: true
+        reps:
+          type: string
+          nullable: true
+        duration:
+          type: string
+          nullable: true
+        guidance:
+          type: string
+      required:
+        - name
+        - guidance
+
+    WorkoutDay:
+      type: object
+      properties:
+        day:
+          type: string
+          enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+        isRestDay:
+          type: boolean
+        workoutType:
+          type: string
+          nullable: true
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/Exercise"
+      required:
+        - day
+        - isRestDay
+        - exercises
+
+    WeeklyWorkoutPlan:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkoutDay"
+        generatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - weekStart
+        - days
+        - generatedAt
+
+    CalendarEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: string
+        date:
+          type: string
+          format: date
+        eventType:
+          type: string
+          enum: [workout, rest]
+        workoutType:
+          type: string
+          nullable: true
+        isCompleted:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+      required:
+        - id
+        - userId
+        - date
+        - eventType
+        - isCompleted
+
+    CalendarResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEvent"
+        adherencePercent:
+          type: integer
+      required:
+        - events
+        - adherencePercent
+
+    MarkWorkoutCompleteInput:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        isCompleted:
+          type: boolean
+      required:
+        - date
+        - isCompleted
+
+    WeightEntry:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        weightKg:
+          type: number
+      required:
+        - date
+        - weightKg
+
+    ProgressData:
+      type: object
+      properties:
+        currentWeightKg:
+          type: number
+        targetWeightKg:
+          type: number
+          nullable: true
+        startWeightKg:
+          type: number
+        weeklyAdherencePercent:
+          type: integer
+        completedWorkoutsThisWeek:
+          type: integer
+        totalWorkoutsThisWeek:
+          type: integer
+        weightHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/WeightEntry"
+      required:
+        - currentWeightKg
+        - startWeightKg
+        - weeklyAdherencePercent
+        - completedWorkoutsThisWeek
+        - totalWorkoutsThisWeek
+        - weightHistory
+
+    UpdateProgressInput:
+      type: object
+      properties:
+        weightKg:
+          type: number
+      required:
+        - weightKg

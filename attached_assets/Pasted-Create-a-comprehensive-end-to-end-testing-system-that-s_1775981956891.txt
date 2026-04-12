@@ -1,0 +1,169 @@
+Create a comprehensive end-to-end testing system that simulates a real user going through the entire GoalIQ app.
+
+Create file: scripts/e2e-test.js
+
+## Test user profile (use this for all tests)
+Email: test-qa@goaliq.app
+Password: TestQA2026!
+Name: Usuario Test
+Age: 30
+Sex: male
+Height: 175
+Weight: 75
+Goal: lose_weight
+Diet type: omnivore
+Training level: intermediate
+Training days: 3
+Training location: gym
+
+## Tests to run in order:
+
+### TEST 1: Authentication
+- Sign up with test user (or login if already exists)
+- Verify session token is returned
+- Verify user ID is valid UUID
+- ✅ PASS: Got valid session token
+- ❌ FAIL: Auth error or no token
+
+### TEST 2: Profile creation
+- Create/update profile with test user data
+- Verify all fields saved correctly in Supabase profiles table
+- Check: name, age, sex, height_cm, weight_kg, goal, diet_type
+- ✅ PASS: All fields match
+- ❌ FAIL: Missing or wrong fields
+
+### TEST 3: Food preferences
+- Save food preferences (empty allergies, empty dislikes)
+- Verify saved in food_preferences table
+- ✅ PASS: Row exists with correct user_id
+- ❌ FAIL: Row missing or wrong data
+
+### TEST 4: AI Meal plan generation
+- Call POST /api/meals with test profile
+- Verify response within 30 seconds
+- Check: exactly 21 meals returned
+- Check: 7 unique day names (lunes to domingo)
+- Check: each day has desayuno, comida, cena
+- Check: all meal names are in Spanish (no English words like "chicken", "rice", "salad")
+- Check: each meal has ingredients array with at least 2 items
+- Check: each meal has calories_approx > 0
+- Check: each meal has prep_time_minutes > 0
+- ✅ PASS: All checks pass
+- ⚠️ WARNING: Meals generated but some in English
+- ❌ FAIL: Less than 21 meals or generation error
+
+### TEST 5: Meal plan saved to database
+- Verify meals were saved to Supabase meal_plans table
+- Count rows for test user: must be exactly 21
+- Verify week_start date is correct (current week Monday)
+- ✅ PASS: 21 rows found with correct dates
+- ❌ FAIL: Wrong number of rows
+
+### TEST 6: AI Workout plan generation
+- Call POST /api/workouts with test profile
+- Verify response within 30 seconds
+- Check: exactly 3 workout objects (training_days=3)
+- Check: each workout has exercises array with at least 4 exercises
+- Check: each exercise has name, sets, reps
+- Check: workout names are in Spanish
+- Check: no two consecutive days train same muscle group
+- ✅ PASS: All checks pass
+- ⚠️ WARNING: Workouts generated but some in English
+- ❌ FAIL: Wrong number or generation error
+
+### TEST 7: Workout plan saved to database
+- Verify workouts saved to Supabase workout_plans table
+- Count rows: must equal training_days_per_week (3)
+- ✅ PASS: Correct number of rows
+- ❌ FAIL: Wrong number
+
+### TEST 8: Shopping list generation
+- Fetch meal plans for test user
+- Extract all ingredients
+- Verify at least 20 unique ingredients
+- Verify ingredients can be categorized (at least 3 different categories)
+- ✅ PASS: Shopping list can be generated
+- ❌ FAIL: Less than 20 ingredients or all in same category
+
+### TEST 9: Calendar - mark workout complete
+- Create a calendar_event for today with event_type: workout, workout_completed: true
+- Verify saved in Supabase calendar_events table
+- Verify user_id matches
+- ✅ PASS: Event saved correctly
+- ❌ FAIL: Save error
+
+### TEST 10: Flex Day
+- Call POST /api/flex-days with today's date
+- Verify saved in local PostgreSQL flex_days table
+- Try to add second flex day this week — must be rejected
+- Call DELETE to remove the flex day
+- ✅ PASS: Add works, duplicate rejected, delete works
+- ❌ FAIL: Any of the above fails
+
+### TEST 11: Progress logging
+- Save a weight log to progress_logs: weight_kg=75, date=today
+- Verify saved in Supabase
+- Fetch progress logs and verify the entry appears
+- ✅ PASS: Log saved and retrieved
+- ❌ FAIL: Save or fetch error
+
+### TEST 12: Streak calculation
+- Mark 3 consecutive workout days as complete in calendar_events
+- Call streak calculation logic
+- Verify streak = 3
+- ✅ PASS: Correct streak
+- ❌ FAIL: Wrong streak number
+
+### TEST 13: Stripe - checkout session
+- Call POST /api/stripe/create-checkout-session
+- Verify it returns a URL starting with https://checkout.stripe.com
+- ✅ PASS: Valid Stripe URL returned
+- ❌ FAIL: Error or invalid URL
+
+### TEST 14: Language check - Spanish
+- Fetch all meal names for test user
+- Check each meal name for common English words: chicken, rice, salad, beef, soup, bread, eggs, pasta, salmon, tuna
+- If any found: WARNING with list of English meal names
+- ✅ PASS: No English words found
+- ⚠️ WARNING: X meals have English names (list them)
+
+### TEST 15: Data cleanup
+- Delete all test data created during tests
+- Remove test user's meal_plans, workout_plans, progress_logs, calendar_events, flex_days
+- ✅ PASS: Cleanup successful
+- ❌ FAIL: Some data couldn't be deleted
+
+## Output format
+
+===== GOALIQ E2E TEST REPORT =====
+Date: [timestamp]
+Test user: test-qa@goaliq.app
+
+✅ PASSING (X/15)
+❌ FAILING (X/15)  
+⚠️ WARNINGS (X/15)
+
+[Detailed results for each test]
+
+===== CRITICAL ISSUES =====
+[List any ❌ failures with exact error messages]
+
+===== WARNINGS =====
+[List any ⚠️ warnings]
+
+===== OVERALL STATUS =====
+🟢 ALL GOOD / 🟡 NEEDS ATTENTION / 🔴 CRITICAL ISSUES
+
+Time taken: Xs
+
+## Add to QA modal in the app
+Add a second button in the QA modal: "🤖 Test E2E completo"
+- Calls GET /api/qa/e2e
+- Shows progress while running (it takes ~30-60 seconds)
+- Shows "Ejecutando tests... (puede tardar 1 minuto)" while loading
+- Shows final report with same color coding
+
+## Add API route
+Create GET /api/qa/e2e that runs all 15 tests and returns structured results.
+
+Do not change any existing functionality.

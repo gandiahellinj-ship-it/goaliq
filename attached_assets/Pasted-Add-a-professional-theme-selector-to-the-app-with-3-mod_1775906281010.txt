@@ -1,0 +1,74 @@
+Add a professional theme selector to the app with 3 modes. Place it in the top-right corner of the screen.
+
+## Position
+- Fixed position: top-right corner
+- top: 12px, right: 16px
+- z-index: 9999 (always on top)
+
+## UI Design
+A small pill button showing the current theme icon + name:
+- "🌑 Oscuro" / "☀️ Claro" / "🌙 Melatonina"
+- Background: #1A1A1A, border: 1px solid #2A2A2A, border-radius: 20px
+- Padding: 6px 14px, font-size: 13px, color: white
+- On click: show a small dropdown below with all 3 options
+- Active option: shows a small ✓ checkmark in #AAFF45
+- Dropdown: background #1A1A1A, border 1px solid #2A2A2A, border-radius 12px, padding 4px
+- Each option row: 36px height, padding 0 12px, hover background #2A2A2A
+- Smooth open/close animation (150ms ease)
+
+## Theme definitions
+
+Implement using CSS custom properties on the html element.
+All existing hardcoded colors must be replaced with CSS variables.
+
+DARK theme (default) — css class: theme-dark
+--bg-primary: #0A0A0A
+--bg-secondary: #111111
+--bg-card: #1A1A1A
+--bg-card-hover: #222222
+--border: #2A2A2A
+--text-primary: #FFFFFF
+--text-secondary: #A0A0A0
+--text-muted: #555555
+--accent: #AAFF45
+--accent-hover: #99EE34
+--accent-text: #0A0A0A
+
+LIGHT theme — css class: theme-light
+--bg-primary: #F8F8F8
+--bg-secondary: #FFFFFF
+--bg-card: #FFFFFF
+--bg-card-hover: #F0F0F0
+--border: #E5E5E5
+--text-primary: #111111
+--text-secondary: #555555
+--text-muted: #999999
+--accent: #22C55E
+--accent-hover: #16A34A
+--accent-text: #FFFFFF
+
+MELATONINA theme (warm red/amber for night) — css class: theme-melatonina
+--bg-primary: #0D0500
+--bg-secondary: #110600
+--bg-card: #1A0800
+--bg-card-hover: #220A00
+--border: #2A1200
+--text-primary: #FFD4A0
+--text-secondary: #8B5A3A
+--text-muted: #4A2A10
+--accent: #FF6B2B
+--accent-hover: #E55A1A
+--accent-text: #0D0500
+
+## Implementation rules
+1. Add CSS variables to a global stylesheet
+2. Apply theme class to <html> element
+3. Replace ALL hardcoded color values in ALL components with CSS variables
+4. Theme saved in localStorage key: "goaliq-theme"
+5. Applied immediately on page load (no flash of wrong theme)
+6. The theme selector component should work on ALL pages including landing page
+
+## Sidebar integration
+In the sidebar, add the theme selector below the navigation items, just above the user profile section at the bottom. This is the primary location. The fixed top-right button is a secondary/floating option for quick access.
+
+Do not change any functionality, only add the theme system.

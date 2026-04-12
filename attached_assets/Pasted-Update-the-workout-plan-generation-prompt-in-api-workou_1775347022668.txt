@@ -1,0 +1,74 @@
+Update the workout plan generation prompt in /api/workouts with this comprehensive improved version that enforces muscle group variety, exercise diversity, and goal-specific training styles.
+
+Replace the current workout generation user prompt with this:
+
+"Create a weekly workout plan for this person:
+- Goal: {goal}
+- Training level: {training_level}
+- Training days per week: {training_days_per_week}
+- Training location: {training_location}
+
+GOAL-SPECIFIC TRAINING APPROACH:
+- lose_weight: Mix cardio + strength. 40% cardio (HIIT, circuits, metabolic conditioning), 40% full body strength, 20% core/mobility. Keep rest periods short (30-45s) to maintain heart rate.
+- gain_muscle: Focus on progressive overload. 70% hypertrophy strength training (8-12 reps), 20% compound movements (5 reps heavy), 10% mobility/stretching. Longer rest periods (60-90s).
+- maintain: Balanced mix. 33% strength, 33% cardio/endurance, 33% flexibility/mobility/yoga-style.
+- recomposition: Alternate strength and cardio days. 50% strength (compound lifts), 30% HIIT/cardio, 20% core and mobility.
+
+MUSCLE GROUP DISTRIBUTION RULES:
+- NEVER train the same primary muscle group on consecutive days
+- NEVER repeat the same exercise twice in the same week
+- Rotate through ALL of these muscle groups across the week: chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core, cardio
+- Session structure by days per week:
+  * 2 days: Full Body A / Full Body B (completely different exercises)
+  * 3 days: Push Day / Pull Day / Leg Day
+  * 4 days: Upper Body / Lower Body / Push Day / Pull Day
+  * 5 days: Push / Pull / Legs / Upper Body / Cardio+Core
+  * 6 days: Push / Pull / Legs / Push / Pull / Legs (different exercises each rotation)
+
+EXERCISE VARIETY REQUIREMENTS:
+- Include a mix of these exercise types across the week:
+  * Compound barbell/dumbbell lifts (squat, deadlift, bench press, overhead press, row)
+  * Bodyweight movements (push-ups, pull-ups, dips, lunges, step-ups)
+  * Cardio bursts (jumping jacks, mountain climbers, burpees, jump rope, sprints)
+  * Isolation exercises (curls, lateral raises, tricep extensions, leg curls)
+  * Core work (planks, dead bugs, russian twists, hanging leg raises)
+  * Mobility/flexibility (hip flexor stretch, thoracic rotation, foam rolling)
+  * HIIT circuits (work/rest intervals like 40s on / 20s off)
+- For gym users: use barbells, dumbbells, cables, machines
+- For home users: use bodyweight, resistance bands, dumbbells only
+- For outdoor users: use running, bodyweight, park equipment
+
+WEEKLY STRUCTURE EXAMPLE FOR LOSE WEIGHT / 3 DAYS:
+- Monday: HIIT Cardio + Core (burpees, mountain climbers, jump squats, plank variations)
+- Wednesday: Full Body Strength Circuit (squat, push-up, row, lunge, shoulder press)
+- Friday: Metabolic Conditioning (kettlebell swings, box jumps, battle ropes, sled push)
+
+WEEKLY STRUCTURE EXAMPLE FOR GAIN MUSCLE / 4 DAYS:
+- Monday: Push Day (bench press, overhead press, incline dumbbell press, lateral raises, tricep dips)
+- Tuesday: Pull Day (barbell row, lat pulldown, face pulls, bicep curls, rear delt flies)
+- Thursday: Leg Day (squat, romanian deadlift, leg press, walking lunges, calf raises)
+- Friday: Arms + Core (skull crushers, hammer curls, cable pushdown, hanging leg raises, ab wheel)
+
+Return a JSON array with exactly {training_days_per_week} workout objects.
+Each object must follow this exact schema:
+{
+  day_name: string (e.g. Monday),
+  workout_type: string (descriptive, e.g. 'Push Day — Chest & Triceps' or 'HIIT Cardio + Core'),
+  duration_minutes: number,
+  exercises: [
+    {
+      name: string (specific exercise name, never generic),
+      sets: number,
+      reps: string (e.g. '10-12' or '45 seconds' or '5 heavy'),
+      rest_seconds: number,
+      notes: string (form tip or intensity note)
+    }
+  ],
+  warmup: string (specific 5 min warmup for this session),
+  cooldown: string (specific 5 min cooldown for this session),
+  notes: string (session coaching note)
+}
+
+Return ONLY the JSON array, nothing else."
+
+Do not change anything else in the app.

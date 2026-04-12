@@ -1,0 +1,177 @@
+I need to integrate a real AI meal and workout plan generator into NutriCoach using the Anthropic Claude API (claude-haiku-4-5-20251001 model). Replace all placeholder/static plan generation with real AI calls.
+
+## Setup
+
+Install the Anthropic SDK:
+npm install @anthropic-ai/sdk
+
+Add this environment variable in Replit Secrets:
+ANTHROPIC_API_KEY = (the user will add their key)
+
+Get the API key at: https://console.anthropic.com
+
+---
+
+## 1. Create /api/meals endpoint (replace existing)
+
+This endpoint receives the user profile and returns a real AI-generated 7-day meal plan.
+
+Input (from Supabase profile):
+- name
+- goal (lose_weight / gain_muscle / maintain / recomposition)
+- diet_type (omnivore / vegetarian / vegan / keto / paleo / gluten_free)
+- allergies (array of strings)
+- disliked_foods (array of strings)
+- weight_kg
+- target_weight_kg
+- age
+- sex
+
+Logic:
+1. Build a system prompt that defines Claude as a professional nutritionist
+2. Build a user prompt with all profile data
+3. Ask Claude to return ONLY a valid JSON array, no markdown, no explanation
+4. Parse the response and validate it before returning
+5. If parsing fails, retry once with a stricter prompt
+6. Return the meal array to the frontend
+
+System prompt to use:
+"You are a professional nutritionist and meal planning expert. You create personalized, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON."
+
+User prompt template:
+"Create a 7-day meal plan for this person:
+- Name: {name}
+- Goal: {goal}
+- Diet type: {diet_type}
+- Allergies: {allergies.join(', ') || 'none'}
+- Disliked foods: {disliked_foods.join(', ') || 'none'}
+- Current weight: {weight_kg}kg
+- Target weight: {target_weight_kg}kg
+- Age: {age}
+- Sex: {sex}
+
+Return a JSON array with exactly 21 objects (3 meals x 7 days).
+Each object must follow this exact schema:
+{
+  day_name: string (Monday to Sunday),
+  meal_type: string (breakfast | lunch | dinner),
+  meal_name: string,
+  ingredients: [{ name: string, amount: string }],
+  plate_distribution: { protein: number, carbs: number, fat: number, vegetables: number },
+  calories_approx: number,
+  prep_time_minutes: number,
+  notes: string
+}
+
+Rules:
+- Strictly respect the diet type and allergies
+- Never include disliked foods
+- Make meals realistic and easy to prepare
+- Vary the meals across the week (no repeated meals)
+- Adjust caloric density to match the goal
+- Return ONLY the JSON array, nothing else"
+
+---
+
+## 2. Create /api/workouts endpoint (replace existing)
+
+Input (from Supabase profile):
+- goal
+- training_level (beginner / intermediate / advanced)
+- training_days_per_week (number 1-7)
+- training_location (home / gym / outdoor)
+
+System prompt:
+"You are a professional personal trainer and fitness coach. You create safe, effective, and personalized weekly workout plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON."
+
+User prompt template:
+"Create a weekly workout plan for this person:
+- Goal: {goal}
+- Training level: {training_level}
+- Training days per week: {training_days_per_week}
+- Training location: {training_location}
+
+Return a JSON array with exactly {training_days_per_week} workout objects.
+Each object must follow this exact schema:
+{
+  day_name: string (e.g. Monday),
+  workout_type: string (e.g. Upper body / Cardio / Full body / Rest),
+  duration_minutes: number,
+  exercises: [
+    {
+      name: string,
+      sets: number,
+      reps: string (e.g. '10-12' or '30 seconds'),
+      rest_seconds: number,
+      notes: string
+    }
+  ],
+  warmup: string,
+  cooldown: string,
+  notes: string
+}
+
+Rules:
+- Match intensity to training level
+- Use only equipment available at the training location (home = bodyweight/minimal, gym = full equipment)
+- Structure days intelligently (avoid training same muscle group 2 days in a row)
+- Include progressive overload notes for intermediate and advanced
+- Return ONLY the JSON array, nothing else"
+
+---
+
+## 3. Validation and error handling
+
+For both endpoints:
+
+After receiving the Claude response:
+1. Extract the text content from data.content[0].text
+2. Strip any accidental backticks or markdown if present
+3. Parse with JSON.parse()
+4. Validate the array has the correct length (21 for meals, training_days_per_week for workouts)
+5. Validate each object has required fields
+6. If validation fails: retry the API call once with this addition to the prompt: "IMPORTANT: Return ONLY a raw JSON array. No text before or after. No markdown. No backticks."
+7. If second attempt also fails: return HTTP 500 with message "Plan generation failed. Please try again."
+
+---
+
+## 4. Cost control
+
+Add these parameters to every Claude API call:
+- model: "claude-haiku-4-5-20251001"
+- max_tokens: 4000 (meals) / 2500 (workouts)
+- temperature: 0.7 (for variety between regenerations)
+
+This keeps costs under €0.01 per plan generation.
+
+---
+
+## 5. Frontend updates
+
+In the Meals page:
+- Remove any "static plan" or template-based generation
+- Show a proper loading state while AI generates: "Creating your personalized meal plan..."
+- After receiving the response, save to Supabase and render
+- Add a subtle "Generated by AI" label somewhere discreet
+
+In the Workouts page:
+- Same loading state: "Building your workout plan..."
+- Same save and render flow
+
+---
+
+## 6. Caching strategy
+
+To avoid calling the AI on every page load:
+- Check if the user already has a meal plan for the current week in Supabase
+- If yes: load from Supabase, do NOT call the AI
+- Only call the AI when:
+  - No plan exists yet (after onboarding)
+  - User explicitly clicks "New plan" / "Regenerate"
+  - User updates their profile preferences
+
+This keeps API costs minimal.
+
+---
+
+Do not change anything else in the app. Only replace the meal and workout generation logic with real Claude API calls. Keep all existing UI, Supabase structure, auth, and Stripe logic intact.

@@ -1,0 +1,72 @@
+Complete mobile-first redesign of GoalIQ. The app is used primarily on mobile (gym, kitchen). Optimize every page for mobile screens first.
+
+## General mobile principles
+- Minimum tap target size: 48px height for all buttons and interactive elements
+- Font sizes: minimum 16px for body text, 14px for secondary text
+- Generous padding: minimum 16px horizontal padding on all cards
+- No horizontal overflow or text cutoff anywhere
+- Cards should be full width on mobile with 12px border-radius
+- Remove any decorative elements that take space without adding value
+
+## Fix these specific mobile issues:
+
+### 1. Meals page mobile
+- Meal name: max 2 lines, font-size 20px, line-height tight
+- Ingredient rows: name on left (full width), quantity pill on right — NEVER stack vertically
+- Ingredient name: truncate with ellipsis if too long, max-width 60% of row
+- Visual ref text: show inline after quantity, same line, smaller font
+- Distribution chart: hide on mobile to save space — show only the legend percentages in a compact row
+- "DESAYUNO/COMIDA/CENA" label: 11px, keep compact
+
+### 2. Swap ingredient panel
+- "CHOOSE A REPLACEMENT" → "ELIGE UN SUSTITUTO" in Spanish
+- All replacement suggestions must be in Spanish (fix the AI prompt for ingredient swaps)
+- Replacement panel: full width, compact rows, 44px min height per option
+- Benefit tags: smaller, max 1 per option
+
+### 3. Theme inputs fix
+- In Melatonina theme: all input fields background #220A00, text #FFE4C4, border #3A1800
+- In Light theme: all input fields background #FFFFFF, border #E5E5E5, text #111111
+- Never show white input on dark background or vice versa
+
+### 4. Dashboard mobile
+- Stats row: make numbers bigger (40px) and labels smaller (11px)
+- Motivation card: reduce padding, max 2 lines of text
+- Today's meals: show meal name only (no extra info), 16px font
+- Week circles: 36px diameter, fit all 7 in one row without overflow
+- "Compartir mi progreso" button: 48px height, full width
+
+### 5. Navigation mobile
+- Bottom nav bar: already exists — make sure it's always visible and not covered by content
+- Active icon: use accent color fill
+- Labels: 11px, truncate if needed ("Entrenamientos" → "Entrenos")
+
+### 6. Shopping list mobile
+- White card: full screen width with 0 border-radius on mobile
+- Category rows: 52px height, easy to tap
+- Ingredient rows: 48px height, ingredient name left, quantity right
+- Checkbox: 24px, easy to tap
+
+### 7. Workouts mobile
+- Day tabs: scrollable horizontally if they don't fit
+- Exercise cards: full width, compact
+- Exercise images: 60x60px, right aligned
+- "Ver ejemplo" link: below exercise name, 14px
+
+### 8. Calendar mobile
+- Day cells: minimum 44px height
+- Day numbers: 16px
+- Icons (⚡, 👁️, ✓): 20px, centered in cell
+- Month navigation arrows: 44px tap target
+
+### 9. General cleanup for mobile
+- Remove all decorative separators and dividers that add visual noise
+- Reduce card padding from 24px to 16px on mobile
+- Headers: reduce font sizes by 20% on mobile
+- Hide any element that is purely decorative on screens under 480px
+
+## Breakpoints
+- Mobile: < 768px → apply all above
+- Desktop: >= 768px → keep existing layout
+
+Do not change desktop layout. Only optimize for mobile screens under 768px.

@@ -1,0 +1,75 @@
+Build a shareable workout card feature. When a user completes their daily workout, they can share a professional card showing their exercises, stats, and streak.
+
+## Where to add the button
+1. In the Workouts page, at the bottom of the current day's workout, add a button: "📤 Compartir entrenamiento"
+2. In the Calendar page, when a workout day is marked as completed, show a toast with a link: "¡Entrenamiento completado! Compártelo →"
+
+## Flow
+1. User clicks "Compartir entrenamiento"
+2. Show upload step modal:
+   - Title: "Añade una foto de tu sesión" 
+   - Subtitle: "Opcional — hace tu tarjeta única" in #A0A0A0
+   - Dashed upload area: "📸 Toca para subir una foto" 
+   - If photo uploaded: show preview thumbnail with drag-to-reposition functionality
+     * User can drag the image to adjust its position within the frame
+     * Show crop handles around the image
+     * Small instruction: "Arrastra para ajustar la imagen"
+   - Button: "Continuar →" (lime green)
+   - Link: "Continuar sin foto" (grey, small)
+
+3. Show card preview modal with download button
+
+## Card design (1080x1080px canvas)
+
+BACKGROUND:
+- If photo uploaded: photo fills center section with dark overlay rgba(0,0,0,0.7)
+- If no photo: dark gradient #0A0A0A to #111111 with lime green glow
+
+TOP SECTION (no photo overlay):
+- GoalIQ logo top-left
+- "MI ENTRENAMIENTO" badge top-right in #AAFF45
+- Date: "miércoles, 8 de abril" in #555555
+
+USER + STATS ROW:
+- User's full name in white, bold, 48px
+- Three stat pills in a row:
+  * 🔥 "X días de racha" 
+  * ⏱ "X min" (workout duration)
+  * 💪 "X ejercicios"
+- Stats background: rgba(0,0,0,0.6), border-radius 20px, padding 6px 14px
+
+WORKOUT SECTION (main content):
+- Workout type title: e.g. "TREN SUPERIOR" in #AAFF45, uppercase, bold, 28px
+- Exercise list (show all exercises, max 8):
+  Each row:
+  - Exercise name in white, 22px
+  - Sets x reps in #AAFF45, 20px (e.g. "3 × 12")
+  - Rest time in #555555, 18px (e.g. "60s descanso")
+  - Subtle separator line between exercises
+- If more than 8 exercises: show first 7 + "y X más..."
+
+BOTTOM SECTION:
+- Motivational phrase based on streak:
+  * 0-2 days: "⚡ Cada rep cuenta. Sigue así."
+  * 3-6 days: "🔥 La racha crece. No pares."
+  * 7-13 days: "💪 Una semana seguida. Imparable."
+  * 14+ days: "🏆 Nivel élite. Puro compromiso."
+- Divider line
+- "goaliq.app" centered in #333
+- "Únete gratis →" in #AAFF45
+
+## Image repositioning
+When user uploads a photo:
+- Show the photo in a preview box (400x300px)
+- User can drag the image to reposition it (mouse drag + touch drag)
+- Image scales to cover the box (object-fit: cover behavior)
+- Track offsetX, offsetY for where to draw the image on canvas
+- Apply the offset when drawing to canvas
+
+## Technical
+- All canvas drawing client-side
+- Export as PNG 1080x1080
+- Use the current day's workout data from the existing workout plan
+- Pull streak from existing streak calculation
+
+Do not change anything else in the app.
