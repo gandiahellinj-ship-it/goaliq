@@ -3,7 +3,7 @@ import { jsonrepair } from "jsonrepair";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const MODEL = "claude-haiku-4-5-20251001";
+const MODEL = "claude-sonnet-4-6";
 
 const MEAL_SYSTEM =
   "You are a professional nutritionist. IMPORTANT: Generate ALL content in Spanish (Spain). All meal names, ingredient names, portions, notes, and descriptions must be in Spanish. Use Spanish food terminology and typical Spanish/Mediterranean foods when appropriate. You create personalized, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";

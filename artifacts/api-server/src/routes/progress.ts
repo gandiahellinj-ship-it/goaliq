@@ -54,8 +54,9 @@ router.get("/progress", async (req, res) => {
 
     const profile = profiles?.[0];
     const entries = weightEntries || [];
-    const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
-    const currentWeightKg = entries.length > 0 ? entries[entries.length - 1].weight_kg : startWeightKg;
+    const fallbackWeight: number = profile?.weight_kg ?? 70;
+    const startWeightKg: number = entries.length > 0 ? (entries[0].weight_kg ?? fallbackWeight) : fallbackWeight;
+    const currentWeightKg: number = entries.length > 0 ? (entries[entries.length - 1].weight_kg ?? startWeightKg) : startWeightKg;
 
     const workoutRows = calRows.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
@@ -69,7 +70,7 @@ router.get("/progress", async (req, res) => {
       weeklyAdherencePercent: adherencePercent,
       completedWorkoutsThisWeek: completedWorkouts,
       totalWorkoutsThisWeek: workoutRows.length,
-      weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg })),
+      weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg ?? 0 })),
     }));
   } catch (err) {
     req.log.error({ err }, "[progress] GET failed");
@@ -121,7 +122,8 @@ router.post("/progress", async (req, res) => {
 
     const profile = profiles?.[0];
     const entries = weightEntries || [];
-    const startWeightKg = entries.length > 0 ? entries[0].weight_kg : (profile?.weight_kg ?? 70);
+    const fallbackWeightPost: number = profile?.weight_kg ?? 70;
+    const startWeightKg: number = entries.length > 0 ? (entries[0].weight_kg ?? fallbackWeightPost) : fallbackWeightPost;
     const workoutRows = calRowsPost.filter((e: any) => e.event_type === "workout");
     const completedWorkouts = workoutRows.filter((e: any) => e.is_completed).length;
     const adherencePercent = workoutRows.length > 0
@@ -134,7 +136,7 @@ router.post("/progress", async (req, res) => {
       weeklyAdherencePercent: adherencePercent,
       completedWorkoutsThisWeek: completedWorkouts,
       totalWorkoutsThisWeek: workoutRows.length,
-      weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg })),
+      weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg ?? 0 })),
     }));
   } catch (err) {
     req.log.error({ err }, "[progress] POST failed");
