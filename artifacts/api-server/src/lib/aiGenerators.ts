@@ -314,11 +314,7 @@ Rules:
 
 function isWorkoutArray(val: unknown): val is any[] {
   if (!Array.isArray(val) || val.length === 0) return false;
-  return val.every((day: any) =>
-    Array.isArray(day.exercises) &&
-    day.exercises.length >= 4 &&
-    day.exercises.every((ex: any) => ex.sets > 0 && ex.reps)
-  );
+  return val.every((day: any) => Array.isArray(day.exercises) && day.exercises.length >= 4);
 }
 
 export async function generateWorkoutPlanForUser(profile: {
@@ -404,7 +400,17 @@ IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de cal
 
 Return ONLY the JSON array, nothing else.`;
 
-  return callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray, "claude-haiku-4-5-20251001");
+  const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray, "claude-haiku-4-5-20251001");
+  return (workoutData as any[]).map((day: any) => ({
+    ...day,
+    exercises: (day.exercises ?? []).map((ex: any) => ({
+      ...ex,
+      sets: ex.sets || 3,
+      reps: ex.reps || "10-12",
+      rest_seconds: ex.rest_seconds || 60,
+      notes: ex.notes || "",
+    })),
+  }));
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────
