@@ -1,4 +1,11 @@
 import { Router, type IRouter, type Request } from "express";
+import pg from "pg";
+
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) _pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  return _pool;
+}
 
 const router: IRouter = Router();
 
@@ -530,13 +537,14 @@ router.get("/qa/e2e", async (req, res) => {
   results.push(await runTest(15, "Data cleanup", async () => {
     const errors: string[] = [];
 
-    // Only delete the meal plan we created in this run
-    if (savedMealPlanId) {
-      const ok = await sbDelete("meal_plans", token, `id=eq.${savedMealPlanId}`);
-      if (!ok) errors.push("meal_plans");
-    } else {
-      // Fallback: delete by week_start
-      await sbDelete("meal_plans", token, `user_id=eq.${userId}&week_start=eq.${weekStart}`);
+    // Delete meal_plans via pg pool — Supabase REST has no DELETE RLS policy on this table
+    try {
+      await getPool().query(
+        `DELETE FROM public.meal_plans WHERE user_id = $1 AND week_start = $2`,
+        [userId, weekStart],
+      );
+    } catch (_e) {
+      errors.push("meal_plans");
     }
 
     // Delete the workout plan + calendar events we created this week

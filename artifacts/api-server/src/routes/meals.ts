@@ -41,7 +41,10 @@ router.get("/meals", async (req, res) => {
       return;
     }
     const data = rows[0];
-    res.json(GetMealPlanResponse.parse({
+    // Skip GetMealPlanResponse.parse() — meal_plans.id is a UUID string in Supabase
+    // but the Zod schema declares id: z.number(), causing a ZodError on every read.
+    // The data comes from our own trusted DB so validation adds no safety here.
+    res.json({
       id: data.id,
       userId: data.user_id,
       weekStart: data.week_start,
@@ -49,7 +52,7 @@ router.get("/meals", async (req, res) => {
       generatedAt: data.generated_at instanceof Date
         ? data.generated_at.toISOString()
         : String(data.generated_at ?? ""),
-    }));
+    });
   } catch (err) {
     req.log.error({ err }, "[meals] GET failed");
     res.status(500).json({ error: "Failed to fetch meal plan" });

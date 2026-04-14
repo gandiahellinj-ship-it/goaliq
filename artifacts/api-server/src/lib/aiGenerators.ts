@@ -295,7 +295,8 @@ Rules:
 // ─── Workout plan ─────────────────────────────────────────────────────────────
 
 function isWorkoutArray(val: unknown): val is any[] {
-  return Array.isArray(val) && val.length > 0;
+  if (!Array.isArray(val) || val.length === 0) return false;
+  return val.every((day: any) => Array.isArray(day.exercises) && day.exercises.length >= 4);
 }
 
 export async function generateWorkoutPlanForUser(profile: {
