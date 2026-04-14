@@ -177,12 +177,12 @@ function normalizeDay(raw: string): string {
   return SPANISH_DAY_MAP[lower] ?? lower;
 }
 
-function isFlatMealFirstHalf(val: unknown): val is any[] {
-  return Array.isArray(val) && val.length >= 12;
+function isFlatMealChunk9(val: unknown): val is any[] {
+  return Array.isArray(val) && val.length >= 9;
 }
 
-function isFlatMealSecondHalf(val: unknown): val is any[] {
-  return Array.isArray(val) && val.length >= 9;
+function isFlatMealChunk3(val: unknown): val is any[] {
+  return Array.isArray(val) && val.length >= 3;
 }
 
 function flatMealsToNestedDays(flatMeals: any[]): any[] {
@@ -274,16 +274,20 @@ Rules:
 - plate_distribution values must sum to 100.
 - Return ONLY the JSON array, nothing else.`;
 
-  const prompt1 = `Create meals for lunes, martes, miércoles, jueves (4 days × 3 meals = 12 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 12 objects covering ONLY lunes, martes, miércoles, jueves.\n${schemaInstructions}`;
-  const prompt2 = `Create meals for viernes, sábado, domingo (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY viernes, sábado, domingo.\n${schemaInstructions}`;
+  // Split into 3 chunks of ≤9 meals each — Haiku reliably generates 9 meals per call
+  // but fails when asked for 12 (logs showed array[9]/array[11] for 12-meal prompts).
+  // All 3 run in parallel; wall-clock time is the slowest chunk (~8-12s total).
+  const prompt1 = `Create meals for lunes, martes, miércoles (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY lunes, martes, miércoles.\n${schemaInstructions}`;
+  const prompt2 = `Create meals for jueves, viernes, sábado (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY jueves, viernes, sábado.\n${schemaInstructions}`;
+  const prompt3 = `Create meals for domingo (1 day × 3 meals = 3 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 3 objects covering ONLY domingo.\n${schemaInstructions}`;
 
-  // Run both halves in parallel using Haiku for speed — reduces total latency from ~40s to ~8-12s
-  const [firstHalf, secondHalf] = await Promise.all([
-    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 5000, isFlatMealFirstHalf, "claude-haiku-4-5-20251001"),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealSecondHalf, "claude-haiku-4-5-20251001"),
+  const [chunk1, chunk2, chunk3] = await Promise.all([
+    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 4000, isFlatMealChunk9, "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealChunk9, "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt3, 1500, isFlatMealChunk3, "claude-haiku-4-5-20251001"),
   ]);
 
-  return flatMealsToNestedDays([...firstHalf, ...secondHalf]);
+  return flatMealsToNestedDays([...chunk1, ...chunk2, ...chunk3]);
 }
 
 // ─── Workout plan ─────────────────────────────────────────────────────────────
