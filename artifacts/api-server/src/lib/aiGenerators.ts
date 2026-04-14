@@ -39,9 +39,9 @@ function parseJsonSafely(text: string): unknown {
   throw new Error("AI response was not valid JSON");
 }
 
-async function callClaude(system: string, userPrompt: string, maxTokens: number): Promise<string> {
+async function callClaude(system: string, userPrompt: string, maxTokens: number, model: string = MODEL): Promise<string> {
   const msg = await anthropic.messages.create({
-    model: MODEL,
+    model,
     max_tokens: maxTokens,
     temperature: 0.7,
     system,
@@ -56,8 +56,9 @@ async function callClaudeWithRetry<T>(
   prompt: string,
   maxTokens: number,
   validate: (parsed: unknown) => parsed is T,
+  model: string = MODEL,
 ): Promise<T> {
-  const firstText = await callClaude(system, prompt, maxTokens);
+  const firstText = await callClaude(system, prompt, maxTokens, model);
   console.log("[aiGenerators] attempt 1 raw response length:", firstText?.length);
   console.log("[aiGenerators] attempt 1 raw response (first 500 chars):", firstText?.slice(0, 500));
   let firstParsed: unknown;
@@ -75,7 +76,7 @@ async function callClaudeWithRetry<T>(
   const strictPrompt =
     prompt +
     "\n\nIMPORTANT: Return ONLY a raw JSON array. No text before or after. No markdown. No backticks.";
-  const retryText = await callClaude(system, strictPrompt, maxTokens);
+  const retryText = await callClaude(system, strictPrompt, maxTokens, model);
   console.log("[aiGenerators] attempt 2 raw response length:", retryText?.length);
   console.log("[aiGenerators] attempt 2 raw response (first 500 chars):", retryText?.slice(0, 500));
   let retryParsed: unknown;
@@ -276,10 +277,10 @@ Rules:
   const prompt1 = `Create meals for lunes, martes, miércoles, jueves (4 days × 3 meals = 12 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 12 objects covering ONLY lunes, martes, miércoles, jueves.\n${schemaInstructions}`;
   const prompt2 = `Create meals for viernes, sábado, domingo (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY viernes, sábado, domingo.\n${schemaInstructions}`;
 
-  // Run both halves in parallel — reduces total latency from ~40s to ~15-20s
+  // Run both halves in parallel using Haiku for speed — reduces total latency from ~40s to ~8-12s
   const [firstHalf, secondHalf] = await Promise.all([
-    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 5000, isFlatMealFirstHalf),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealSecondHalf),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 5000, isFlatMealFirstHalf, "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealSecondHalf, "claude-haiku-4-5-20251001"),
   ]);
 
   return flatMealsToNestedDays([...firstHalf, ...secondHalf]);
