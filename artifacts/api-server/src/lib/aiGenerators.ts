@@ -179,6 +179,15 @@ const SPANISH_DAY_MAP: Record<string, string> = {
   fri: "friday", sat: "saturday", sun: "sunday",
 };
 
+// Reverse map: English internal names → Spanish — used to force English day_names
+// returned by the AI back to Spanish before the standard normalizeDay bucketing.
+const ENGLISH_TO_SPANISH_DAY: Record<string, string> = {
+  monday: "lunes", tuesday: "martes", wednesday: "miércoles",
+  thursday: "jueves", friday: "viernes", saturday: "sábado", sunday: "domingo",
+  mon: "lunes", tue: "martes", wed: "miércoles", thu: "jueves",
+  fri: "viernes", sat: "sábado", sun: "domingo",
+};
+
 function normalizeDay(raw: string): string {
   const lower = raw.toLowerCase().trim();
   return SPANISH_DAY_MAP[lower] ?? lower;
@@ -197,7 +206,10 @@ function flatMealsToNestedDays(flatMeals: any[]): any[] {
   for (const d of ALL_DAYS) byDay[d] = [];
 
   for (const meal of flatMeals) {
-    const dayName = normalizeDay(meal.day_name ?? "");
+    const rawDay = (meal.day_name ?? "").toLowerCase().trim();
+    // Convert any English day name to Spanish first, then normalizeDay maps to ALL_DAYS format
+    const asSpanish = ENGLISH_TO_SPANISH_DAY[rawDay] ?? meal.day_name ?? "";
+    const dayName = normalizeDay(asSpanish);
     if (!(dayName in byDay)) continue;
 
     // Normalize ingredients — ensure each has a category (infer from Spanish keywords if missing)
@@ -274,6 +286,7 @@ export async function generateMealPlanForUser(profile: {
   "notes": string
 }
 Rules:
+- CRITICAL: Use ONLY these exact Spanish day names: lunes, martes, miércoles, jueves, viernes, sábado, domingo. Never use English day names (monday, tuesday, etc.).
 - CRITICAL: Every meal MUST have at least 3 ingredients. Add aceite de oliva, sal, or vegetables if needed.
 - CRITICAL: Assign correct category to every ingredient.
 - Strictly respect the diet type and allergies. Never include disliked foods.
