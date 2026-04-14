@@ -167,9 +167,16 @@ function sanitizeIngredient(raw: unknown): { name: string; amount: string; categ
 const ALL_DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 
 const SPANISH_DAY_MAP: Record<string, string> = {
+  // Spanish names (with and without accents)
   lunes: "monday", martes: "tuesday", "miércoles": "wednesday", miercoles: "wednesday",
   jueves: "thursday", viernes: "friday", "sábado": "saturday", sabado: "saturday",
   domingo: "sunday",
+  // English full names — in case Haiku returns English instead of Spanish
+  monday: "monday", tuesday: "tuesday", wednesday: "wednesday",
+  thursday: "thursday", friday: "friday", saturday: "saturday", sunday: "sunday",
+  // Common abbreviations
+  mon: "monday", tue: "tuesday", wed: "wednesday", thu: "thursday",
+  fri: "friday", sat: "saturday", sun: "sunday",
 };
 
 function normalizeDay(raw: string): string {
@@ -384,7 +391,7 @@ IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de cal
 
 Return ONLY the JSON array, nothing else.`;
 
-  return callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray);
+  return callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray, "claude-haiku-4-5-20251001");
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────
