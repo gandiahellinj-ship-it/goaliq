@@ -176,8 +176,12 @@ function normalizeDay(raw: string): string {
   return SPANISH_DAY_MAP[lower] ?? lower;
 }
 
-function isFlatMealArray(val: unknown): val is any[] {
-  return Array.isArray(val) && val.length >= 21;
+function isFlatMealFirstHalf(val: unknown): val is any[] {
+  return Array.isArray(val) && val.length >= 12;
+}
+
+function isFlatMealSecondHalf(val: unknown): val is any[] {
+  return Array.isArray(val) && val.length >= 9;
 }
 
 function flatMealsToNestedDays(flatMeals: any[]): any[] {
@@ -241,62 +245,55 @@ export async function generateMealPlanForUser(profile: {
   const dislikedFoods = (profile.dislikedFoods as string[]).filter(Boolean);
   const name = typeof (profile as any).fullName === "string" ? (profile as any).fullName : "the user";
 
-  const prompt = `Create a 7-day meal plan for this person:
+  const personContext = `Person:
 - Name: ${name}
 - Goal: ${profile.goalType.replace(/_/g, " ")}
 - Diet type: ${profile.dietType.replace(/_/g, " ")}
 - Allergies: ${allergies.join(", ") || "none"}
 - Disliked foods: ${dislikedFoods.join(", ") || "none"}
 - Current weight: ${profile.weightKg}kg${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
-- Age: ${profile.age}
-- Sex: ${profile.sex}
+- Age: ${profile.age}, Sex: ${profile.sex}`;
 
-Return a JSON array with exactly 21 objects (3 meals x 7 days).
-Each object must follow this exact schema:
+  const schemaInstructions = `Each object must follow this exact schema:
 {
-  "day_name": string (IMPORTANT: use Spanish day names in lowercase — lunes, martes, miércoles, jueves, viernes, sábado, domingo),
+  "day_name": string (Spanish day name in lowercase),
   "meal_type": string (breakfast | lunch | dinner),
   "meal_name": string,
-  "ingredients": [{ "name": string, "amount": string, "visual_ref": string, "category": string (one of: protein | carbs | vegetables | fats | dairy | fruit | other) }],
+  "ingredients": [{ "name": string, "amount": string, "visual_ref": string, "category": string (protein | carbs | vegetables | fats | dairy | fruit | other) }],
   "plate_distribution": { "protein": number, "carbs": number, "fat": number, "vegetables": number },
   "calories_approx": number,
   "prep_time_minutes": number,
   "notes": string
 }
-
-For each ingredient, add a visual_ref field with a simple everyday reference that helps the user visualize the quantity. Examples:
-- 30g jamón → '2 lonchas finas'
-- 140g pechuga → '1 filete mediano'
-- 200g yogur → '1 yogur grande'
-- 150g arroz cocido → '1 taza'
-- 1 cucharada → '1 cda' (keep as is)
-- 2 unidades → '2 unidades' (keep as is)
-- 80g espinacas → '2 puñados'
-- 100ml leche → 'medio vaso'
-- 30g queso → '1 loncha gruesa'
-- 50g avena → '5 cucharadas'
-Keep visual_ref short (max 3-4 words) and in Spanish. If the amount is already intuitive (cucharada, unidades, rebanada), repeat it or leave a simple confirmation.
-
 Rules:
-- CRITICAL: Every single meal MUST have at least 3 ingredients. Never return a meal with fewer than 3 ingredients. If a meal would have fewer, add basic items like aceite de oliva, sal, or vegetables.
-- CRITICAL: Assign the correct category to every ingredient (protein | carbs | vegetables | fats | dairy | fruit | other).
-- Strictly respect the diet type and allergies
-- Never include disliked foods
-- Make meals realistic and easy to prepare
-- Vary the meals across the week (no repeated meals)
-- Adjust caloric density to match the goal
-- plate_distribution values must sum to 100
-- Return ONLY the JSON array, nothing else`;
+- CRITICAL: Every meal MUST have at least 3 ingredients. Add aceite de oliva, sal, or vegetables if needed.
+- CRITICAL: Assign correct category to every ingredient.
+- Strictly respect the diet type and allergies. Never include disliked foods.
+- Vary meals (no repeated meals). Adjust calories to match the goal.
+- plate_distribution values must sum to 100.
+- Return ONLY the JSON array, nothing else.`;
 
-  const flatMeals = await callClaudeWithRetry(MEAL_SYSTEM, prompt, 16000, isFlatMealArray);
-  return flatMealsToNestedDays(flatMeals);
+  const prompt1 = `Create meals for lunes, martes, miércoles, jueves (4 days × 3 meals = 12 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 12 objects covering ONLY lunes, martes, miércoles, jueves.\n${schemaInstructions}`;
+  const prompt2 = `Create meals for viernes, sábado, domingo (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY viernes, sábado, domingo.\n${schemaInstructions}`;
+
+  // Run both halves in parallel — reduces total latency from ~40s to ~15-20s
+  const [firstHalf, secondHalf] = await Promise.all([
+    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 5000, isFlatMealFirstHalf),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealSecondHalf),
+  ]);
+
+  return flatMealsToNestedDays([...firstHalf, ...secondHalf]);
 }
 
 // ─── Workout plan ─────────────────────────────────────────────────────────────
 
 function isWorkoutArray(val: unknown): val is any[] {
   if (!Array.isArray(val) || val.length === 0) return false;
-  return val.every((day: any) => Array.isArray(day.exercises) && day.exercises.length >= 4);
+  return val.every((day: any) =>
+    Array.isArray(day.exercises) &&
+    day.exercises.length >= 4 &&
+    day.exercises.every((ex: any) => ex.sets > 0 && ex.reps)
+  );
 }
 
 export async function generateWorkoutPlanForUser(profile: {
@@ -375,6 +372,8 @@ Each object must follow this exact schema:
   cooldown: string (specific 5 min cooldown for this session),
   notes: string (session coaching note)
 }
+
+CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 segundos'). Never leave sets or reps empty, null, or undefined.
 
 IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento y cualquier texto deben estar en español de España. Ejemplo correcto: "Sentadilla", "Press de banca", "Peso muerto". NUNCA uses inglés.
 
