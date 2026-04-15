@@ -392,6 +392,82 @@ html.theme-red-light nav .active svg {
   color: #FF4444;
 }
 
+/* ─── Red Night: aggressive hardcoded color overrides ────── */
+
+/* Force ALL hardcoded green colors to red */
+html.theme-red-light [class*="AAFF45"],
+html.theme-red-light [class*="aaff45"] {
+  color: #FF4444 !important;
+  background-color: #2D0000 !important;
+  border-color: #FF4444 !important;
+}
+
+/* Force text colors */
+html.theme-red-light [class*="text-white"] {
+  color: #FFB3B3 !important;
+}
+
+html.theme-red-light [class*="text-gray"],
+html.theme-red-light [class*="text-zinc"],
+html.theme-red-light [class*="text-slate"] {
+  color: #CC6666 !important;
+}
+
+/* Force background colors */
+html.theme-red-light [class*="bg-white"] {
+  background-color: #2D0000 !important;
+}
+
+html.theme-red-light [class*="bg-black"],
+html.theme-red-light [class*="bg-zinc-900"],
+html.theme-red-light [class*="bg-gray-900"] {
+  background-color: #1A0000 !important;
+}
+
+/* Badges and pills with green background */
+html.theme-red-light [class*="bg-"][class*="green"] {
+  background-color: #FF4444 !important;
+  color: #1A0000 !important;
+}
+
+/* Lime green text anywhere */
+html.theme-red-light [style*="#AAFF45"],
+html.theme-red-light [style*="#aaff45"],
+html.theme-red-light [style*="rgb(170, 255, 69)"] {
+  color: #FF4444 !important;
+}
+
+/* Lime green backgrounds anywhere */
+html.theme-red-light [style*="background.*#AAFF45"],
+html.theme-red-light [style*="background.*#aaff45"] {
+  background-color: #FF4444 !important;
+  color: #1A0000 !important;
+}
+
+/* ALL borders that are lime green */
+html.theme-red-light [style*="border.*#AAFF45"],
+html.theme-red-light [style*="border.*#aaff45"] {
+  border-color: #FF4444 !important;
+}
+
+/* Emoji containers - force red tint on parent */
+html.theme-red-light .meal-icon,
+html.theme-red-light .workout-icon,
+html.theme-red-light .stat-icon {
+  filter: sepia(1) saturate(3) hue-rotate(290deg) brightness(0.9);
+}
+
+/* Fix any remaining white text on dark backgrounds */
+html.theme-red-light p,
+html.theme-red-light span,
+html.theme-red-light h1,
+html.theme-red-light h2,
+html.theme-red-light h3,
+html.theme-red-light h4,
+html.theme-red-light label {
+  color: inherit;
+}
+
 /* ═══════════════════════════════════════════════════════════
    Override ALL GoalIQ hardcoded Tailwind arbitrary-value
    color classes to respect the active theme.
