@@ -339,6 +339,59 @@ html.theme-red-light {
   --elevate-2: rgba(255,68,68,.06);
 }
 
+/* ─── Red Night: icon & accent tinting ─────────────────── */
+
+/* Tint all lucide icons and SVG icons to red theme */
+html.theme-red-light svg:not(.no-tint) {
+  color: #FF4444;
+}
+
+/* Navigation icons */
+html.theme-red-light [data-sidebar] svg {
+  color: #CC6666;
+}
+
+html.theme-red-light [data-sidebar] [data-active="true"] svg {
+  color: #FF4444;
+}
+
+/* Emoji icons — wrap them in a red tint overlay */
+html.theme-red-light .emoji-icon {
+  filter: sepia(1) saturate(5) hue-rotate(300deg);
+}
+
+/* Progress bars */
+html.theme-red-light [role="progressbar"] > div {
+  background-color: #FF4444 !important;
+}
+
+/* Chart colors */
+html.theme-red-light .recharts-line {
+  stroke: #FF4444 !important;
+}
+
+html.theme-red-light .recharts-dot {
+  fill: #FF4444 !important;
+  stroke: #FF4444 !important;
+}
+
+/* Active states - buttons and badges with lime green must become red */
+html.theme-red-light [style*="AAFF45"],
+html.theme-red-light [style*="aaff45"] {
+  color: #FF4444 !important;
+  background-color: transparent !important;
+}
+
+/* Bottom navigation active icon */
+html.theme-red-light nav svg {
+  color: #CC6666;
+}
+
+html.theme-red-light nav [aria-current="page"] svg,
+html.theme-red-light nav .active svg {
+  color: #FF4444;
+}
+
 /* ═══════════════════════════════════════════════════════════
    Override ALL GoalIQ hardcoded Tailwind arbitrary-value
    color classes to respect the active theme.
