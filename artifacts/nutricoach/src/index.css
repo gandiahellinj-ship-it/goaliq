@@ -237,11 +237,11 @@ html, html.theme-dark {
 
 /* Light */
 html.theme-light {
-  --giq-bg-primary:    #F8F8F8;
+  --giq-bg-primary:    #F5F5F5;
   --giq-bg-secondary:  #FFFFFF;
   --giq-bg-card:       #FFFFFF;
   --giq-bg-card-hover: #F0F0F0;
-  --giq-border:        #E5E5E5;
+  --giq-border:        #E0E0E0;
   --giq-text-primary:  #111111;
   --giq-text-secondary:#555555;
   --giq-text-muted:    #999999;
@@ -251,23 +251,23 @@ html.theme-light {
   --giq-error:         #EF4444;
 
   /* Tailwind system vars for shadcn/ui components */
-  --background: 0 0% 97%;
-  --foreground: 0 0% 7%;
-  --border: 0 0% 90%;
+  --background: 0 0% 96%;        /* #F5F5F5 */
+  --foreground: 0 0% 7%;         /* #111111 */
+  --border: 0 0% 88%;            /* #E0E0E0 */
   --card: 0 0% 100%;
   --card-foreground: 0 0% 7%;
-  --card-border: 0 0% 90%;
+  --card-border: 0 0% 88%;
   --sidebar: 0 0% 100%;
   --sidebar-foreground: 0 0% 7%;
-  --sidebar-border: 0 0% 90%;
-  --sidebar-primary: 142 71% 45%;
+  --sidebar-border: 0 0% 88%;
+  --sidebar-primary: 142 71% 45%;   /* #22C55E */
   --sidebar-primary-foreground: 0 0% 100%;
   --sidebar-accent: 0 0% 94%;
   --sidebar-accent-foreground: 0 0% 7%;
   --sidebar-ring: 142 71% 45%;
   --popover: 0 0% 100%;
   --popover-foreground: 0 0% 7%;
-  --popover-border: 0 0% 90%;
+  --popover-border: 0 0% 88%;
   --primary: 142 71% 45%;
   --primary-foreground: 0 0% 100%;
   --secondary: 0 0% 90%;
@@ -276,6 +276,8 @@ html.theme-light {
   --muted-foreground: 0 0% 33%;
   --accent: 142 71% 45%;
   --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
   --input: 0 0% 100%;
   --ring: 142 71% 45%;
   --opaque-button-border-intensity: -5;
@@ -285,54 +287,56 @@ html.theme-light {
   --elevate-2: rgba(0,0,0,.06);
 }
 
-/* Melatonina — warm amber/red for night use */
-html.theme-melatonina {
-  --giq-bg-primary:    #0D0500;
-  --giq-bg-secondary:  #110600;
-  --giq-bg-card:       #1A0800;
-  --giq-bg-card-hover: #220A00;
-  --giq-border:        #2A1200;
-  --giq-text-primary:  #FFE4C4;
-  --giq-text-secondary:#C4875A;
-  --giq-text-muted:    #7A4A2A;
-  --giq-accent:        #FF6B2B;
-  --giq-accent-hover:  #E55A1A;
-  --giq-accent-text:   #0D0500;
+/* Red Night — deep red darkroom aesthetic */
+html.theme-red-light {
+  --giq-bg-primary:    #1A0000;
+  --giq-bg-secondary:  #150000;
+  --giq-bg-card:       #2D0000;
+  --giq-bg-card-hover: #3A0000;
+  --giq-border:        #4A0000;
+  --giq-text-primary:  #FFB3B3;
+  --giq-text-secondary:#CC6666;
+  --giq-text-muted:    #883333;
+  --giq-accent:        #FF4444;
+  --giq-accent-hover:  #DD2222;
+  --giq-accent-text:   #1A0000;
   --giq-error:         #FF4444;
 
   /* Tailwind system vars */
-  --background: 18 100% 3%;
-  --foreground: 35 100% 90%;
-  --border: 18 100% 8%;
-  --card: 18 100% 5%;
-  --card-foreground: 35 100% 90%;
-  --card-border: 18 100% 8%;
-  --sidebar: 18 100% 2%;
-  --sidebar-foreground: 35 100% 90%;
-  --sidebar-border: 18 100% 8%;
-  --sidebar-primary: 20 100% 58%;
-  --sidebar-primary-foreground: 18 100% 3%;
-  --sidebar-accent: 18 100% 7%;
-  --sidebar-accent-foreground: 35 100% 90%;
-  --sidebar-ring: 20 100% 58%;
-  --popover: 18 100% 5%;
-  --popover-foreground: 35 100% 90%;
-  --popover-border: 18 100% 8%;
-  --primary: 20 100% 58%;
-  --primary-foreground: 18 100% 3%;
-  --secondary: 18 100% 8%;
-  --secondary-foreground: 35 100% 90%;
-  --muted: 18 100% 8%;
-  --muted-foreground: 20 45% 39%;
-  --accent: 20 100% 58%;
-  --accent-foreground: 18 100% 3%;
-  --input: 18 100% 5%;
-  --ring: 20 100% 58%;
+  --background: 0 100% 5%;       /* #1A0000 */
+  --foreground: 0 100% 85%;      /* #FFB3B3 */
+  --border: 0 100% 15%;          /* #4A0000 */
+  --card: 0 100% 9%;             /* #2D0000 */
+  --card-foreground: 0 100% 85%;
+  --card-border: 0 100% 15%;
+  --sidebar: 0 100% 4%;          /* #150000 */
+  --sidebar-foreground: 0 100% 85%;
+  --sidebar-border: 0 100% 15%;
+  --sidebar-primary: 0 100% 63%; /* #FF4444 */
+  --sidebar-primary-foreground: 0 100% 5%;
+  --sidebar-accent: 0 100% 9%;
+  --sidebar-accent-foreground: 0 100% 85%;
+  --sidebar-ring: 0 100% 63%;
+  --popover: 0 100% 9%;
+  --popover-foreground: 0 100% 85%;
+  --popover-border: 0 100% 15%;
+  --primary: 0 100% 63%;         /* #FF4444 */
+  --primary-foreground: 0 100% 5%;
+  --secondary: 0 100% 15%;
+  --secondary-foreground: 0 100% 85%;
+  --muted: 0 100% 15%;
+  --muted-foreground: 0 47% 60%; /* #CC6666 */
+  --accent: 0 100% 63%;
+  --accent-foreground: 0 100% 5%;
+  --destructive: 0 100% 63%;
+  --destructive-foreground: 0 100% 85%;
+  --input: 0 100% 9%;
+  --ring: 0 100% 63%;
   --opaque-button-border-intensity: 5;
-  --button-outline: rgba(255,107,43,.08);
-  --badge-outline: rgba(255,107,43,.05);
-  --elevate-1: rgba(255,107,43,.03);
-  --elevate-2: rgba(255,107,43,.06);
+  --button-outline: rgba(255,68,68,.08);
+  --badge-outline: rgba(255,68,68,.05);
+  --elevate-1: rgba(255,68,68,.03);
+  --elevate-2: rgba(255,68,68,.06);
 }
 
 /* ═══════════════════════════════════════════════════════════

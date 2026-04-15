@@ -5,15 +5,15 @@ import { motion, AnimatePresence } from "framer-motion";
 const THEMES: { value: Theme; icon: string; label: string }[] = [
   { value: "dark", icon: "🌑", label: "Oscuro" },
   { value: "light", icon: "☀️", label: "Claro" },
-  { value: "melatonina", icon: "🌙", label: "Melatonina" },
+  { value: "red-light", icon: "🔴", label: "Rojo Noche" },
 ];
 
 function getPillStyle(theme: Theme): { background: string; border: string; color: string } {
   switch (theme) {
     case "light":
       return { background: "#FFFFFF", border: "1px solid #E0E0E0", color: "#111111" };
-    case "melatonina":
-      return { background: "#1A0800", border: "1px solid #FF6B2B", color: "#FF6B2B" };
+    case "red-light":
+      return { background: "#1A0000", border: "1px solid #FF4444", color: "#FF4444" };
     default:
       return { background: "#1A1A1A", border: "1px solid #2A2A2A", color: "#FFFFFF" };
   }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export type Theme = "dark" | "light" | "melatonina";
+export type Theme = "dark" | "light" | "red-light";
 
 const STORAGE_KEY = "goaliq-theme";
 const DEFAULT_THEME: Theme = "dark";
@@ -8,14 +8,14 @@ const DEFAULT_THEME: Theme = "dark";
 export function getStoredTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme;
-    if (stored === "dark" || stored === "light" || stored === "melatonina") return stored;
+    if (stored === "dark" || stored === "light" || stored === "red-light") return stored;
   } catch {}
   return DEFAULT_THEME;
 }
 
 export function applyTheme(theme: Theme) {
   const html = document.documentElement;
-  html.classList.remove("theme-dark", "theme-light", "theme-melatonina");
+  html.classList.remove("theme-dark", "theme-light", "theme-red-light", "theme-melatonina");
   html.classList.add(`theme-${theme}`);
   try {
     localStorage.setItem(STORAGE_KEY, theme);
