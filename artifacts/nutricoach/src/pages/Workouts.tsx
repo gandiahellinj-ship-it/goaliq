@@ -3,7 +3,7 @@ import { useWorkoutPlan, useGenerateWorkoutPlan } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Timer, Repeat, Zap, X, ArrowRight } from "lucide-react";
+import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { ExerciseAnimation } from "@/components/ExerciseAnimation";
 import { useT, translateDay } from "@/lib/language";
@@ -124,7 +124,7 @@ function WorkoutsContent() {
   if (isLoading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#AAFF45]" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--giq-accent)" }} />
       </div>
     );
   }
@@ -132,9 +132,9 @@ function WorkoutsContent() {
   if (!workoutPlan) {
     return (
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
-        <div className="text-6xl mb-5">💪</div>
-        <h2 className="text-2xl font-display font-black uppercase text-white mb-2">{t("no_workout_plan")}</h2>
-        <p className="text-[#A0A0A0] text-sm leading-relaxed">
+        <Dumbbell className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
+        <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("no_workout_plan")}</h2>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
           {t("complete_onboarding_workout")}
         </p>
       </div>
@@ -148,8 +148,10 @@ function WorkoutsContent() {
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
 
       <div className="mb-6">
-        <h1 className="text-2xl font-display font-black uppercase text-white">💪 {t("weekly_training_title")}</h1>
-        <p className="text-sm text-[#555555] mt-1">
+        <h1 className="text-2xl font-display font-black uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
+          <Dumbbell className="w-6 h-6" style={{ color: "var(--giq-accent)" }} /> {t("weekly_training_title")}
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "var(--giq-text-muted)" }}>
           {t("training_days_count", { n: workoutPlan.trainingDays.size })}
         </p>
       </div>
@@ -168,13 +170,22 @@ function WorkoutsContent() {
             <button
               key={day.id}
               onClick={() => setActiveDay(day.id)}
-              className={`flex-shrink-0 flex flex-col items-center px-4 py-2 rounded-lg font-semibold text-sm transition-all relative ${
+              className="flex-shrink-0 flex flex-col items-center px-4 py-2 rounded-lg font-semibold text-sm transition-all relative"
+              style={
                 isActive
-                  ? "bg-[#AAFF45] text-[#0A0A0A]"
+                  ? { backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }
                   : isTraining
-                  ? "bg-[#AAFF45]/10 text-[#AAFF45] border border-[#AAFF45]/20 hover:bg-[#AAFF45]/20"
-                  : "bg-[#1A1A1A] text-[#555555] border border-[#2A2A2A] hover:border-[#3A3A3A]"
-              }`}
+                  ? {
+                      backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+                      color: "var(--giq-accent)",
+                      border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
+                    }
+                  : {
+                      backgroundColor: "var(--giq-bg-card)",
+                      color: "var(--giq-text-muted)",
+                      border: "1px solid var(--giq-border)",
+                    }
+              }
             >
               {translateDay(day.id, t)}
               {isTraining && duration ? (
@@ -191,9 +202,11 @@ function WorkoutsContent() {
               ) : null}
               {isToday && (
                 <span
-                  className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-[#0A0A0A] ${
-                    isActive ? "bg-[#0A0A0A]/30" : "bg-[#AAFF45]"
-                  }`}
+                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
+                  style={{
+                    backgroundColor: isActive ? "color-mix(in srgb, var(--giq-accent-text) 30%, transparent)" : "var(--giq-accent)",
+                    border: "2px solid var(--giq-bg-primary)",
+                  }}
                 />
               )}
             </button>
@@ -211,10 +224,10 @@ function WorkoutsContent() {
           transition={{ duration: 0.2 }}
         >
           {!isTrainingDay ? (
-            <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] p-8 text-center flex flex-col items-center">
+            <div className="rounded-lg p-8 text-center flex flex-col items-center" style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}>
               <div className="text-5xl mb-4">🧘</div>
-              <h2 className="text-xl font-display font-bold uppercase text-white mb-2">{t("rest_recover")}</h2>
-              <p className="text-[#A0A0A0] text-sm max-w-xs leading-relaxed">
+              <h2 className="text-xl font-display font-bold uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("rest_recover")}</h2>
+              <p className="text-sm max-w-xs leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
                 {t("rest_recover_msg")}
               </p>
             </div>
@@ -301,25 +314,32 @@ function WorkoutBanner({
   const meta = WORKOUT_TYPE_LABELS[workoutType] ?? { tKey: workoutType, emoji: "🎯", color: "bg-[#AAFF45]/10 text-[#AAFF45] border-[#AAFF45]/20" };
   const quote = getMotivationalQuote(workoutType);
   return (
-    <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg p-4 space-y-3">
+    <div className="rounded-lg p-4 space-y-3" style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}>
       <div className="flex items-center gap-3">
         <span className="text-2xl">{meta.emoji}</span>
         <div className="flex-1">
-          <p className="text-xs font-bold text-[#AAFF45] uppercase tracking-wide">
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--giq-accent)" }}>
             {isToday ? t("todays_focus") : t("session_focus")}
           </p>
-          <p className="font-bold text-white">{t(meta.tKey)}</p>
+          <p className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{t(meta.tKey)}</p>
         </div>
         <div className="text-right">
-          <p className="text-xs text-[#555555]">{t("exercises_label")}</p>
-          <p className="font-bold text-white">{exerciseCount}</p>
+          <p className="text-xs" style={{ color: "var(--giq-text-muted)" }}>{t("exercises_label")}</p>
+          <p className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{exerciseCount}</p>
         </div>
       </div>
       {notes && (
-        <p className="text-xs text-[#A0A0A0] bg-[#AAFF45]/5 border border-[#AAFF45]/10 rounded-lg px-3 py-2 leading-relaxed">{notes}</p>
+        <p
+          className="text-xs rounded-lg px-3 py-2 leading-relaxed"
+          style={{
+            color: "var(--giq-text-secondary)",
+            backgroundColor: "color-mix(in srgb, var(--giq-accent) 5%, transparent)",
+            border: "1px solid color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+          }}
+        >{notes}</p>
       )}
       {isToday && (
-        <p className="text-xs text-[#555555] italic leading-relaxed border-t border-[#2A2A2A] pt-3">
+        <p className="text-xs italic leading-relaxed pt-3" style={{ color: "var(--giq-text-muted)", borderTop: "1px solid var(--giq-border)" }}>
           💬 "{quote}"
         </p>
       )}
@@ -402,18 +422,19 @@ function ExerciseModal({
       onClick={onClose}
     >
       <div
-        className="relative flex flex-col items-center gap-5 rounded-xl border border-[#2A2A2A] p-6"
-        style={{ background: "#1A1A1A", maxWidth: 320, width: "100%" }}
+        className="relative flex flex-col items-center gap-5 rounded-xl p-6"
+        style={{ background: "var(--giq-bg-card)", border: "1px solid var(--giq-border)", maxWidth: 320, width: "100%" }}
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-[#555555] hover:text-white transition-colors"
+          className="absolute top-3 right-3 transition-colors"
+          style={{ color: "var(--giq-text-muted)" }}
         >
           <X className="w-4 h-4" />
         </button>
 
-        <p className="text-sm font-semibold text-white text-center leading-snug pr-4">
+        <p className="text-sm font-semibold text-center leading-snug pr-4" style={{ color: "var(--giq-text-primary)" }}>
           {name}
         </p>
 
@@ -424,7 +445,7 @@ function ExerciseModal({
           size={120}
         />
 
-        <div className="flex justify-between w-full text-xs text-[#555555] px-1">
+        <div className="flex justify-between w-full text-xs px-1" style={{ color: "var(--giq-text-muted)" }}>
           <span>{t("start")}</span>
           <span>{t("end")}</span>
         </div>
@@ -445,22 +466,26 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
 
   return (
     <>
-      <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] p-5">
+      <div className="rounded-lg p-5" style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}>
         <div className="flex items-start gap-4">
           {/* Index badge */}
-          <div className="w-8 h-8 rounded-lg bg-[#2A2A2A] flex items-center justify-center text-sm font-bold text-[#555555] shrink-0 mt-0.5">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
+            style={{ backgroundColor: "var(--giq-border)", color: "var(--giq-text-muted)" }}
+          >
             {index + 1}
           </div>
 
           {/* Exercise details */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center flex-wrap gap-2 mb-2.5">
-              <h3 className="font-bold text-white">{exercise.name}</h3>
+              <h3 className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{exercise.name}</h3>
               {exercise.muscles && (
                 <span
-                  className="shrink-0 text-[#AAFF45] font-medium"
+                  className="shrink-0 font-medium"
                   style={{
-                    background: "#2A2A2A",
+                    color: "var(--giq-accent)",
+                    background: "var(--giq-border)",
                     fontSize: 11,
                     borderRadius: 4,
                     padding: "2px 8px",
@@ -473,7 +498,14 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
 
             <div className="flex flex-wrap gap-2 mb-3">
               {exercise.sets && exercise.reps && (
-                <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-[#AAFF45]/10 text-[#AAFF45] border border-[#AAFF45]/20">
+                <span
+                  className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+                    color: "var(--giq-accent)",
+                    border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
+                  }}
+                >
                   <Repeat className="w-3 h-3" />
                   {t("sets_x_reps", { sets: exercise.sets, reps: exercise.reps })}
                 </span>
@@ -485,7 +517,10 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
                 </span>
               )}
               {exercise.rest_sec && (
-                <span className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-[#2A2A2A] text-[#555555] border border-[#3A3A3A]">
+                <span
+                  className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+                  style={{ backgroundColor: "var(--giq-border)", color: "var(--giq-text-muted)", border: "1px solid var(--giq-bg-card-hover)" }}
+                >
                   <Zap className="w-3 h-3" />
                   {t("rest_duration", { duration: formatDuration(exercise.rest_sec) })}
                 </span>
@@ -493,13 +528,14 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
             </div>
 
             {exercise.notes && (
-              <p className="text-sm text-[#A0A0A0] leading-relaxed mb-2">{exercise.notes}</p>
+              <p className="text-sm leading-relaxed mb-2" style={{ color: "var(--giq-text-secondary)" }}>{exercise.notes}</p>
             )}
 
             {hasImages && (
               <button
                 onClick={() => setModalOpen(true)}
-                className="text-xs text-[#AAFF45] hover:text-[#99EE34] font-medium transition-colors"
+                className="text-xs font-medium transition-colors"
+                style={{ color: "var(--giq-accent)" }}
               >
                 {t("view_example_arrow")}
               </button>

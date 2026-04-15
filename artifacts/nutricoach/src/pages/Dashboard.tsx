@@ -6,7 +6,7 @@ import { UpgradeBanner } from "@/components/UpgradeBanner";
 import { useT } from "@/lib/language";
 
 import { Link } from "wouter";
-import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock } from "lucide-react";
+import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock, Utensils, BarChart2, CalendarDays, Dumbbell } from "lucide-react";
 import { motion } from "framer-motion";
 import { WeeklyCheckin } from "@/components/WeeklyCheckin";
 import { ShareProgressButton } from "@/components/ShareProgressCard";
@@ -95,7 +95,7 @@ function translateMealType(mealType: string): string {
 
 function mealTypeColor(mealType: string): string {
   const t = mealType?.toLowerCase() ?? "";
-  if (t === "breakfast" || t === "desayuno") return "#AAFF45";
+  if (t === "breakfast" || t === "desayuno") return "var(--giq-accent)";
   if (t === "lunch" || t === "comida" || t === "almuerzo") return "#FFB347";
   if (t === "dinner" || t === "cena") return "#7B8CDE";
   return "#888888";
@@ -372,7 +372,7 @@ export default function Dashboard() {
             className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold"
             style={{ backgroundColor: "var(--giq-border)", color: "var(--giq-accent)" }}
           >
-            🎯 {translateGoal(profile.goal)} · {translateDiet(profile.diet_type)}
+            <Target className="w-3 h-3" /> {translateGoal(profile.goal)} · {translateDiet(profile.diet_type)}
           </div>
         )}
       </div>
@@ -512,14 +512,20 @@ export default function Dashboard() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-4 bg-[#1A1A1A] rounded-xl p-4 border border-[#2A2A2A] cursor-pointer hover:border-[#3A3A3A] transition-colors">
+              <div
+                className="flex items-center gap-4 rounded-xl p-4 cursor-pointer transition-colors"
+                style={{
+                  backgroundColor: "var(--giq-bg-card)",
+                  border: "1px solid var(--giq-border)",
+                }}
+              >
                 <div className="text-3xl">🧘</div>
                 <div className="flex-1">
-                  <p className="text-xs font-bold text-[#555555] uppercase tracking-wide">{t("today")}</p>
-                  <p className="font-bold text-white">{t("rest_today")}</p>
-                  <p className="text-xs text-[#555555] mt-0.5">{t("light_stretching")}</p>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>{t("today")}</p>
+                  <p className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{t("rest_today")}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("light_stretching")}</p>
                 </div>
-                <ArrowRight className="w-5 h-5 text-[#2A2A2A] shrink-0" />
+                <ArrowRight className="w-5 h-5 shrink-0" style={{ color: "var(--giq-border)" }} />
               </div>
             )}
           </Link>
@@ -531,11 +537,12 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.13 }}
-        className="bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] overflow-hidden"
+        className="rounded-xl overflow-hidden"
+        style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
       >
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="font-display font-bold uppercase text-white flex items-center gap-2">
-            <span>🥗</span> {t("todays_meals")}
+          <h2 className="font-display font-bold uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
+            <Utensils className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("todays_meals")}
           </h2>
           <Link href="/meals" className="text-xs font-semibold text-[#AAFF45] hover:underline flex items-center gap-1">
             {t("view_all_meals")} <ArrowRight className="w-3 h-3" />
@@ -555,7 +562,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold" style={{ color: typeColor }}>{typeLabel}</p>
-                    <p className="text-sm font-medium text-white truncate">{meal.meal_name}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--giq-text-primary)" }}>{meal.meal_name}</p>
                   </div>
                   {kcal != null && (
                     <span className="text-xs font-medium shrink-0" style={{ color: "var(--giq-text-muted)" }}>
@@ -584,10 +591,11 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.16 }}
-          className="bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] p-5"
+          className="rounded-xl p-5"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
         >
-          <h2 className="font-display font-bold uppercase text-white mb-4 flex items-center gap-2">
-            <span>📊</span> {t("this_week")}
+          <h2 className="font-display font-bold uppercase mb-4 flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
+            <BarChart2 className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("this_week")}
           </h2>
 
           <div className="flex justify-between gap-1 mb-3">
@@ -661,25 +669,27 @@ export default function Dashboard() {
       >
         <Link
           href="/calendar"
-          className="flex flex-col gap-2 bg-[#1A1A1A] p-5 rounded-xl border border-[#2A2A2A] hover:border-[#AAFF45]/30 transition-all group"
+          className="flex flex-col gap-2 p-5 rounded-xl transition-all group"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
         >
-          <span className="text-2xl">📅</span>
+          <CalendarDays className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
           <div className="flex-1">
-            <p className="font-bold text-white text-sm">{t("nav_calendar")}</p>
-            <p className="text-xs text-[#555555] mt-0.5">Ver mis entrenamientos</p>
+            <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_calendar")}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>Ver mis entrenamientos</p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[#2A2A2A] group-hover:text-[#AAFF45] transition-colors self-end" />
+          <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
         </Link>
         <Link
           href="/progress"
-          className="flex flex-col gap-2 bg-[#1A1A1A] p-5 rounded-xl border border-[#2A2A2A] hover:border-[#AAFF45]/30 transition-all group"
+          className="flex flex-col gap-2 p-5 rounded-xl transition-all group"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
         >
-          <span className="text-2xl">📊</span>
+          <BarChart2 className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
           <div className="flex-1">
-            <p className="font-bold text-white text-sm">{t("nav_progress")}</p>
-            <p className="text-xs text-[#555555] mt-0.5">Registrar mi peso</p>
+            <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_progress")}</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>Registrar mi peso</p>
           </div>
-          <ArrowRight className="w-4 h-4 text-[#2A2A2A] group-hover:text-[#AAFF45] transition-colors self-end" />
+          <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
         </Link>
       </motion.div>
 

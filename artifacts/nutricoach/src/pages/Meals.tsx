@@ -3,7 +3,7 @@ import { useMealPlan, useProfile, useFoodPreferences, useSwapIngredient, useGene
 import type { MealRow, Ingredient, SwapOption } from "@/lib/supabase-queries";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Sparkles, X, Pencil, ChevronDown } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Sparkles, X, Pencil, ChevronDown, Utensils } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { useAuth } from "@/hooks/useAuth";
 import { useT, translateDay } from "@/lib/language";
@@ -152,7 +152,7 @@ function MealsContent() {
   if (isLoading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-[#AAFF45]" />
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--giq-accent)" }} />
       </div>
     );
   }
@@ -162,9 +162,9 @@ function MealsContent() {
   if (!mealPlan && !isProfileComplete) {
     return (
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
-        <div className="text-6xl mb-5">🥗</div>
-        <h2 className="text-2xl font-display font-black uppercase text-white mb-2">{t("complete_profile_title")}</h2>
-        <p className="text-[#A0A0A0] text-sm leading-relaxed mb-6">
+        <Utensils className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
+        <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("complete_profile_title")}</h2>
+        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--giq-text-secondary)" }}>
           {t("complete_profile_body")}
         </p>
         <Link
@@ -181,9 +181,9 @@ function MealsContent() {
   if (!mealPlan) {
     return (
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
-        <div className="text-6xl mb-5">🥗</div>
-        <h2 className="text-2xl font-display font-black uppercase text-white mb-2">{t("no_meal_plan_yet")}</h2>
-        <p className="text-[#A0A0A0] text-sm leading-relaxed">
+        <Utensils className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
+        <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("no_meal_plan_yet")}</h2>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
           {t("no_meal_plan_onboarding")}
         </p>
       </div>
@@ -202,9 +202,11 @@ function MealsContent() {
       {/* Header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-display font-black uppercase text-white">🥗 {t("weekly_menu")}</h1>
+          <h1 className="text-2xl font-display font-black uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
+            <Utensils className="w-6 h-6" style={{ color: "var(--giq-accent)" }} /> {t("weekly_menu")}
+          </h1>
           {dietLabel && goalLabel ? (
-            <p className="text-sm text-[#555555] mt-1">
+            <p className="text-sm mt-1" style={{ color: "var(--giq-text-muted)" }}>
               Tu plan personalizado · {dietLabel} · {goalLabel}
             </p>
           ) : (
@@ -292,10 +294,14 @@ function MealsContent() {
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="mb-5 flex items-center gap-3 bg-[#AAFF45]/10 border border-[#AAFF45]/20 rounded-lg px-4 py-3"
+            className="mb-5 flex items-center gap-3 rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
+            }}
           >
-            <Loader2 className="w-4 h-4 text-[#AAFF45] animate-spin shrink-0" />
-            <p className="text-sm text-[#AAFF45] font-medium">
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "var(--giq-accent)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--giq-accent)" }}>
               {t("generating_meal_plan")}
             </p>
           </motion.div>
@@ -349,15 +355,17 @@ function MealsContent() {
             <button
               key={day.id}
               onClick={() => setActiveDay(day.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm transition-all relative flex flex-col items-center gap-0.5 ${
+              className="flex-shrink-0 px-4 py-2 rounded-lg text-sm transition-all relative flex flex-col items-center gap-0.5"
+              style={
                 isActive
-                  ? "bg-[#AAFF45] text-[#0A0A0A] font-black"
-                  : "bg-[#1A1A1A] text-[#555555] border border-[#2A2A2A] hover:border-[#AAFF45]/30 hover:text-[#888888] font-semibold"
-              }`}
+                  ? { backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)", fontWeight: 900 }
+                  : { backgroundColor: "var(--giq-bg-card)", color: "var(--giq-text-muted)", border: "1px solid var(--giq-border)", fontWeight: 600 }
+              }
             >
               {isToday && (
                 <span
-                  className={`w-1.5 h-1.5 rounded-full ${isActive ? "bg-[#0A0A0A]/40" : "bg-[#AAFF45]"}`}
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ backgroundColor: isActive ? "color-mix(in srgb, var(--giq-accent-text) 40%, transparent)" : "var(--giq-accent)" }}
                 />
               )}
               <span>{translateDay(day.id, t)}</span>
