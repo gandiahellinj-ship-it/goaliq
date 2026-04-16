@@ -825,10 +825,11 @@ export function useToggleWorkoutComplete() {
 export function useGenerateWorkoutPlan() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ token }: { token: string }) => {
+    mutationFn: async ({ token, lang = "es" }: { token: string; lang?: "es" | "en" }) => {
       const res = await fetch("/api/workouts", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ lang }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -849,7 +850,7 @@ export function useGenerateMealPlan() {
   const weekStart = getWeekStart();
 
   return useMutation({
-    mutationFn: async ({ token }: { token: string }) => {
+    mutationFn: async ({ token, lang = "es" }: { token: string; lang?: "es" | "en" }) => {
       // ── Step 1: verify auth ────────────────────────────────────────────────
       console.log("[generateMealPlan] Step 1: checking auth");
       const { data: { user } } = await supabase.auth.getUser();
@@ -876,7 +877,8 @@ export function useGenerateMealPlan() {
       console.log("[generateMealPlan] Step 3: POST /api/meals");
       const res = await fetch("/api/meals", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ lang }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

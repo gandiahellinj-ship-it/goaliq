@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { ExerciseAnimation } from "@/components/ExerciseAnimation";
-import { useT, translateDay } from "@/lib/language";
+import { useT, useLanguage, translateDay } from "@/lib/language";
 import { useQuery } from "@tanstack/react-query";
 import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 
@@ -95,6 +95,7 @@ function WorkoutsContent() {
   const generateMutation = useGenerateWorkoutPlan();
   const regenTriggeredRef = useRef(false);
   const t = useT();
+  const { lang } = useLanguage();
 
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
@@ -115,7 +116,7 @@ function WorkoutsContent() {
     supabase.auth.getSession().then(({ data }) => {
       const token = data.session?.access_token;
       if (!token) return;
-      generateMutation.mutate({ token });
+      generateMutation.mutate({ token, lang });
     });
   }, [workoutPlan]);
 

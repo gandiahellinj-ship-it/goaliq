@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Sparkles, X, Pencil, ChevronDown, Utensils } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { useAuth } from "@/hooks/useAuth";
-import { useT, translateDay } from "@/lib/language";
+import { useT, useLanguage, translateDay } from "@/lib/language";
 import { Link } from "wouter";
 
 const DAYS = [
@@ -90,6 +90,7 @@ function MealsContent() {
   const generateMutation = useGenerateMealPlan();
   const autoGenTriggered = useRef(false);
   const t = useT();
+  const { lang } = useLanguage();
 
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
@@ -107,7 +108,7 @@ function MealsContent() {
     autoGenTriggered.current = true;
     window.history.replaceState({}, "", window.location.pathname);
     generateMutation.mutate(
-      { token: session.access_token },
+      { token: session.access_token, lang },
       {
         onSuccess: () => {
           setGenSuccess(true);
@@ -121,7 +122,7 @@ function MealsContent() {
     if (!session?.access_token) return;
     setShowConfirm(false);
     generateMutation.mutate(
-      { token: session.access_token },
+      { token: session.access_token, lang },
       {
         onSuccess: () => {
           setGenSuccess(true);
