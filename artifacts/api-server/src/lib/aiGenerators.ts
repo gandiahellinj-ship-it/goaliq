@@ -5,11 +5,19 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODEL = "claude-sonnet-4-6";
 
-const MEAL_SYSTEM =
-  "You are a professional nutritionist. IMPORTANT: Generate ALL content in Spanish (Spain). All meal names, ingredient names, portions, notes, and descriptions must be in Spanish. Use Spanish food terminology and typical Spanish/Mediterranean foods when appropriate. You create personalized, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
+function getMealSystem(lang: "es" | "en"): string {
+  if (lang === "en") {
+    return "You are a professional nutritionist. LANGUAGE REQUIRED: Generate ALL content in English (UK). All meal names, ingredient names, portions, notes, and descriptions must be in English. Use internationally recognisable food terminology. You create personalised, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
+  }
+  return "You are a professional nutritionist. IMPORTANT: Generate ALL content in Spanish (Spain). All meal names, ingredient names, portions, notes, and descriptions must be in Spanish. Use Spanish food terminology and typical Spanish/Mediterranean foods when appropriate. You create personalized, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
+}
 
-const WORKOUT_SYSTEM =
-  "Eres un entrenador personal profesional. IMPORTANTE: Genera TODO el contenido en español de España. Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento, frases motivacionales y cualquier otro texto deben estar en español. Creas planes de entrenamiento semanales seguros, efectivos y personalizados. Siempre respondes únicamente con JSON válido — sin markdown, sin explicaciones, sin bloques de código. Solo JSON puro.";
+function getWorkoutSystem(lang: "es" | "en"): string {
+  if (lang === "en") {
+    return "You are a professional personal trainer. LANGUAGE REQUIRED: Generate ALL content in English (UK). All exercise names, notes, warmup/cooldown descriptions, motivational phrases, and any other text must be in English. You create safe, effective, and personalised weekly training plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
+  }
+  return "Eres un entrenador personal profesional. IMPORTANTE: Genera TODO el contenido en español de España. Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento, frases motivacionales y cualquier otro texto deben estar en español. Creas planes de entrenamiento semanales seguros, efectivos y personalizados. Siempre respondes únicamente con JSON válido — sin markdown, sin explicaciones, sin bloques de código. Solo JSON puro.";
+}
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -260,7 +268,7 @@ export async function generateMealPlanForUser(profile: {
   dislikedFoods: string[];
   trainingDaysPerWeek: number;
   [key: string]: unknown;
-}) {
+}, lang: "es" | "en" = "es") {
   const allergies = (profile.allergies as string[]).filter(Boolean);
   const dislikedFoods = (profile.dislikedFoods as string[]).filter(Boolean);
   const name = typeof (profile as any).fullName === "string" ? (profile as any).fullName : "the user";
@@ -274,9 +282,25 @@ export async function generateMealPlanForUser(profile: {
 - Current weight: ${profile.weightKg}kg${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
 - Age: ${profile.age}, Sex: ${profile.sex}`;
 
+  const langInstruction = lang === "en"
+    ? "LANGUAGE REQUIRED: All content must be in English (UK). Meal names, ingredient names, notes — everything in English."
+    : "IDIOMA OBLIGATORIO: Todo el contenido debe estar en español de España. Nombres de comidas, ingredientes, notas — todo en español.";
+
+  const dayNames = lang === "en"
+    ? { chunk1: "monday, tuesday, wednesday", chunk2: "thursday, friday, saturday", chunk3: "sunday" }
+    : { chunk1: "lunes, martes, miércoles", chunk2: "jueves, viernes, sábado", chunk3: "domingo" };
+
+  const dayNameRule = lang === "en"
+    ? "- CRITICAL: Use ONLY these exact English day names: monday, tuesday, wednesday, thursday, friday, saturday, sunday."
+    : "- CRITICAL: Use ONLY these exact Spanish day names: lunes, martes, miércoles, jueves, viernes, sábado, domingo. Never use English day names.";
+
+  const paddingNote = lang === "en"
+    ? "Add olive oil, salt, or seasonal vegetables if needed."
+    : "Add aceite de oliva, sal, or vegetables if needed.";
+
   const schemaInstructions = `Each object must follow this exact schema:
 {
-  "day_name": string (Spanish day name in lowercase),
+  "day_name": string (day name in lowercase),
   "meal_type": string (breakfast | lunch | dinner),
   "meal_name": string,
   "ingredients": [{ "name": string, "amount": string, "visual_ref": string, "category": string (protein | carbs | vegetables | fats | dairy | fruit | other) }],
@@ -286,20 +310,23 @@ export async function generateMealPlanForUser(profile: {
   "notes": string
 }
 Rules:
-- CRITICAL: Use ONLY these exact Spanish day names: lunes, martes, miércoles, jueves, viernes, sábado, domingo. Never use English day names (monday, tuesday, etc.).
-- CRITICAL: Every meal MUST have at least 3 ingredients. Add aceite de oliva, sal, or vegetables if needed.
+${dayNameRule}
+- CRITICAL: Every meal MUST have at least 3 ingredients. ${paddingNote}
 - CRITICAL: Assign correct category to every ingredient.
 - Strictly respect the diet type and allergies. Never include disliked foods.
 - Vary meals (no repeated meals). Adjust calories to match the goal.
 - plate_distribution values must sum to 100.
+- ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;
+
+  const MEAL_SYSTEM = getMealSystem(lang);
 
   // Split into 3 chunks of ≤9 meals each — Haiku reliably generates 9 meals per call
   // but fails when asked for 12 (logs showed array[9]/array[11] for 12-meal prompts).
   // All 3 run in parallel; wall-clock time is the slowest chunk (~8-12s total).
-  const prompt1 = `Create meals for lunes, martes, miércoles (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY lunes, martes, miércoles.\n${schemaInstructions}`;
-  const prompt2 = `Create meals for jueves, viernes, sábado (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY jueves, viernes, sábado.\n${schemaInstructions}`;
-  const prompt3 = `Create meals for domingo (1 day × 3 meals = 3 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 3 objects covering ONLY domingo.\n${schemaInstructions}`;
+  const prompt1 = `Create meals for ${dayNames.chunk1} (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY ${dayNames.chunk1}.\n${schemaInstructions}`;
+  const prompt2 = `Create meals for ${dayNames.chunk2} (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY ${dayNames.chunk2}.\n${schemaInstructions}`;
+  const prompt3 = `Create meals for ${dayNames.chunk3} (1 day × 3 meals = 3 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 3 objects covering ONLY ${dayNames.chunk3}.\n${schemaInstructions}`;
 
   const [chunk1, chunk2, chunk3] = await Promise.all([
     callClaudeWithRetry(MEAL_SYSTEM, prompt1, 4000, isFlatMealChunk9, "claude-haiku-4-5-20251001"),
@@ -323,8 +350,13 @@ export async function generateWorkoutPlanForUser(profile: {
   trainingDaysPerWeek: number;
   trainingLocation: string;
   [key: string]: unknown;
-}) {
+}, lang: "es" | "en" = "es") {
   const trainingDays = profile.trainingDaysPerWeek;
+  const WORKOUT_SYSTEM = getWorkoutSystem(lang);
+
+  const langInstruction = lang === "en"
+    ? "LANGUAGE REQUIRED: All content must be in English (UK). Exercise names, notes, warmup/cooldown — everything in English. Example: \"Squat\", \"Bench Press\", \"Deadlift\". NEVER use Spanish."
+    : "IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento y cualquier texto deben estar en español de España. Ejemplo correcto: \"Sentadilla\", \"Press de banca\", \"Peso muerto\". NUNCA uses inglés.";
 
   const prompt = `Create a weekly workout plan for this person:
 - Goal: ${profile.goalType.replace(/_/g, " ")}
@@ -394,9 +426,9 @@ Each object must follow this exact schema:
   notes: string (session coaching note)
 }
 
-CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 segundos'). Never leave sets or reps empty, null, or undefined.
+CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 seconds'). Never leave sets or reps empty, null, or undefined.
 
-IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento y cualquier texto deben estar en español de España. Ejemplo correcto: "Sentadilla", "Press de banca", "Peso muerto". NUNCA uses inglés.
+${langInstruction}
 
 Return ONLY the JSON array, nothing else.`;
 

@@ -119,10 +119,12 @@ router.post("/meals", async (req, res) => {
     updatedAt: new Date(),
   };
 
-  req.log.info({ userId: req.user.id }, "[meals] Starting AI meal plan generation");
+  const lang: "es" | "en" = req.body?.lang === "en" ? "en" : "es";
+
+  req.log.info({ userId: req.user.id, lang }, "[meals] Starting AI meal plan generation");
   let days: unknown[];
   try {
-    days = await generateMealPlanForUser(profile as any);
+    days = await generateMealPlanForUser(profile as any, lang);
   } catch (aiErr: any) {
     req.log.error({
       aiErrMessage: aiErr?.message,

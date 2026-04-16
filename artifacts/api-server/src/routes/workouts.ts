@@ -85,7 +85,9 @@ router.post("/workouts", async (req, res) => {
     return;
   }
 
-  req.log.info({ userId: req.user.id }, "[workouts] Starting AI workout plan generation");
+  const lang: "es" | "en" = req.body?.lang === "en" ? "en" : "es";
+
+  req.log.info({ userId: req.user.id, lang }, "[workouts] Starting AI workout plan generation");
 
   let workoutDays: any[];
   try {
@@ -94,7 +96,7 @@ router.post("/workouts", async (req, res) => {
       trainingLevel: profileData.training_level,
       trainingDaysPerWeek: profileData.training_days_per_week ?? 3,
       trainingLocation: profileData.training_location ?? "home",
-    }) as any[];
+    }, lang) as any[];
   } catch (aiErr) {
     req.log.error({ aiErr }, "[workouts] AI generation failed");
     res.status(500).json({ error: "Workout plan generation failed. Please try again." });
