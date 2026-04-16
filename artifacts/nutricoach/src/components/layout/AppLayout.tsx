@@ -20,6 +20,7 @@ import {
   Gift,
   Clock,
   User,
+  Settings,
   FlaskConical,
   X,
   CheckCircle2,
@@ -606,6 +607,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     onClick={() => setProfileMenuOpen(false)}
                     bordered
                   />
+                  <ProfileMenuItem
+                    icon={<Settings className="w-4 h-4" />}
+                    label={tl("nav_settings")}
+                    href="/settings"
+                    onClick={() => setProfileMenuOpen(false)}
+                    bordered
+                  />
                   <button
                     onClick={() => { setProfileMenuOpen(false); logout(); }}
                     className="w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors"
@@ -727,6 +735,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       icon={<CreditCard className="w-4 h-4" />}
                       label={tl("billing")}
                       href="/billing"
+                      onClick={() => setProfileMenuOpen(false)}
+                      bordered
+                    />
+                    <ProfileMenuItem
+                      icon={<Settings className="w-4 h-4" />}
+                      label={tl("nav_settings")}
+                      href="/settings"
                       onClick={() => setProfileMenuOpen(false)}
                       bordered
                     />

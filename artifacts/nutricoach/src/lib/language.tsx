@@ -487,6 +487,18 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Calendar flex day feedback ─────────────────────────────────────────────
     flex_none_msg: "No flex days used this month — great discipline!",
     flex_used_msg: "{{n}} flex day{{s}} used across {{weeks}} week{{ws}} — balance is key.",
+
+    // ── Settings ──────────────────────────────────────────────────────────────
+    nav_settings: "Settings",
+    settings_title: "Settings",
+    appearance: "Appearance",
+    dark_mode: "Dark",
+    light_mode: "Light",
+    language_section: "Language",
+    lang_spanish: "Español",
+    lang_english: "English",
+    lang_subtitle_es: "España",
+    lang_subtitle_en: "United Kingdom",
   },
 
   es: {
@@ -971,6 +983,18 @@ const T: Record<Lang, Record<string, string>> = {
 
     done_name: "¡Listo, {{name}}!",
     done: "¡Listo!",
+
+    // ── Settings ──────────────────────────────────────────────────────────────
+    nav_settings: "Ajustes",
+    settings_title: "Ajustes",
+    appearance: "Apariencia",
+    dark_mode: "Oscuro",
+    light_mode: "Claro",
+    language_section: "Idioma",
+    lang_spanish: "Español",
+    lang_english: "English",
+    lang_subtitle_es: "España",
+    lang_subtitle_en: "United Kingdom",
   },
 };
 
@@ -998,8 +1022,11 @@ const LanguageContext = createContext<LanguageContextValue>({
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem(LS_KEY);
-    return saved === "es" ? "es" : "es";
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved === "en" || saved === "es") return saved;
+    } catch {}
+    return "es";
   });
 
   function setLang(l: Lang) {
