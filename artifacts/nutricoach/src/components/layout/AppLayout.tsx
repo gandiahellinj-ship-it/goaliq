@@ -29,7 +29,6 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
-import { ThemeSelector } from "@/components/ThemeSelector";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -543,8 +542,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        {/* Theme Selector — above user profile */}
-        <ThemeSelector variant="sidebar" />
+
 
         <div className="p-3 mt-auto" style={{ borderTop: "1px solid var(--giq-border)" }}>
           <div className="relative">

@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthModal } from "@/components/ui/AuthModal";
 import { LanguageProvider } from "@/lib/language";
-import { ThemeSelector } from "@/components/ThemeSelector";
 
 import Landing from "@/pages/Landing";
 import Pricing from "@/pages/Pricing";
@@ -66,7 +65,6 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>
-            <ThemeSelector variant="floating" />
             <AuthModal />
             <Toaster />
             <SonnerToaster position="bottom-center" theme="dark" />
