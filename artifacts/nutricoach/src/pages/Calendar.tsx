@@ -53,6 +53,7 @@ function WorkoutHistoryModal({
   record: WorkoutHistoryRecord;
   onClose: () => void;
 }) {
+  const t = useT();
   const today = format(new Date(), "yyyy-MM-dd");
   const isToday = record.workout_date === today;
 
@@ -103,7 +104,7 @@ function WorkoutHistoryModal({
                 )}
                 {ex.rest_sec && (
                   <span className="text-xs" style={{ color: "var(--giq-text-muted)" }}>
-                    · {ex.rest_sec}s descanso
+                    · {t("rest_seconds", { n: ex.rest_sec })}
                   </span>
                 )}
                 {ex.muscles && (
@@ -116,7 +117,7 @@ function WorkoutHistoryModal({
 
         {record.duration_minutes > 0 && (
           <p className="text-sm mb-5" style={{ color: "var(--giq-text-muted)" }}>
-            ⏱ Duración: {record.duration_minutes} min
+            ⏱ {t("duration_label")}: {record.duration_minutes} min
           </p>
         )}
 
@@ -131,7 +132,7 @@ function WorkoutHistoryModal({
           className="w-full text-sm font-medium py-2.5 rounded-lg transition-colors hover:text-white"
           style={{ color: "var(--giq-text-secondary)" }}
         >
-          Cerrar
+          {t("close")}
         </button>
       </div>
     </div>
@@ -224,8 +225,8 @@ function CalendarContent() {
         onSuccess: () => {
           refetchLogs();
           if (willBeCompleted) {
-            toast("¡Entrenamiento completado! 🎉", {
-              description: "Compártelo en Entrenamientos →",
+            toast(t("workout_completed_toast"), {
+              description: t("share_in_workouts"),
               duration: 5000,
             });
             const w = getWorkoutForDate(dateStr);

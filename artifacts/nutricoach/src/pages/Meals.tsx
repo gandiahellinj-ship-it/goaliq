@@ -43,12 +43,6 @@ const MEAL_COLOR: Record<string, string> = {
   snack: "#888888",
 };
 
-const MEAL_LABEL_ES: Record<string, string> = {
-  breakfast: "DESAYUNO",
-  lunch: "COMIDA",
-  dinner: "CENA",
-  snack: "SNACK",
-};
 
 const PREP_TIME: Record<string, number> = {
   breakfast: 10,
@@ -64,18 +58,6 @@ const CALORIES_APPROX: Record<string, number> = {
   snack: 200,
 };
 
-const NUTRIENT_ES: Record<string, string> = {
-  protein: "Proteína",
-  carbs: "Carbohidratos",
-  carbohydrates: "Carbohidratos",
-  fat: "Grasas",
-  fats: "Grasas",
-  vegetables: "Verduras",
-  fruit: "Fruta",
-  fruits: "Fruta",
-  dairy: "Lácteos",
-  other: "Otros",
-};
 
 const GOAL_LABELS: Record<string, string> = {
   lose_fat: "Perder grasa",
@@ -498,7 +480,7 @@ function MealCard({
   }));
 
   const mealColor = MEAL_COLOR[meal.meal_type] ?? "#AAFF45";
-  const mealLabel = MEAL_LABEL_ES[meal.meal_type] ?? meal.meal_type.toUpperCase();
+  const mealLabel = t(meal.meal_type).toUpperCase();
   const prepTime = PREP_TIME[meal.meal_type] ?? 15;
   const calories = CALORIES_APPROX[meal.meal_type] ?? 500;
 
@@ -601,7 +583,7 @@ function MealCard({
                           style={{ backgroundColor: `${item.color}18`, color: item.color }}
                         >
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          {NUTRIENT_ES[item.name.toLowerCase()] ?? item.name} {item.value}%
+                          {t(item.name.toLowerCase())} {item.value}%
                         </span>
                       ))}
                     </div>
@@ -645,7 +627,7 @@ function MealCard({
                         {plateData.map(item => (
                           <div key={item.name} className="flex items-center gap-1.5 text-xs">
                             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                            <span className="text-[#555555] flex-1 truncate">{NUTRIENT_ES[item.name.toLowerCase()] ?? item.name}</span>
+                            <span className="text-[#555555] flex-1 truncate">{t(item.name.toLowerCase())}</span>
                             <span className="font-bold text-white">{item.value}%</span>
                           </div>
                         ))}

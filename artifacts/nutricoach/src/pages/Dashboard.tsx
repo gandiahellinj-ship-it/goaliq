@@ -84,12 +84,12 @@ function translateDiet(diet: string | null): string {
   return map[diet?.toLowerCase() ?? ""] ?? diet ?? "Omnívoro";
 }
 
-function translateMealType(mealType: string): string {
-  const t = mealType?.toLowerCase() ?? "";
-  if (t === "breakfast" || t === "desayuno") return "Desayuno";
-  if (t === "lunch" || t === "comida" || t === "almuerzo") return "Comida";
-  if (t === "dinner" || t === "cena") return "Cena";
-  if (t === "snack" || t === "merienda") return "Merienda";
+function translateMealType(mealType: string, t: (k: string) => string): string {
+  const m = mealType?.toLowerCase() ?? "";
+  if (m === "breakfast" || m === "desayuno") return t("breakfast");
+  if (m === "lunch" || m === "comida" || m === "almuerzo") return t("lunch");
+  if (m === "dinner" || m === "cena") return t("dinner");
+  if (m === "snack" || m === "merienda") return t("snack");
   return mealType;
 }
 
@@ -403,13 +403,13 @@ export default function Dashboard() {
               <span className="text-base sm:text-lg font-medium ml-1" style={{ color: "var(--giq-text-muted)" }}>kg</span>
             )}
           </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>Peso actual</div>
+          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("current_weight")}</div>
           {weightDelta != null && (
             <div
               className="text-xs mt-1 font-semibold"
               style={{ color: weightDeltaColor(weightDelta, profile?.goal ?? null) }}
             >
-              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg desde el inicio
+              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg {t("from_start")}
             </div>
           )}
         </div>
@@ -421,7 +421,7 @@ export default function Dashboard() {
           <div className="text-[32px] sm:text-[36px] font-bold leading-none" style={{ color: "var(--giq-accent)" }}>
             {adherence}%
           </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>Adherencia semanal</div>
+          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("weekly_adherence_label")}</div>
           {adherence > 0 ? (
             <svg width="48" height="30" viewBox="0 0 48 28" className="mt-1.5" style={{ overflow: "visible" }}>
               <path d="M 4 24 A 20 20 0 0 0 44 24" style={{ stroke: "var(--giq-bg-card-hover)" }} strokeWidth="4" fill="none" strokeLinecap="round" />
@@ -440,7 +440,7 @@ export default function Dashboard() {
             {completedWorkouts}
             <span className="text-base sm:text-lg font-medium" style={{ color: "var(--giq-text-muted)" }}>/{totalWorkouts}</span>
           </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>Entrenamientos</div>
+          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("workouts_label")}</div>
           {totalWorkouts > 0 && (
             <div className="flex gap-1.5 mt-2">
               {Array.from({ length: Math.min(totalWorkouts, 7) }).map((_, i) => (
@@ -501,11 +501,11 @@ export default function Dashboard() {
                     {workoutTypeInfo.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--giq-accent)" }}>HOY</p>
+                    <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--giq-accent)" }}>{t("today").toUpperCase()}</p>
                     <p className="font-bold text-base leading-tight" style={{ color: "var(--giq-text-primary)" }}>{workoutTypeInfo.label}</p>
                     <p className="text-xs mt-0.5" style={{ color: "color-mix(in srgb, var(--giq-accent) 55%, transparent)" }}>
-                      {todayExerciseCount} ejercicios · ~{estimatedMin} min
-                      {stats?.todayWorkoutDone ? " · ✓ Completado" : ""}
+                      {t("exercises_n", { n: todayExerciseCount })} · ~{estimatedMin} min
+                      {stats?.todayWorkoutDone ? ` · ${t("completed_check")}` : ""}
                     </p>
                   </div>
                   <ArrowRight className="w-5 h-5 shrink-0" style={{ color: "var(--giq-accent)" }} />
@@ -552,7 +552,7 @@ export default function Dashboard() {
         {todaysMeals.length > 0 ? (
           <div className="divide-y divide-[#2A2A2A]">
             {todaysMeals.map(meal => {
-              const typeLabel = translateMealType(meal.meal_type);
+              const typeLabel = translateMealType(meal.meal_type, t);
               const typeColor = mealTypeColor(meal.meal_type);
               const kcal = (meal as any).estimated_kcal ?? null;
               return (
@@ -646,7 +646,7 @@ export default function Dashboard() {
           </div>
 
           <p className="text-xs" style={{ color: "var(--giq-text-secondary)" }}>
-            {completedWorkouts} de {totalWorkouts} entrenamientos completados esta semana
+            {t("workouts_done_this_week", { done: completedWorkouts, total: totalWorkouts })}
           </p>
         </motion.div>
       )}
@@ -675,7 +675,7 @@ export default function Dashboard() {
           <CalendarDays className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
           <div className="flex-1">
             <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_calendar")}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>Ver mis entrenamientos</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("view_my_workouts")}</p>
           </div>
           <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
         </Link>
@@ -687,7 +687,7 @@ export default function Dashboard() {
           <BarChart2 className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
           <div className="flex-1">
             <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_progress")}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>Registrar mi peso</p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("log_my_weight")}</p>
           </div>
           <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
         </Link>
