@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useProfile, useProgressStats, useFlexDays } from "@/lib/supabase-queries";
 import { X, Download, Share2, Image } from "lucide-react";
 import { getThemeAccent, getThemeAccentText } from "@/lib/theme";
+import { useT } from "@/lib/language";
 
 function hexToRgba(hex: string, alpha: number): string {
   const h = hex.replace("#", "");
@@ -453,6 +454,7 @@ export function ShareProgressButton({ variant = "default" }: { variant?: "defaul
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const t = useT();
   const { data: stats } = useProgressStats();
   const { data: profile } = useProfile();
 
@@ -546,7 +548,7 @@ export function ShareProgressButton({ variant = "default" }: { variant?: "defaul
         }
       >
         <Share2 className="w-4 h-4" />
-        Compartir mi progreso
+        {t("share_progress")}
       </button>
 
       {/* ── Upload step modal ─────────────────────────────────────────────── */}

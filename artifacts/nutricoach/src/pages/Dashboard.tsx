@@ -3,7 +3,7 @@ import { useMealPlan, useWorkoutPlan, useProgressStats, useProfile, useFlexDays 
 import type { ProgressStats } from "@/lib/supabase-queries";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeBanner } from "@/components/UpgradeBanner";
-import { useT } from "@/lib/language";
+import { useT, translateDay } from "@/lib/language";
 
 import { Link } from "wouter";
 import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock, Utensils, BarChart2, CalendarDays, Dumbbell } from "lucide-react";
@@ -339,7 +339,6 @@ export default function Dashboard() {
 
   // Weekly 7-day circles
   const WEEK_DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-  const WEEK_DAY_SHORT = ["Lu", "Ma", "Mi", "Ju", "Vi", "Sá", "Do"];
   const mon = getWeekMonday();
   const weekDates = WEEK_DAY_KEYS.map((_, i) => {
     const d = new Date(mon);
@@ -608,7 +607,7 @@ export default function Dashboard() {
               const isDone = isToday && stats?.todayWorkoutDone;
 
               let circleStyle: React.CSSProperties;
-              let label: React.ReactNode = WEEK_DAY_SHORT[i];
+              let label: React.ReactNode = translateDay(dayKey, t);
               let dotColor = "var(--giq-border)";
 
               if (isFlex) {

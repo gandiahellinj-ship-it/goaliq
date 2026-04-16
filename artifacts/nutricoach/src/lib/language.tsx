@@ -78,6 +78,7 @@ const T: Record<Lang, Record<string, string>> = {
     view_meals: "View Meals",
     adherence_pct_week: "{{n}}% adherence this week",
     track_workouts: "Track workouts",
+    share_progress: "Share my progress",
 
     // ── Meals ─────────────────────────────────────────────────────────────────
     weekly_menu: "Weekly Menu",
@@ -588,6 +589,7 @@ const T: Record<Lang, Record<string, string>> = {
     view_meals: "Ver comidas",
     adherence_pct_week: "{{n}}% de adherencia esta semana",
     track_workouts: "Registrar entrenamientos",
+    share_progress: "Compartir mi progreso",
 
     // ── Meals ─────────────────────────────────────────────────────────────────
     weekly_menu: "Menú semanal",
