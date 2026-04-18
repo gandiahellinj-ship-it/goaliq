@@ -80,6 +80,25 @@ const T: Record<Lang, Record<string, string>> = {
     track_workouts: "Track workouts",
     share_progress: "Share my progress",
 
+    // ── Profile dashboard ─────────────────────────────────────────────────────
+    total_workouts: "Total Workouts",
+    this_month_label: "This Month",
+    streak_days: "Day Streak",
+    avg_duration_label: "Avg Duration",
+    weekly_volume_label: "Weekly Volume",
+    last_session_label: "Last Session",
+    muscle_groups_label: "Muscle Groups",
+    no_sessions_yet: "No sessions yet",
+    view_detail_btn: "View detail →",
+    vs_prev_week: "vs prev. week",
+    days_done_fmt: "{{done}} / {{total}} days",
+    chart_range_4w: "4W",
+    chart_range_3m: "3M",
+    chart_range_1y: "1Y",
+    mins_short: "min",
+    hrs_this_week: "hrs this week",
+    no_data: "No data yet",
+
     // ── Meals ─────────────────────────────────────────────────────────────────
     weekly_menu: "Weekly Menu",
     new_plan: "New plan",
@@ -590,6 +609,25 @@ const T: Record<Lang, Record<string, string>> = {
     adherence_pct_week: "{{n}}% de adherencia esta semana",
     track_workouts: "Registrar entrenamientos",
     share_progress: "Compartir mi progreso",
+
+    // ── Profile dashboard ─────────────────────────────────────────────────────
+    total_workouts: "Total entrenamientos",
+    this_month_label: "Este mes",
+    streak_days: "Racha de días",
+    avg_duration_label: "Duración media",
+    weekly_volume_label: "Volumen semanal",
+    last_session_label: "Última sesión",
+    muscle_groups_label: "Grupos musculares",
+    no_sessions_yet: "Sin sesiones aún",
+    view_detail_btn: "Ver detalle →",
+    vs_prev_week: "vs sem. anterior",
+    days_done_fmt: "{{done}} / {{total}} días",
+    chart_range_4w: "4S",
+    chart_range_3m: "3M",
+    chart_range_1y: "1A",
+    mins_short: "min",
+    hrs_this_week: "hrs esta semana",
+    no_data: "Sin datos aún",
 
     // ── Meals ─────────────────────────────────────────────────────────────────
     weekly_menu: "Menú semanal",

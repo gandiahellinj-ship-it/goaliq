@@ -19,6 +19,7 @@ import CalendarPage from "@/pages/Calendar";
 import Progress from "@/pages/Progress";
 import Billing from "@/pages/Billing";
 import UserProfile from "@/pages/UserProfile";
+import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import AppLayout from "@/components/layout/AppLayout";
 import NotFound from "@/pages/not-found";
@@ -48,7 +49,8 @@ function Router() {
       <Route path="/calendar"><AppLayout><CalendarPage /></AppLayout></Route>
       <Route path="/progress"><AppLayout><Progress /></AppLayout></Route>
       <Route path="/billing"><AppLayout><Billing /></AppLayout></Route>
-      <Route path="/profile"><AppLayout><UserProfile /></AppLayout></Route>
+      <Route path="/profile"><AppLayout><Profile /></AppLayout></Route>
+      <Route path="/profile/edit"><AppLayout><UserProfile /></AppLayout></Route>
       <Route path="/settings"><AppLayout><Settings /></AppLayout></Route>
       
       <Route component={NotFound} />
