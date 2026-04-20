@@ -164,54 +164,31 @@ const LOCATION_EQUIPMENT: Record<string, string[]> = {
   outdoor: ["body weight", "kettlebell", "resistance band"],
 };
 
+// ── Response parsing helper ───────────────────────────────────────────────────
+// WorkoutX wraps results in { total, count, data: [...] }
+
+function parseList(data: any): WxExercise[] {
+  return data.data ?? data.exercises ?? (Array.isArray(data) ? data : []);
+}
+
 async function fetchByEquipment(equipment: string, limit: number): Promise<WxExerciseOut[]> {
   const cacheKey = `wx:equipment:${equipment}`;
   const cached = cacheGet<WxExerciseOut[]>(cacheKey);
   if (cached !== undefined) return cached;
 
   const data = await wxFetch(`/exercises/equipment/${encodeURIComponent(equipment)}`);
-  const list: WxExercise[] = Array.isArray(data) ? data : (data.exercises ?? data.data ?? []);
+  const list = parseList(data);
   const exercises = list.slice(0, limit).map(toOut);
   cacheSet(cacheKey, exercises);
   return exercises;
 }
 
-// Search all exercises and find best match by name
+// Search by name using the dedicated /exercises/name/:name endpoint
 async function searchByName(term: string): Promise<WxExerciseOut | null> {
-  const lower = term.toLowerCase();
-
-  // Fetch all exercises (WorkoutX returns paginated list)
-  const data = await wxFetch(`/exercises?limit=1300&offset=0`);
-  const list: WxExercise[] = Array.isArray(data) ? data : (data.exercises ?? data.data ?? []);
-
+  const data = await wxFetch(`/exercises/name/${encodeURIComponent(term.toLowerCase())}`);
+  const list = parseList(data);
   if (!list.length) return null;
-
-  // Exact match
-  let match = list.find(e => e.name.toLowerCase() === lower);
-  if (match) return toOut(match);
-
-  // Starts with
-  match = list.find(e => e.name.toLowerCase().startsWith(lower));
-  if (match) return toOut(match);
-
-  // Contains full term
-  match = list.find(e => e.name.toLowerCase().includes(lower));
-  if (match) return toOut(match);
-
-  // All words match
-  const words = lower.split(/\s+/).filter(Boolean);
-  match = list.find(e => {
-    const n = e.name.toLowerCase();
-    return words.every(w => n.includes(w));
-  });
-  if (match) return toOut(match);
-
-  // Any significant word matches
-  match = list.find(e => {
-    const n = e.name.toLowerCase();
-    return words.some(w => w.length > 3 && n.includes(w));
-  });
-  return match ? toOut(match) : null;
+  return toOut(list[0]);
 }
 
 // ── GET /api/workoutx/exercise?name=X&lang=es ─────────────────────────────────
@@ -337,7 +314,7 @@ router.get("/api/workoutx/muscle", async (req, res) => {
 
   try {
     const data = await wxFetch(`/exercises/target/${encodeURIComponent(target.toLowerCase())}`);
-    const list: WxExercise[] = Array.isArray(data) ? data : (data.exercises ?? data.data ?? []);
+    const list = parseList(data);
     const exercises = list.slice(0, 20).map(toOut);
     cacheSet(cacheKey, exercises);
     res.json({ exercises });
