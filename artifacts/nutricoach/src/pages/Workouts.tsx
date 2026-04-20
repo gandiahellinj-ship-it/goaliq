@@ -471,8 +471,7 @@ function ExerciseModal({
           <img
             src={imageStart}
             alt={name}
-            className="rounded-xl object-cover"
-            style={{ width: 240, height: 240 }}
+            style={{ width: 240, height: 240, borderRadius: 12, objectFit: "cover" }}
           />
         ) : (
           <>
@@ -858,6 +857,8 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
   const equipment = data?.equipment ?? null;
   const hasImages = !isLoading && imageStart;
 
+  console.log("[ExerciseCard]", exercise.name, "| imageStart:", imageStart, "| isGif:", isGif, "| hasImages:", hasImages);
+
   return (
     <>
       <div className="rounded-lg p-5" style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}>
@@ -955,11 +956,15 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
           {/* Exercise visual — animated GIF, static pair, or SVG fallback */}
           {hasImages ? (
             <div
-              className="shrink-0 hidden min-[380px]:flex cursor-pointer"
+              className="shrink-0 flex cursor-pointer"
               onClick={() => setModalOpen(true)}
             >
               {isGif ? (
-                <ExerciseImg src={imageStart!} alt={exercise.name} size={60} />
+                <img
+                  src={imageStart!}
+                  alt={exercise.name}
+                  style={{ width: 60, height: 60, borderRadius: 8, objectFit: "cover" }}
+                />
               ) : (
                 <ExercisePair
                   imageStart={imageStart!}
