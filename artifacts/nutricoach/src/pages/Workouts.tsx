@@ -10,24 +10,33 @@ import { useT, useLanguage, translateDay } from "@/lib/language";
 import { useQuery } from "@tanstack/react-query";
 import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 
-type ExerciseImages = { imageStart: string | null; imageEnd: string | null };
+type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean };
 
 async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
-  // Primary: free-exercise-db via /api/exercises/gif
+  // 1. WorkoutX (animated GIF, primary source)
+  try {
+    const wxRes = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
+    if (wxRes.ok) {
+      const wxData = await wxRes.json();
+      if (wxData.gifUrl) return { imageStart: wxData.gifUrl, imageEnd: null, isGif: true };
+    }
+  } catch {}
+
+  // 2. free-exercise-db (static start/end images)
   try {
     const res = await fetch(`/api/exercises/gif?name=${encodeURIComponent(name)}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.imageStart) return { imageStart: data.imageStart, imageEnd: data.imageEnd ?? null };
+      if (data.imageStart) return { imageStart: data.imageStart, imageEnd: data.imageEnd ?? null, isGif: false };
     }
   } catch {}
 
-  // Fallback: Wger API search by exercise name
+  // 3. Wger API (fallback)
   try {
     const wgerRes = await fetch(`/api/exercises/search?q=${encodeURIComponent(name)}&lang=${lang}`);
     if (wgerRes.ok) {
       const wgerData = await wgerRes.json();
-      if (wgerData.imageStart) return { imageStart: wgerData.imageStart, imageEnd: wgerData.imageEnd ?? null };
+      if (wgerData.imageStart) return { imageStart: wgerData.imageStart, imageEnd: wgerData.imageEnd ?? null, isGif: false };
     }
   } catch {}
 
@@ -411,11 +420,13 @@ function ExerciseModal({
   name,
   imageStart,
   imageEnd,
+  isGif = false,
   onClose,
 }: {
   name: string;
   imageStart: string;
   imageEnd: string;
+  isGif?: boolean;
   onClose: () => void;
 }) {
   const t = useT();
@@ -451,17 +462,27 @@ function ExerciseModal({
           {name}
         </p>
 
-        <ExercisePair
-          imageStart={imageStart}
-          imageEnd={imageEnd}
-          name={name}
-          size={120}
-        />
-
-        <div className="flex justify-between w-full text-xs px-1" style={{ color: "var(--giq-text-muted)" }}>
-          <span>{t("start")}</span>
-          <span>{t("end")}</span>
-        </div>
+        {isGif ? (
+          <img
+            src={imageStart}
+            alt={name}
+            className="rounded-xl object-cover"
+            style={{ width: 240, height: 240 }}
+          />
+        ) : (
+          <>
+            <ExercisePair
+              imageStart={imageStart}
+              imageEnd={imageEnd}
+              name={name}
+              size={120}
+            />
+            <div className="flex justify-between w-full text-xs px-1" style={{ color: "var(--giq-text-muted)" }}>
+              <span>{t("start")}</span>
+              <span>{t("end")}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -828,6 +849,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
 
   const imageStart = data?.imageStart ?? null;
   const imageEnd = data?.imageEnd ?? null;
+  const isGif = data?.isGif ?? false;
   const hasImages = !isLoading && imageStart;
 
   return (
@@ -910,18 +932,22 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
             <ExerciseLogSection exercise={exercise} />
           </div>
 
-          {/* Exercise visual — two images side by side or SVG fallback */}
+          {/* Exercise visual — animated GIF, static pair, or SVG fallback */}
           {hasImages ? (
             <div
               className="shrink-0 hidden min-[380px]:flex cursor-pointer"
               onClick={() => setModalOpen(true)}
             >
-              <ExercisePair
-                imageStart={imageStart!}
-                imageEnd={imageEnd ?? imageStart!}
-                name={exercise.name}
-                size={60}
-              />
+              {isGif ? (
+                <ExerciseImg src={imageStart!} alt={exercise.name} size={60} />
+              ) : (
+                <ExercisePair
+                  imageStart={imageStart!}
+                  imageEnd={imageEnd ?? imageStart!}
+                  name={exercise.name}
+                  size={60}
+                />
+              )}
             </div>
           ) : (
             <div className="shrink-0 hidden min-[380px]:block opacity-70 hover:opacity-100 transition-opacity duration-300">
@@ -936,6 +962,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
           name={exercise.name}
           imageStart={imageStart}
           imageEnd={imageEnd ?? imageStart}
+          isGif={isGif}
           onClose={() => setModalOpen(false)}
         />
       )}
