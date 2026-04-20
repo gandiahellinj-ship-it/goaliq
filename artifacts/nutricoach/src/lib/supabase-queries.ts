@@ -33,6 +33,7 @@ export type Exercise = {
   duration_sec?: number;
   rest_sec?: number;
   notes?: string;
+  exercise_type?: "strength" | "cardio" | "bodyweight";
 };
 
 export type WorkoutRow = {
@@ -1071,6 +1072,10 @@ export function useSaveStrengthLog() {
       muscleGroup: string;
       weightKg: number;
       reps: number;
+      distanceKm?: number;
+      durationMin?: number;
+      paceMinPerKm?: number;
+      heartRateAvg?: number;
     }) => {
       const token = await getAccessToken();
       const res = await fetch("/api/strength", {

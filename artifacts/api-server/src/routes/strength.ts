@@ -28,6 +28,11 @@ export async function ensureStrengthLogsTable(): Promise<void> {
     CREATE INDEX IF NOT EXISTS strength_logs_user_idx
     ON public.strength_logs(user_id, muscle_group, logged_at DESC)
   `);
+  // Cardio columns (added after initial release — safe to run repeatedly)
+  await pool.query(`ALTER TABLE public.strength_logs ADD COLUMN IF NOT EXISTS distance_km DECIMAL(6,2)`);
+  await pool.query(`ALTER TABLE public.strength_logs ADD COLUMN IF NOT EXISTS duration_min DECIMAL(6,2)`);
+  await pool.query(`ALTER TABLE public.strength_logs ADD COLUMN IF NOT EXISTS pace_min_per_km DECIMAL(6,2)`);
+  await pool.query(`ALTER TABLE public.strength_logs ADD COLUMN IF NOT EXISTS heart_rate_avg INTEGER`);
 }
 
 function getWeekStart(): string {
@@ -222,18 +227,22 @@ router.post("/strength", async (req, res) => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const { exerciseName, muscleGroup, weightKg, reps } = req.body as {
+  const { exerciseName, muscleGroup, weightKg, reps, distanceKm, durationMin, paceMinPerKm, heartRateAvg } = req.body as {
     exerciseName?: string;
     muscleGroup?: string;
     weightKg?: number;
     reps?: number;
+    distanceKm?: number;
+    durationMin?: number;
+    paceMinPerKm?: number;
+    heartRateAvg?: number;
   };
 
   if (!exerciseName || !muscleGroup || weightKg == null || reps == null) {
     res.status(400).json({ error: "exerciseName, muscleGroup, weightKg and reps are required" });
     return;
   }
-  if (typeof weightKg !== "number" || weightKg <= 0 || weightKg > 1000) {
+  if (typeof weightKg !== "number" || weightKg < 0 || weightKg > 1000) {
     res.status(400).json({ error: "Invalid weightKg" });
     return;
   }
@@ -249,7 +258,7 @@ router.post("/strength", async (req, res) => {
   try {
     await ensureStrengthLogsTable();
 
-    // Find previous max for PR detection
+    // Find previous max for PR detection (skip for cardio/bodyweight — weight_kg may be 0)
     const { rows: maxRows } = await pool.query(
       `SELECT MAX(weight_kg) as max_kg FROM public.strength_logs WHERE user_id = $1 AND exercise_name = $2`,
       [req.user.id, exerciseName],
@@ -257,13 +266,17 @@ router.post("/strength", async (req, res) => {
     const prevMax = maxRows[0]?.max_kg ? parseFloat(maxRows[0].max_kg) : null;
 
     const { rows } = await pool.query(
-      `INSERT INTO public.strength_logs (user_id, exercise_name, muscle_group, weight_kg, reps, logged_at, week_start)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, exercise_name, muscle_group, weight_kg::float, reps, logged_at::text, week_start::text`,
-      [req.user.id, exerciseName, muscleGroup, weightKg, reps, today, weekStart],
+      `INSERT INTO public.strength_logs
+         (user_id, exercise_name, muscle_group, weight_kg, reps, logged_at, week_start,
+          distance_km, duration_min, pace_min_per_km, heart_rate_avg)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING id, exercise_name, muscle_group, weight_kg::float, reps, logged_at::text, week_start::text,
+                 distance_km::float, duration_min::float, pace_min_per_km::float, heart_rate_avg`,
+      [req.user.id, exerciseName, muscleGroup, weightKg, reps, today, weekStart,
+       distanceKm ?? null, durationMin ?? null, paceMinPerKm ?? null, heartRateAvg ?? null],
     );
 
-    const isNewPR = prevMax === null || weightKg > prevMax;
+    const isNewPR = weightKg > 0 && (prevMax === null || weightKg > prevMax);
     const prDelta = isNewPR && prevMax !== null ? +(weightKg - prevMax).toFixed(2) : null;
 
     res.json({ log: rows[0], isNewPR, prDelta, prevMax });

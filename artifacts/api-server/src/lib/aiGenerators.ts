@@ -418,7 +418,8 @@ Each object must follow this exact schema:
       sets: number,
       reps: string (e.g. '10-12' or '45 seconds' or '5 heavy'),
       rest_seconds: number,
-      notes: string (form tip or intensity note)
+      notes: string (form tip or intensity note),
+      exercise_type: "strength" | "cardio" | "bodyweight"
     }
   ],
   warmup: string (specific 5 min warmup for this session),
@@ -427,6 +428,12 @@ Each object must follow this exact schema:
 }
 
 CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 seconds'). Never leave sets or reps empty, null, or undefined.
+
+CRITICAL - EXERCISE TYPE: Every exercise MUST have an exercise_type field. Use exactly one of:
+- "strength": uses external weight (barbell, dumbbell, machine, cable, kettlebell). Examples: Bench press, Squat with bar, Bicep curl, Lat pulldown, Cable fly, Leg press.
+- "cardio": aerobic/endurance exercise (running, cycling, rowing, burpees, jump rope, box jumps, mountain climbers, jumping jacks). Examples: Sprints, Rowing machine, Burpees, Jump rope.
+- "bodyweight": no external weight added. Examples: Push-ups, Pull-ups (unweighted), Bodyweight squats, Planks, Lunges without weight, Dips, Ab crunches.
+Never leave exercise_type empty, null, or undefined.
 
 ${langInstruction}
 
@@ -441,6 +448,7 @@ Return ONLY the JSON array, nothing else.`;
       reps: ex.reps || "10-12",
       rest_seconds: ex.rest_seconds || 60,
       notes: ex.notes || "",
+      exercise_type: ex.exercise_type || "strength",
     })),
   }));
 }

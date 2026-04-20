@@ -230,6 +230,14 @@ const T: Record<Lang, Record<string, string>> = {
     muscle_group_chest: "Chest",
     muscle_group_arms: "Arms",
     muscle_group_core: "Core",
+    log_cardio: "Log cardio session",
+    log_bodyweight: "Log reps",
+    distance_km: "Distance (km)",
+    duration_min: "Time (min)",
+    pace_label: "Pace (min/km)",
+    heart_rate: "Avg HR (bpm)",
+    sets_done: "Sets done",
+    optional_field: "Optional",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Shopping List",
@@ -792,6 +800,14 @@ const T: Record<Lang, Record<string, string>> = {
     muscle_group_chest: "Pecho",
     muscle_group_arms: "Brazos",
     muscle_group_core: "Core",
+    log_cardio: "Registrar sesión cardio",
+    log_bodyweight: "Registrar repeticiones",
+    distance_km: "Distancia (km)",
+    duration_min: "Tiempo (min)",
+    pace_label: "Ritmo (min/km)",
+    heart_rate: "FC media (ppm)",
+    sets_done: "Series hechas",
+    optional_field: "Opcional",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Lista de la compra",

@@ -456,41 +456,139 @@ function ExerciseModal({
 }
 
 
-function WeightLogSection({ exercise }: { exercise: Exercise }) {
+// ── Auto-detect exercise type from name when field is missing ─────────────────
+function detectExerciseType(name: string): "strength" | "cardio" | "bodyweight" {
+  const n = name.toLowerCase();
+  if (/correr|running|cycling|cardio|bici|remo|rowing|saltar|jump rope|burpee|sprint|box jump|mountain climb|jumping jack/.test(n)) return "cardio";
+  if (/press|curl|row(?! your)|pull(?!up|-up)|deadlift|squat with|sentadilla con|mancuerna|barbell|cable|machine|kettlebell|lat pulldown|leg press/.test(n)) return "strength";
+  if (/push.?up|pull.?up|plank|lunge|dip|crunch|abs|squat(?! with| con)/.test(n)) return "bodyweight";
+  return "strength"; // safe default
+}
+
+function NumericInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  step,
+  min,
+  max,
+  active,
+  optional,
+  optionalLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  step?: string;
+  min?: string;
+  max?: string;
+  active?: boolean;
+  optional?: boolean;
+  optionalLabel?: string;
+}) {
+  return (
+    <div className="flex-1">
+      <div className="flex items-center gap-1 mb-1.5">
+        <p className="text-[10px]" style={{ color: "var(--giq-text-muted)" }}>{label}</p>
+        {optional && (
+          <span className="text-[9px] px-1 rounded" style={{ color: "var(--giq-text-muted)", background: "var(--giq-border)" }}>
+            {optionalLabel ?? "opt"}
+          </span>
+        )}
+      </div>
+      <input
+        type="number"
+        step={step ?? "1"}
+        min={min ?? "0"}
+        max={max ?? "9999"}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder ?? "0"}
+        className="w-full text-center text-lg font-bold rounded-xl py-2.5 focus:outline-none"
+        style={{
+          background: "var(--giq-bg-card)",
+          border: `1.5px solid ${active && value ? "var(--giq-accent)" : "var(--giq-border)"}`,
+          color: value ? "var(--giq-text-primary)" : "var(--giq-text-muted)",
+        }}
+      />
+    </div>
+  );
+}
+
+function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
   const t = useT();
   const muscleGroup = exercise.muscles?.split(/[,·]/)[0].trim() ?? "general";
   const { data: logs = [] } = useStrengthLogs(muscleGroup);
   const saveLog = useSaveStrengthLog();
 
+  const exType = exercise.exercise_type ?? detectExerciseType(exercise.name);
+
   const [expanded, setExpanded] = useState(false);
-  const [weightInput, setWeightInput] = useState("");
-  const [repsInput, setRepsInput] = useState("");
   const [prInfo, setPrInfo] = useState<{ delta: number | null } | null>(null);
 
-  // Find previous max for this specific exercise
+  // Strength / bodyweight fields
+  const [weightInput, setWeightInput] = useState("");
+  const [repsInput, setRepsInput] = useState("");
+  const [setsDoneInput, setSetsDoneInput] = useState("");
+
+  // Cardio fields
+  const [distInput, setDistInput] = useState("");
+  const [timeInput, setTimeInput] = useState("");
+  const [hrInput, setHrInput] = useState("");
+
+  // Find previous max for strength PR detection
   const exerciseLogs = logs.filter(l => l.exercise_name === exercise.name);
   const prevMax = exerciseLogs.length > 0
     ? Math.max(...exerciseLogs.map(l => l.weight_kg))
     : null;
 
   const currentWeight = parseFloat(weightInput);
-  const isPotentialPR = prevMax !== null && !isNaN(currentWeight) && currentWeight > prevMax;
+  const isPotentialPR = exType === "strength" && prevMax !== null && !isNaN(currentWeight) && currentWeight > prevMax;
+
+  // Auto-calculate pace
+  const dist = parseFloat(distInput);
+  const mins = parseFloat(timeInput);
+  const pace = !isNaN(dist) && !isNaN(mins) && dist > 0 ? (mins / dist).toFixed(2) : null;
+
+  // Toggle label per type
+  const toggleEmoji = exType === "cardio" ? "🏃" : exType === "bodyweight" ? "💪" : "🏋️";
+  const toggleLabel = exType === "cardio" ? t("log_cardio") : exType === "bodyweight" ? t("log_bodyweight") : t("log_todays_max");
+
+  const canSaveStrength = weightInput !== "" && repsInput !== "";
+  const canSaveBodyweight = repsInput !== "";
+  const canSaveCardio = distInput !== "" || timeInput !== "";
 
   const handleSave = () => {
-    const kg = parseFloat(weightInput);
-    const reps = parseInt(repsInput, 10);
-    if (!kg || isNaN(kg) || kg <= 0 || !reps || isNaN(reps) || reps <= 0) return;
-    saveLog.mutate(
-      { exerciseName: exercise.name, muscleGroup, weightKg: kg, reps },
-      {
-        onSuccess: (result) => {
-          setPrInfo({ delta: result.prDelta });
-          setWeightInput("");
-          setRepsInput("");
-          setTimeout(() => setPrInfo(null), 4000);
-        },
-      },
-    );
+    if (exType === "strength") {
+      const kg = parseFloat(weightInput);
+      const reps = parseInt(repsInput, 10);
+      if (!kg || isNaN(kg) || kg <= 0 || !reps || isNaN(reps) || reps <= 0) return;
+      saveLog.mutate(
+        { exerciseName: exercise.name, muscleGroup, weightKg: kg, reps },
+        { onSuccess: (result) => { setPrInfo({ delta: result.prDelta }); setWeightInput(""); setRepsInput(""); setTimeout(() => setPrInfo(null), 4000); } },
+      );
+    } else if (exType === "bodyweight") {
+      const reps = parseInt(repsInput, 10);
+      const sets = parseInt(setsDoneInput, 10) || 1;
+      if (!reps || isNaN(reps) || reps <= 0) return;
+      saveLog.mutate(
+        { exerciseName: exercise.name, muscleGroup, weightKg: 0, reps: reps * sets },
+        { onSuccess: () => { setRepsInput(""); setSetsDoneInput(""); } },
+      );
+    } else {
+      // cardio
+      const d = parseFloat(distInput) || 0;
+      const m = parseFloat(timeInput) || 0;
+      const p = pace ? parseFloat(pace) : undefined;
+      const hr = hrInput ? parseInt(hrInput, 10) : undefined;
+      if (d === 0 && m === 0) return;
+      saveLog.mutate(
+        { exerciseName: exercise.name, muscleGroup, weightKg: 0, reps: 1, distanceKm: d || undefined, durationMin: m || undefined, paceMinPerKm: p, heartRateAvg: hr },
+        { onSuccess: () => { setDistInput(""); setTimeInput(""); setHrInput(""); } },
+      );
+    }
   };
 
   return (
@@ -503,14 +601,14 @@ function WeightLogSection({ exercise }: { exercise: Exercise }) {
         className="flex items-center gap-2 text-xs font-semibold transition-colors w-full"
         style={{ color: expanded ? "var(--giq-accent)" : "var(--giq-text-muted)" }}
       >
-        <span>🏋️</span>
-        <span>{t("log_todays_max")}</span>
-        {prevMax !== null && !expanded && (
+        <span>{toggleEmoji}</span>
+        <span>{toggleLabel}</span>
+        {exType === "strength" && prevMax !== null && !expanded && (
           <span className="ml-auto text-xs" style={{ color: "var(--giq-text-muted)" }}>
             {t("prev_record", { n: prevMax })}
           </span>
         )}
-        <span style={{ fontSize: 10, marginLeft: prevMax !== null && !expanded ? 4 : "auto" }}>
+        <span style={{ fontSize: 10, marginLeft: (exType === "strength" && prevMax !== null && !expanded) ? 4 : "auto" }}>
           {expanded ? "▲" : "▼"}
         </span>
       </button>
@@ -520,93 +618,127 @@ function WeightLogSection({ exercise }: { exercise: Exercise }) {
           className="mt-3 rounded-xl p-3"
           style={{ background: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" }}
         >
-          {/* Previous record info */}
-          {prevMax !== null && (
-            <p className="text-xs mb-3" style={{ color: "var(--giq-text-muted)" }}>
-              {t("prev_record", { n: prevMax })}
-            </p>
+          {/* ── STRENGTH ───────────────────────────────────────────────── */}
+          {exType === "strength" && (
+            <>
+              {prevMax !== null && (
+                <p className="text-xs mb-3" style={{ color: "var(--giq-text-muted)" }}>
+                  {t("prev_record", { n: prevMax })}
+                </p>
+              )}
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--giq-text-muted)" }}>
+                {t("log_todays_max")}
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Peso (kg)</p>
+                  <input
+                    type="number" step="0.5" min="0" max="999"
+                    value={weightInput} onChange={e => setWeightInput(e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
+                    style={{
+                      background: "var(--giq-bg-card)",
+                      border: `1.5px solid ${isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
+                      color: isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-text-primary)",
+                    }}
+                  />
+                </div>
+                <span className="text-xl font-bold mt-4" style={{ color: "var(--giq-text-muted)" }}>×</span>
+                <div className="flex-1">
+                  <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Reps</p>
+                  <input
+                    type="number" min="1" max="999"
+                    value={repsInput} onChange={e => setRepsInput(e.target.value)}
+                    placeholder="0"
+                    className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
+                    style={{
+                      background: "var(--giq-bg-card)",
+                      border: `1.5px solid ${repsInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
+                      color: repsInput ? "var(--giq-text-primary)" : "var(--giq-text-muted)",
+                    }}
+                  />
+                </div>
+              </div>
+              {isPotentialPR && !prInfo && (
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="text-sm">🏆</span>
+                  <p className="text-xs font-bold" style={{ color: "#FFB800" }}>{t("personal_record")}</p>
+                </div>
+              )}
+              {prInfo && (
+                <div className="flex items-center gap-2 mt-2.5">
+                  <span className="text-sm">🏆</span>
+                  <p className="text-xs font-bold" style={{ color: "#FFB800" }}>
+                    {prInfo.delta != null ? t("new_pr", { n: prInfo.delta }) : t("personal_record")}
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
-          {/* Small label */}
-          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--giq-text-muted)" }}>
-            {t("log_todays_max")}
-          </p>
-
-          {/* Inputs row */}
-          <div className="flex items-center gap-3">
-
-            {/* Weight input */}
-            <div className="flex-1">
-              <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Peso (kg)</p>
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                max="999"
-                value={weightInput}
-                onChange={e => setWeightInput(e.target.value)}
-                placeholder="0"
-                className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
-                style={{
-                  background: "var(--giq-bg-card)",
-                  border: `1.5px solid ${isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
-                  color: isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-text-primary)",
-                }}
-              />
-            </div>
-
-            {/* × separator */}
-            <span className="text-xl font-bold mt-4" style={{ color: "var(--giq-text-muted)" }}>×</span>
-
-            {/* Reps input */}
-            <div className="flex-1">
-              <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Reps</p>
-              <input
-                type="number"
-                min="1"
-                max="999"
-                value={repsInput}
-                onChange={e => setRepsInput(e.target.value)}
-                placeholder="0"
-                className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
-                style={{
-                  background: "var(--giq-bg-card)",
-                  border: `1.5px solid ${repsInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
-                  color: repsInput ? "var(--giq-text-primary)" : "var(--giq-text-muted)",
-                }}
-              />
-            </div>
-          </div>
-
-          {/* PR warning before saving */}
-          {isPotentialPR && !prInfo && (
-            <div className="flex items-center gap-2 mt-2.5">
-              <span className="text-sm">🏆</span>
-              <p className="text-xs font-bold" style={{ color: "#FFB800" }}>
-                {t("personal_record")}
+          {/* ── BODYWEIGHT ─────────────────────────────────────────────── */}
+          {exType === "bodyweight" && (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--giq-text-muted)" }}>
+                {t("log_bodyweight")}
               </p>
-            </div>
+              <div className="flex items-center gap-3">
+                <NumericInput label={t("sets_done")} value={setsDoneInput} onChange={setSetsDoneInput} placeholder="3" active />
+                <span className="text-xl font-bold mt-4" style={{ color: "var(--giq-text-muted)" }}>×</span>
+                <NumericInput label="Reps" value={repsInput} onChange={setRepsInput} placeholder="0" active />
+              </div>
+            </>
           )}
 
-          {/* PR confirmed after saving */}
-          {prInfo && (
-            <div className="flex items-center gap-2 mt-2.5">
-              <span className="text-sm">🏆</span>
-              <p className="text-xs font-bold" style={{ color: "#FFB800" }}>
-                {prInfo.delta != null ? t("new_pr", { n: prInfo.delta }) : t("personal_record")}
+          {/* ── CARDIO ─────────────────────────────────────────────────── */}
+          {exType === "cardio" && (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--giq-text-muted)" }}>
+                {t("log_cardio")}
               </p>
-            </div>
+              <div className="flex gap-2 mb-2">
+                <NumericInput label={t("distance_km")} value={distInput} onChange={setDistInput} step="0.1" placeholder="0.0" active />
+                <NumericInput label={t("duration_min")} value={timeInput} onChange={setTimeInput} placeholder="0" active />
+              </div>
+              <div className="flex gap-2">
+                {/* Pace — read-only computed */}
+                <div className="flex-1">
+                  <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("pace_label")}</p>
+                  <div
+                    className="w-full text-center text-lg font-bold rounded-xl py-2.5"
+                    style={{ background: "var(--giq-bg-card)", border: "1.5px solid var(--giq-border)", color: pace ? "var(--giq-accent)" : "var(--giq-text-muted)" }}
+                  >
+                    {pace ?? "—"}
+                  </div>
+                </div>
+                <NumericInput
+                  label={t("heart_rate")}
+                  value={hrInput}
+                  onChange={setHrInput}
+                  placeholder="—"
+                  min="30"
+                  max="250"
+                  optional
+                  optionalLabel={t("optional_field")}
+                />
+              </div>
+            </>
           )}
 
           {/* Save button */}
           <button
             type="button"
             onClick={handleSave}
-            disabled={saveLog.isPending || !weightInput || !repsInput}
+            disabled={saveLog.isPending || (exType === "strength" ? !canSaveStrength : exType === "bodyweight" ? !canSaveBodyweight : !canSaveCardio)}
             className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
             style={{
-              background: (weightInput && repsInput) ? "var(--giq-accent)" : "var(--giq-border)",
-              color: (weightInput && repsInput) ? "var(--giq-accent-text)" : "var(--giq-text-muted)",
+              background: (exType === "strength" ? canSaveStrength : exType === "bodyweight" ? canSaveBodyweight : canSaveCardio)
+                ? "var(--giq-accent)"
+                : "var(--giq-border)",
+              color: (exType === "strength" ? canSaveStrength : exType === "bodyweight" ? canSaveBodyweight : canSaveCardio)
+                ? "var(--giq-accent-text)"
+                : "var(--giq-text-muted)",
             }}
           >
             {saveLog.isPending ? "…" : t("save_log")}
@@ -703,7 +835,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
               </button>
             )}
 
-            <WeightLogSection exercise={exercise} />
+            <ExerciseLogSection exercise={exercise} />
           </div>
 
           {/* Exercise visual — two images side by side or SVG fallback */}
