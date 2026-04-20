@@ -10,7 +10,7 @@ import { useT, useLanguage, translateDay } from "@/lib/language";
 import { useQuery } from "@tanstack/react-query";
 import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 
-type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean };
+type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean; equipment?: string };
 
 async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
   // 1. WorkoutX (animated GIF, primary source)
@@ -18,7 +18,7 @@ async function fetchExerciseImages(name: string, lang: string = "en"): Promise<E
     const wxRes = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
     if (wxRes.ok) {
       const wxData = await wxRes.json();
-      if (wxData.gifUrl) return { imageStart: wxData.gifUrl, imageEnd: null, isGif: true };
+      if (wxData.gifUrl) return { imageStart: wxData.gifUrl, imageEnd: null, isGif: true, equipment: wxData.equipment ?? undefined };
     }
   } catch {}
 
@@ -50,6 +50,22 @@ function useExerciseImages(name: string, lang: string = "en") {
     staleTime: Infinity,
     retry: 1,
   });
+}
+
+function equipmentTKey(equipment: string): string {
+  const map: Record<string, string> = {
+    "barbell": "eq_barbell",
+    "dumbbell": "eq_dumbbell",
+    "cable": "eq_cable",
+    "body weight": "eq_body_weight",
+    "kettlebell": "eq_kettlebell",
+    "resistance band": "eq_resistance_band",
+    "leverage machine": "eq_machine",
+    "smith machine": "eq_smith_machine",
+    "ez barbell": "eq_barbell",
+    "assisted": "eq_machine",
+  };
+  return map[equipment.toLowerCase()] ?? "eq_machine";
 }
 
 function estimateDuration(exercises: Exercise[]): number {
@@ -850,6 +866,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
   const imageStart = data?.imageStart ?? null;
   const imageEnd = data?.imageEnd ?? null;
   const isGif = data?.isGif ?? false;
+  const equipment = data?.equipment ?? null;
   const hasImages = !isLoading && imageStart;
 
   return (
@@ -880,6 +897,20 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
                   }}
                 >
                   {exercise.muscles.replace(/,\s*/g, " · ")}
+                </span>
+              )}
+              {equipment && (
+                <span
+                  className="shrink-0 font-medium"
+                  style={{
+                    color: "var(--giq-text-muted)",
+                    background: "var(--giq-border)",
+                    fontSize: 10,
+                    borderRadius: 4,
+                    padding: "2px 8px",
+                  }}
+                >
+                  {t(equipmentTKey(equipment))}
                 </span>
               )}
             </div>

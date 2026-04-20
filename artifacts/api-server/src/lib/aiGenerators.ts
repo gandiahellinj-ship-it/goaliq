@@ -358,11 +358,23 @@ export async function generateWorkoutPlanForUser(profile: {
     ? "LANGUAGE REQUIRED: All content must be in English (UK). Exercise names, notes, warmup/cooldown — everything in English. Example: \"Squat\", \"Bench Press\", \"Deadlift\". NEVER use Spanish."
     : "IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento y cualquier texto deben estar en español de España. Ejemplo correcto: \"Sentadilla\", \"Press de banca\", \"Peso muerto\". NUNCA uses inglés.";
 
+  const LOCATION_EQUIPMENT: Record<string, string> = {
+    gym:     "barbell, dumbbell, cable machine, smith machine, leg press, lat pulldown machine, leverage machines",
+    home:    "bodyweight, resistance bands, dumbbells, kettlebell",
+    outdoor: "bodyweight, kettlebell, resistance bands, park equipment",
+  };
+  const locationKey = (profile.trainingLocation ?? "gym").toLowerCase();
+  const allowedEquipment = LOCATION_EQUIPMENT[locationKey] ?? LOCATION_EQUIPMENT.gym;
+
   const prompt = `Create a weekly workout plan for this person:
 - Goal: ${profile.goalType.replace(/_/g, " ")}
 - Training level: ${profile.trainingLevel}
 - Training days per week: ${trainingDays}
 - Training location: ${profile.trainingLocation}
+
+TRAINING LOCATION: The user trains at ${profile.trainingLocation}.
+ALLOWED EQUIPMENT: ${allowedEquipment}
+CRITICAL: Only suggest exercises using the allowed equipment above. Never suggest barbell or machine exercises for home/outdoor users. Never suggest bodyweight-only exercises when gym equipment is available (unless warmup or cardio burst).
 
 GOAL-SPECIFIC TRAINING APPROACH:
 - lose_weight: Mix cardio + strength. 40% cardio (HIIT, circuits, metabolic conditioning), 40% full body strength, 20% core/mobility. Keep rest periods short (30-45s) to maintain heart rate.

@@ -140,6 +140,7 @@ interface WxExerciseOut {
   gifUrl: string | null;
   target: string;
   bodyPart: string;
+  equipment: string;
   instructions: string[];
 }
 
@@ -150,8 +151,29 @@ function toOut(ex: WxExercise): WxExerciseOut {
     gifUrl: ex.gifUrl ?? null,
     target: ex.target ?? "",
     bodyPart: ex.bodyPart ?? "",
+    equipment: ex.equipment ?? "",
     instructions: ex.instructions ?? [],
   };
+}
+
+// ── Location → equipment mapping ──────────────────────────────────────────────
+
+const LOCATION_EQUIPMENT: Record<string, string[]> = {
+  gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "ez barbell"],
+  home:    ["body weight", "resistance band", "dumbbell", "kettlebell"],
+  outdoor: ["body weight", "kettlebell", "resistance band"],
+};
+
+async function fetchByEquipment(equipment: string, limit: number): Promise<WxExerciseOut[]> {
+  const cacheKey = `wx:equipment:${equipment}`;
+  const cached = cacheGet<WxExerciseOut[]>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const data = await wxFetch(`/exercises/equipment/${encodeURIComponent(equipment)}`);
+  const list: WxExercise[] = Array.isArray(data) ? data : (data.exercises ?? data.data ?? []);
+  const exercises = list.slice(0, limit).map(toOut);
+  cacheSet(cacheKey, exercises);
+  return exercises;
 }
 
 // Search all exercises and find best match by name
@@ -235,6 +257,64 @@ router.get("/api/workoutx/exercise", async (req, res) => {
   } catch (err: any) {
     console.error("[workoutx] exercise search error:", err.message);
     res.json({ gifUrl: null });
+  }
+});
+
+// ── GET /api/workoutx/by-location?location=gym&limit=20 ──────────────────────
+
+router.get("/api/workoutx/by-location", async (req, res) => {
+  const location = typeof req.query.location === "string" ? req.query.location.trim().toLowerCase() : "gym";
+  const limit = typeof req.query.limit === "string" ? Math.min(parseInt(req.query.limit, 10) || 20, 100) : 20;
+
+  const equipmentList = LOCATION_EQUIPMENT[location] ?? LOCATION_EQUIPMENT.gym;
+  const cacheKey = `wx:location:${location}:${limit}`;
+  const cached = cacheGet<WxExerciseOut[]>(cacheKey);
+  if (cached !== undefined) {
+    res.json({ exercises: cached, equipment: equipmentList });
+    return;
+  }
+
+  try {
+    const perEquipment = Math.max(3, Math.ceil(limit / equipmentList.length));
+    const results = await Promise.allSettled(
+      equipmentList.map(eq => fetchByEquipment(eq, perEquipment)),
+    );
+
+    const seen = new Set<string>();
+    const exercises: WxExerciseOut[] = [];
+    for (const r of results) {
+      if (r.status !== "fulfilled") continue;
+      for (const ex of r.value) {
+        if (!seen.has(ex.id)) { seen.add(ex.id); exercises.push(ex); }
+      }
+    }
+
+    const trimmed = exercises.slice(0, limit);
+    cacheSet(cacheKey, trimmed);
+    res.json({ exercises: trimmed, equipment: equipmentList });
+  } catch (err: any) {
+    console.error("[workoutx] by-location error:", err.message);
+    res.json({ exercises: [], equipment: equipmentList });
+  }
+});
+
+// ── GET /api/workoutx/equipment?type=barbell&limit=20 ─────────────────────────
+
+router.get("/api/workoutx/equipment", async (req, res) => {
+  const type = typeof req.query.type === "string" ? req.query.type.trim() : "";
+  const limit = typeof req.query.limit === "string" ? Math.min(parseInt(req.query.limit, 10) || 20, 100) : 20;
+
+  if (!type) {
+    res.status(400).json({ error: "type query param required" });
+    return;
+  }
+
+  try {
+    const exercises = await fetchByEquipment(type, limit);
+    res.json({ exercises });
+  } catch (err: any) {
+    console.error("[workoutx] equipment error:", err.message);
+    res.json({ exercises: [] });
   }
 });
 
