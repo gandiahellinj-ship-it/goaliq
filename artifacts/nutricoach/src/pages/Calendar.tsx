@@ -21,7 +21,7 @@ import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Dumbbell, Eye, X } fro
 import { toast } from "sonner";
 import { ShareWorkoutButton, getWorkoutTypeLabel, type WorkoutData } from "@/components/ShareWorkoutCard";
 
-const DAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_HEADER_KEYS = ["day_mon", "day_tue", "day_wed", "day_thu", "day_fri", "day_sat", "day_sun"] as const;
 
 const DAY_NAME_MAP: Record<number, string> = {
   0: "sunday", 1: "monday", 2: "tuesday", 3: "wednesday",
@@ -479,9 +479,9 @@ function CalendarContent() {
       {/* Calendar grid */}
       <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] overflow-hidden">
         <div className="grid grid-cols-7 border-b border-[#2A2A2A]">
-          {DAY_HEADERS.map(h => (
-            <div key={h} className="text-center py-2.5 text-xs font-bold text-[#555555] uppercase tracking-wide">
-              {h}
+          {DAY_HEADER_KEYS.map(key => (
+            <div key={key} className="text-center py-2.5 text-xs font-bold text-[#555555] uppercase tracking-wide">
+              {t(key)}
             </div>
           ))}
         </div>
