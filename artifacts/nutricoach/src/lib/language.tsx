@@ -79,6 +79,16 @@ const T: Record<Lang, Record<string, string>> = {
     adherence_pct_week: "{{n}}% adherence this week",
     track_workouts: "Track workouts",
     share_progress: "Share my progress",
+    first_exercise: "First exercise",
+    start_workout: "Start workout",
+    shopping_pending: "{{n}} pending",
+    shopping_this_week: "Shopping list this week",
+    view_full_list: "View full list →",
+    view_full_plan: "View full plan →",
+    day_streak: "day streak",
+    completed_pct: "{{n}}% complete",
+    workouts_x_of_y: "{{done}} of {{total}} workouts",
+    target_weight: "Target: {{n}}kg",
 
     // ── Profile dashboard ─────────────────────────────────────────────────────
     total_workouts: "Total Workouts",
@@ -609,6 +619,16 @@ const T: Record<Lang, Record<string, string>> = {
     adherence_pct_week: "{{n}}% de adherencia esta semana",
     track_workouts: "Registrar entrenamientos",
     share_progress: "Compartir mi progreso",
+    first_exercise: "Primer ejercicio",
+    start_workout: "Empezar entreno",
+    shopping_pending: "{{n}} pendientes",
+    shopping_this_week: "Lista de la compra esta semana",
+    view_full_list: "Ver lista completa →",
+    view_full_plan: "Ver plan completo →",
+    day_streak: "días racha",
+    completed_pct: "{{n}}% completado",
+    workouts_x_of_y: "{{done}} de {{total}} entrenos",
+    target_weight: "Objetivo: {{n}}kg",
 
     // ── Profile dashboard ─────────────────────────────────────────────────────
     total_workouts: "Total entrenamientos",

@@ -4,9 +4,10 @@ import type { ProgressStats } from "@/lib/supabase-queries";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeBanner } from "@/components/UpgradeBanner";
 import { useT, translateDay } from "@/lib/language";
+import { useShoppingList } from "@/lib/shopping";
 
 import { Link } from "wouter";
-import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock, Utensils, BarChart2, CalendarDays, Dumbbell } from "lucide-react";
+import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock, Utensils, ShoppingCart, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { WeeklyCheckin } from "@/components/WeeklyCheckin";
 import { ShareProgressButton } from "@/components/ShareProgressCard";
@@ -315,6 +316,7 @@ export default function Dashboard() {
 
   const now = new Date();
   const { data: flexDays } = useFlexDays(now.getFullYear(), now.getMonth() + 1);
+  const { categories: shoppingCategories } = useShoppingList();
 
   const canViewInsights = subData?.hasAccess ?? false;
 
@@ -336,6 +338,7 @@ export default function Dashboard() {
   const adherence = stats?.weeklyAdherencePercent ?? 0;
   const completedWorkouts = stats?.completedWorkoutsThisWeek ?? 0;
   const totalWorkouts = stats?.totalWorkoutsThisWeek ?? 0;
+  const streak = stats?.streak ?? 0;
 
   // Weekly 7-day circles
   const WEEK_DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -346,26 +349,41 @@ export default function Dashboard() {
     return d.toISOString().split("T")[0];
   });
 
-  // Workout estimate
+  // Workout info
   const todayExerciseCount = todaysDayPlan?.workout?.exercises.length ?? 0;
   const estimatedMin = todayExerciseCount > 0 ? todayExerciseCount * 4 + 10 : 0;
   const workoutTypeInfo = WORKOUT_TYPE_LABELS[todaysDayPlan?.workout?.workout_type ?? ""] ?? { label: "Entrenamiento", emoji: "💪" };
+  const firstExerciseName = todaysDayPlan?.workout?.exercises[0]?.name ?? null;
 
-  const dateLabel = now.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+  // Shopping
+  const totalShoppingItems = shoppingCategories.reduce((sum, c) => sum + c.items.length, 0);
+
+  const dateLabel = now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 
   return (
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto space-y-4">
 
       <WeeklyCheckin />
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div>
-        <p className="text-sm font-medium mb-1" style={{ color: "var(--giq-text-muted)" }}>
+      {/* ── 1. Greeting header ─────────────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="text-sm font-medium mb-1 capitalize" style={{ color: "var(--giq-text-muted)" }}>
           {dateLabel}
         </p>
-        <h1 className="font-bold" style={{ fontSize: 32, lineHeight: "1.15", color: "var(--giq-text-primary)" }}>
-          {t(`greeting_${getTimeOfDay()}`)}, {displayName} 👋
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-bold" style={{ fontSize: 30, lineHeight: "1.2", color: "var(--giq-text-primary)" }}>
+            {t(`greeting_${getTimeOfDay()}`)}, {displayName} 👋
+          </h1>
+          {streak >= 2 && (
+            <div
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full shrink-0 text-sm font-bold"
+              style={{ backgroundColor: "color-mix(in srgb, #FF6B35 15%, transparent)", color: "#FF8C57", border: "1px solid color-mix(in srgb, #FF6B35 30%, transparent)" }}
+            >
+              <Flame className="w-4 h-4" />
+              {streak} {t("day_streak")}
+            </div>
+          )}
+        </div>
         {(profile?.goal || profile?.diet_type) && (
           <div
             className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold"
@@ -374,92 +392,15 @@ export default function Dashboard() {
             <Target className="w-3 h-3" /> {translateGoal(profile.goal)} · {translateDiet(profile.diet_type)}
           </div>
         )}
-      </div>
+      </motion.div>
 
       {/* ── Trial status ───────────────────────────────────────────────────── */}
       {subData?.status === "trialing" && (
         <TrialStatusCard trialEndsAt={subData.trialEndsAt ?? null} />
       )}
 
-      {/* ── Stats wide card ────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="flex"
-        style={{
-          backgroundColor: "var(--giq-bg-secondary)",
-          border: "1px solid var(--giq-bg-card-hover)",
-          borderRadius: 16,
-          padding: 20,
-        }}
-      >
-        {/* Weight */}
-        <div className="flex-1 flex flex-col items-center text-center">
-          <div className="text-[32px] sm:text-[36px] font-bold leading-none" style={{ color: "var(--giq-text-primary)" }}>
-            {currentWeight != null ? `${currentWeight}` : "—"}
-            {currentWeight != null && (
-              <span className="text-base sm:text-lg font-medium ml-1" style={{ color: "var(--giq-text-muted)" }}>kg</span>
-            )}
-          </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("current_weight")}</div>
-          {weightDelta != null && (
-            <div
-              className="text-xs mt-1 font-semibold"
-              style={{ color: weightDeltaColor(weightDelta, profile?.goal ?? null) }}
-            >
-              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg {t("from_start")}
-            </div>
-          )}
-        </div>
-
-        <div className="w-px mx-3 self-stretch" style={{ backgroundColor: "var(--giq-bg-card-hover)" }} />
-
-        {/* Adherence */}
-        <div className="flex-1 flex flex-col items-center text-center">
-          <div className="text-[32px] sm:text-[36px] font-bold leading-none" style={{ color: "var(--giq-accent)" }}>
-            {adherence}%
-          </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("weekly_adherence_label")}</div>
-          {adherence > 0 ? (
-            <svg width="48" height="30" viewBox="0 0 48 28" className="mt-1.5" style={{ overflow: "visible" }}>
-              <path d="M 4 24 A 20 20 0 0 0 44 24" style={{ stroke: "var(--giq-bg-card-hover)" }} strokeWidth="4" fill="none" strokeLinecap="round" />
-              <path d={semicircleArcPath(adherence)} style={{ stroke: "var(--giq-accent)" }} strokeWidth="4" fill="none" strokeLinecap="round" />
-            </svg>
-          ) : (
-            <div className="h-[30px] mt-1.5" />
-          )}
-        </div>
-
-        <div className="w-px mx-3 self-stretch" style={{ backgroundColor: "var(--giq-bg-card-hover)" }} />
-
-        {/* Workouts */}
-        <div className="flex-1 flex flex-col items-center text-center">
-          <div className="text-[32px] sm:text-[36px] font-bold leading-none" style={{ color: "var(--giq-text-primary)" }}>
-            {completedWorkouts}
-            <span className="text-base sm:text-lg font-medium" style={{ color: "var(--giq-text-muted)" }}>/{totalWorkouts}</span>
-          </div>
-          <div className="text-xs mt-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("workouts_label")}</div>
-          {totalWorkouts > 0 && (
-            <div className="flex gap-1.5 mt-2">
-              {Array.from({ length: Math.min(totalWorkouts, 7) }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: i < completedWorkouts ? "var(--giq-accent)" : "var(--giq-bg-card-hover)" }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </motion.div>
-
-      {/* ── Smart Insight Card ─────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.07 }}
-      >
+      {/* ── 2. Motivational quote / Smart Insight ─────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
         {canViewInsights && feedback && stats ? (
           <SmartInsightCard feedback={feedback} streak={stats.streak} />
         ) : (
@@ -467,61 +408,69 @@ export default function Dashboard() {
         )}
       </motion.div>
 
-      {/* ── Today's workout card ───────────────────────────────────────────── */}
+      {/* ── 3. Workout preview card ────────────────────────────────────────── */}
       {workoutPlan && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
           <Link href="/workouts">
             {isWorkoutDay ? (
               <div
-                className="relative overflow-hidden rounded-xl cursor-pointer transition-opacity hover:opacity-90"
+                className="relative overflow-hidden rounded-2xl cursor-pointer transition-opacity hover:opacity-90"
                 style={{
-                  background: "linear-gradient(135deg, color-mix(in srgb, var(--giq-accent) 8%, var(--giq-bg-secondary)) 0%, var(--giq-bg-secondary) 100%)",
-                  border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
-                  padding: "16px 20px",
+                  background: "linear-gradient(135deg, #1a2a0e 0%, #111 60%)",
+                  border: "1px solid color-mix(in srgb, var(--giq-accent) 25%, transparent)",
+                  padding: "20px 20px",
                 }}
               >
-                {/* decorative background emoji */}
-                <span
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-6xl select-none pointer-events-none"
-                  style={{ opacity: 0.07 }}
-                >
-                  {workoutTypeInfo.emoji}
-                </span>
-
+                {/* Decorative glow */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{ background: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--giq-accent) 8%, transparent) 0%, transparent 70%)" }}
+                />
                 <div className="relative flex items-center gap-4">
                   <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0"
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0"
                     style={{ backgroundColor: "color-mix(in srgb, var(--giq-accent) 12%, transparent)" }}
                   >
                     {workoutTypeInfo.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--giq-accent)" }}>{t("today").toUpperCase()}</p>
-                    <p className="font-bold text-base leading-tight" style={{ color: "var(--giq-text-primary)" }}>{workoutTypeInfo.label}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "color-mix(in srgb, var(--giq-accent) 55%, transparent)" }}>
+                    <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{ color: "var(--giq-accent)" }}>
+                      {t("today").toUpperCase()}
+                      {stats?.todayWorkoutDone && <span className="ml-2">· {t("completed_check")}</span>}
+                    </p>
+                    <p className="font-bold text-lg leading-tight" style={{ color: "var(--giq-text-primary)" }}>{workoutTypeInfo.label}</p>
+                    {firstExerciseName && (
+                      <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                        {t("first_exercise")}: <span style={{ color: "var(--giq-text-secondary)" }}>{firstExerciseName}</span>
+                      </p>
+                    )}
+                    <p className="text-xs mt-0.5" style={{ color: "color-mix(in srgb, var(--giq-accent) 60%, transparent)" }}>
                       {t("exercises_n", { n: todayExerciseCount })} · ~{estimatedMin} min
-                      {stats?.todayWorkoutDone ? ` · ${t("completed_check")}` : ""}
                     </p>
                   </div>
-                  <ArrowRight className="w-5 h-5 shrink-0" style={{ color: "var(--giq-accent)" }} />
+                  {!stats?.todayWorkoutDone && (
+                    <div
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl shrink-0 text-sm font-bold"
+                      style={{ backgroundColor: "var(--giq-accent)", color: "#0a0a0a" }}
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      {t("start")}
+                    </div>
+                  )}
+                  {stats?.todayWorkoutDone && (
+                    <CheckCircle2 className="w-6 h-6 shrink-0" style={{ color: "var(--giq-accent)" }} />
+                  )}
                 </div>
               </div>
             ) : (
               <div
-                className="flex items-center gap-4 rounded-xl p-4 cursor-pointer transition-colors"
-                style={{
-                  backgroundColor: "var(--giq-bg-card)",
-                  border: "1px solid var(--giq-border)",
-                }}
+                className="flex items-center gap-4 rounded-2xl p-5 cursor-pointer transition-colors"
+                style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
               >
                 <div className="text-3xl">🧘</div>
                 <div className="flex-1">
                   <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>{t("today")}</p>
-                  <p className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{t("rest_today")}</p>
+                  <p className="font-bold text-base" style={{ color: "var(--giq-text-primary)" }}>{t("rest_today")}</p>
                   <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("light_stretching")}</p>
                 </div>
                 <ArrowRight className="w-5 h-5 shrink-0" style={{ color: "var(--giq-border)" }} />
@@ -531,73 +480,16 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* ── Today's Meals ──────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.13 }}
-        className="rounded-xl overflow-hidden"
-        style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
-      >
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="font-display font-bold uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
-            <Utensils className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("todays_meals")}
-          </h2>
-          <Link href="/meals" className="text-xs font-semibold text-[#AAFF45] hover:underline flex items-center gap-1">
-            {t("view_all_meals")} <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        {todaysMeals.length > 0 ? (
-          <div className="divide-y divide-[#2A2A2A]">
-            {todaysMeals.map(meal => {
-              const typeLabel = translateMealType(meal.meal_type, t);
-              const typeColor = mealTypeColor(meal.meal_type);
-              const kcal = (meal as any).estimated_kcal ?? null;
-              return (
-                <div key={meal.id} className="flex items-center gap-3 px-5 py-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0" style={{ backgroundColor: `${typeColor}18` }}>
-                    {mealEmoji(meal.meal_type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: typeColor }}>{typeLabel}</p>
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--giq-text-primary)" }}>{meal.meal_name}</p>
-                  </div>
-                  {kcal != null && (
-                    <span className="text-xs font-medium shrink-0" style={{ color: "var(--giq-text-muted)" }}>
-                      {kcal} kcal
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        ) : mealPlan ? (
-          <p className="px-5 pb-5 text-sm text-[#555555]">{t("no_meals_today_plan")}</p>
-        ) : (
-          <div className="px-5 pb-5 pt-2">
-            <p className="text-sm text-[#555555] mb-3">{t("meal_plan_after_onboarding")}</p>
-            <Link href="/meals" className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#AAFF45] text-[#0A0A0A] text-sm font-bold hover:bg-[#99EE34] transition-colors">
-              {t("view_meals")} <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        )}
-      </motion.div>
-
-      {/* ── Weekly progress — 7 day circles ───────────────────────────────── */}
-      {(stats?.totalWorkoutsThisWeek ?? 0) > 0 && (
+      {/* ── 4. Week strip ─────────────────────────────────────────────────── */}
+      {workoutPlan && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.16 }}
-          className="rounded-xl p-5"
+          transition={{ delay: 0.11 }}
+          className="rounded-2xl p-4"
           style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
         >
-          <h2 className="font-display font-bold uppercase mb-4 flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
-            <BarChart2 className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("this_week")}
-          </h2>
-
-          <div className="flex justify-between gap-1 mb-3">
+          <div className="flex justify-between gap-1">
             {WEEK_DAY_KEYS.map((dayKey, i) => {
               const dateStr = weekDates[i];
               const planDay = workoutPlan?.days.find(d => d.day === dayKey);
@@ -611,7 +503,7 @@ export default function Dashboard() {
               let dotColor = "var(--giq-border)";
 
               if (isFlex) {
-                circleStyle = { backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" };
+                circleStyle = { backgroundColor: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" };
                 label = "⚡";
                 dotColor = "var(--giq-text-muted)";
               } else if (isDone) {
@@ -621,75 +513,205 @@ export default function Dashboard() {
                 circleStyle = { backgroundColor: "transparent", border: "1.5px solid var(--giq-accent)" };
                 dotColor = "var(--giq-accent)";
               } else {
-                circleStyle = { backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" };
+                circleStyle = { backgroundColor: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" };
               }
 
               return (
-                <div key={dayKey} className="flex flex-col items-center gap-1.5 flex-1">
+                <div key={dayKey} className="flex flex-col items-center gap-1 flex-1">
                   <div
-                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs font-bold transition-all"
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs font-bold"
                     style={{
                       ...circleStyle,
-                      color: isDone ? "var(--giq-accent-text)" : isFlex ? "var(--giq-text-muted)" : isTraining ? "var(--giq-accent)" : "var(--giq-text-muted)",
+                      color: isDone ? "#0a0a0a" : isFlex ? "var(--giq-text-muted)" : isTraining ? "var(--giq-accent)" : "var(--giq-text-muted)",
                     }}
                   >
                     {label}
                   </div>
-                  <div
-                    className="w-1 h-1 rounded-full"
-                    style={{ backgroundColor: isToday ? dotColor : "transparent" }}
-                  />
+                  <div className="w-1 h-1 rounded-full" style={{ backgroundColor: isToday ? dotColor : "transparent" }} />
                 </div>
               );
             })}
           </div>
-
-          <p className="text-xs" style={{ color: "var(--giq-text-secondary)" }}>
-            {t("workouts_done_this_week", { done: completedWorkouts, total: totalWorkouts })}
-          </p>
+          {totalWorkouts > 0 && (
+            <p className="text-xs mt-3" style={{ color: "var(--giq-text-muted)" }}>
+              {t("workouts_x_of_y", { done: completedWorkouts, total: totalWorkouts })}
+              {completedWorkouts > 0 && (
+                <span style={{ color: "var(--giq-accent)" }}> · {t("completed_pct", { n: Math.round(adherence) })}</span>
+              )}
+            </p>
+          )}
         </motion.div>
       )}
 
-      {/* ── Share progress (outlined) ──────────────────────────────────────── */}
+      {/* ── 5. Stats row ──────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.19 }}
+        transition={{ delay: 0.14 }}
+        className="grid grid-cols-3 gap-3"
       >
-        <ShareProgressButton variant="outlined" />
+        {/* Weight */}
+        <div
+          className="rounded-2xl p-4 flex flex-col"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
+        >
+          <p className="text-xs font-medium mb-2" style={{ color: "var(--giq-text-muted)" }}>{t("current_weight")}</p>
+          <p className="text-2xl font-bold leading-none" style={{ color: "var(--giq-text-primary)" }}>
+            {currentWeight != null ? currentWeight : "—"}
+            {currentWeight != null && <span className="text-sm font-medium ml-0.5" style={{ color: "var(--giq-text-muted)" }}>kg</span>}
+          </p>
+          {weightDelta != null && (
+            <p className="text-xs mt-1.5 font-semibold" style={{ color: weightDeltaColor(weightDelta, profile?.goal ?? null) }}>
+              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg
+            </p>
+          )}
+          {profile?.target_weight_kg && (
+            <p className="text-xs mt-auto pt-2" style={{ color: "var(--giq-text-muted)" }}>
+              {t("target_weight", { n: profile.target_weight_kg })}
+            </p>
+          )}
+        </div>
+
+        {/* Adherence */}
+        <div
+          className="rounded-2xl p-4 flex flex-col"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
+        >
+          <p className="text-xs font-medium mb-2" style={{ color: "var(--giq-text-muted)" }}>{t("weekly_adherence_label")}</p>
+          <p className="text-2xl font-bold leading-none" style={{ color: "var(--giq-accent)" }}>{adherence}%</p>
+          {adherence > 0 && (
+            <div className="mt-auto pt-3">
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--giq-border)" }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${adherence}%`, backgroundColor: "var(--giq-accent)" }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Workouts */}
+        <div
+          className="rounded-2xl p-4 flex flex-col"
+          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
+        >
+          <p className="text-xs font-medium mb-2" style={{ color: "var(--giq-text-muted)" }}>{t("workouts_label")}</p>
+          <p className="text-2xl font-bold leading-none" style={{ color: "var(--giq-text-primary)" }}>
+            {completedWorkouts}
+            <span className="text-sm font-medium" style={{ color: "var(--giq-text-muted)" }}>/{totalWorkouts}</span>
+          </p>
+          {totalWorkouts > 0 && (
+            <div className="flex gap-1 mt-auto pt-2 flex-wrap">
+              {Array.from({ length: Math.min(totalWorkouts, 7) }).map((_, i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: i < completedWorkouts ? "var(--giq-accent)" : "var(--giq-border)" }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </motion.div>
 
-      {/* ── Quick links ────────────────────────────────────────────────────── */}
+      {/* ── 6. Today's Meals ──────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-2 gap-3 pb-2"
+        transition={{ delay: 0.17 }}
+        className="rounded-2xl overflow-hidden"
+        style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
       >
-        <Link
-          href="/calendar"
-          className="flex flex-col gap-2 p-5 rounded-xl transition-all group"
-          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
-        >
-          <CalendarDays className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
-          <div className="flex-1">
-            <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_calendar")}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("view_my_workouts")}</p>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <h2 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wide" style={{ color: "var(--giq-text-primary)" }}>
+            <Utensils className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("todays_meals")}
+          </h2>
+          <Link href="/meals" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: "var(--giq-accent)" }}>
+            {t("view_full_plan")}
+          </Link>
+        </div>
+
+        {todaysMeals.length > 0 ? (
+          <div className="divide-y" style={{ borderColor: "var(--giq-border)" }}>
+            {todaysMeals.map(meal => {
+              const typeLabel = translateMealType(meal.meal_type, t);
+              const typeColor = mealTypeColor(meal.meal_type);
+              const kcal = (meal as any).estimated_kcal ?? null;
+              return (
+                <div key={meal.id} className="flex items-center gap-3 px-5 py-3">
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
+                    style={{ backgroundColor: `${typeColor}18` }}
+                  >
+                    {mealEmoji(meal.meal_type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold" style={{ color: typeColor }}>{typeLabel}</p>
+                    <p className="text-sm font-medium truncate" style={{ color: "var(--giq-text-primary)" }}>{meal.meal_name}</p>
+                  </div>
+                  {kcal != null && (
+                    <span className="text-xs font-medium shrink-0" style={{ color: "var(--giq-text-muted)" }}>{kcal} kcal</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
-        </Link>
-        <Link
-          href="/progress"
-          className="flex flex-col gap-2 p-5 rounded-xl transition-all group"
-          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
-        >
-          <BarChart2 className="w-6 h-6" style={{ color: "var(--giq-accent)" }} />
-          <div className="flex-1">
-            <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("nav_progress")}</p>
-            <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>{t("log_my_weight")}</p>
+        ) : mealPlan ? (
+          <p className="px-5 pb-5 text-sm" style={{ color: "var(--giq-text-muted)" }}>{t("no_meals_today_plan")}</p>
+        ) : (
+          <div className="px-5 pb-5 pt-2">
+            <p className="text-sm mb-3" style={{ color: "var(--giq-text-muted)" }}>{t("meal_plan_after_onboarding")}</p>
+            <Link
+              href="/meals"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors"
+              style={{ backgroundColor: "var(--giq-accent)", color: "#0a0a0a" }}
+            >
+              {t("view_meals")} <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
-          <ArrowRight className="w-4 h-4 transition-colors self-end" style={{ color: "var(--giq-border)" }} />
+        )}
+      </motion.div>
+
+      {/* ── 7. Shopping list card ──────────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+        <Link href="/shopping">
+          <div
+            className="flex items-center gap-4 rounded-2xl p-5 cursor-pointer transition-opacity hover:opacity-90"
+            style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
+          >
+            <div
+              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "color-mix(in srgb, var(--giq-accent) 12%, transparent)" }}
+            >
+              <ShoppingCart className="w-5 h-5" style={{ color: "var(--giq-accent)" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm" style={{ color: "var(--giq-text-primary)" }}>{t("shopping_this_week")}</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                {totalShoppingItems > 0
+                  ? t("shopping_pending", { n: totalShoppingItems })
+                  : t("nav_shopping")}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {totalShoppingItems > 0 && (
+                <span
+                  className="text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ backgroundColor: "color-mix(in srgb, var(--giq-accent) 15%, transparent)", color: "var(--giq-accent)" }}
+                >
+                  {totalShoppingItems}
+                </span>
+              )}
+              <ArrowRight className="w-4 h-4" style={{ color: "var(--giq-border)" }} />
+            </div>
+          </div>
         </Link>
+      </motion.div>
+
+      {/* ── Share progress ─────────────────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+        <ShareProgressButton variant="outlined" />
       </motion.div>
 
     </div>
