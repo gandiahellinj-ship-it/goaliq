@@ -188,6 +188,10 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Calendar ──────────────────────────────────────────────────────────────
     calendar_title: "📅 Calendar",
     flex_day_tracker: "Flex Day Tracker",
+    flex_day_desc: "Diet free day — eat without restrictions",
+    flex_month_count: "{{n}} / 4 this month",
+    flex_limit_exceeded: "You've exceeded the recommended limit",
+    flex_limit_toast: "You have {{n}} Flex Days this month — careful not to overdo it! 😋",
     monthly_adherence: "Monthly adherence",
     completed_label: "Completed",
     planned_workout: "Planned workout",
@@ -204,8 +208,8 @@ const T: Record<Lang, Record<string, string>> = {
     clean_weeks: "{{n}} week{{s}} of clean eating — impressive willpower!",
     flex_days_across: "{{n}} flex day{{s}} used across {{weeks}} week{{ws}} — balance is key.",
     keep_going: "keep going!",
-    tap_workout_hint: "Tap a workout day to mark complete · Tap ⚡ to mark a Flex Day",
-    flex_day_used_week: "Flex Day already used this week ⚡",
+    tap_workout_hint: "Tap a workout day to mark complete · Tap 😋 to mark a Flex Day",
+    flex_day_used_week: "You already have a Flex Day this week 😋",
     only_one_flex: "You can only mark one Flex Day per week.",
     could_not_save_flex: "Could not save Flex Day. Please try again.",
 
@@ -728,6 +732,10 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Calendar ──────────────────────────────────────────────────────────────
     calendar_title: "📅 Calendario",
     flex_day_tracker: "Registro Flex Day",
+    flex_day_desc: "Día libre en la dieta — come sin restricciones",
+    flex_month_count: "{{n}} / 4 este mes",
+    flex_limit_exceeded: "Has superado el límite recomendado",
+    flex_limit_toast: "Ya tienes {{n}} Flex Days este mes — ¡cuidado con excederte! 😋",
     monthly_adherence: "Adherencia mensual",
     completed_label: "Completado",
     planned_workout: "Entrenamiento planificado",
@@ -744,8 +752,8 @@ const T: Record<Lang, Record<string, string>> = {
     clean_weeks: "{{n}} semana{{s}} sin saltarse la dieta — ¡fuerza de voluntad impresionante!",
     flex_days_across: "{{n}} flex day{{s}} usados en {{weeks}} semana{{ws}} — el equilibrio es clave.",
     keep_going: "¡sigue así!",
-    tap_workout_hint: "Pulsa un día de entrenamiento para marcarlo como completado · Pulsa ⚡ para marcar un Flex Day",
-    flex_day_used_week: "Flex Day ya usado esta semana ⚡",
+    tap_workout_hint: "Pulsa un día de entrenamiento para marcarlo como completado · Pulsa 😋 para marcar un Flex Day",
+    flex_day_used_week: "Ya tienes un Flex Day esta semana 😋",
     only_one_flex: "Solo puedes marcar un Flex Day por semana.",
     could_not_save_flex: "No se pudo guardar el Flex Day. Por favor, inténtalo de nuevo.",
 

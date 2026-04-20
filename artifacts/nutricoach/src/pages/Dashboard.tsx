@@ -781,7 +781,7 @@ export default function Dashboard() {
 
               if (isFlex) {
                 circleStyle = { backgroundColor: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" };
-                label = "⚡";
+                label = "😋";
                 dotColor = "var(--giq-text-muted)";
               } else if (isDone) {
                 circleStyle = { backgroundColor: "var(--giq-accent)", border: "1px solid var(--giq-accent)" };

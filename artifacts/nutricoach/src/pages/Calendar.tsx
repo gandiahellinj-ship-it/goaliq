@@ -16,7 +16,7 @@ import {
   format, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, addMonths, subMonths, getDay, isBefore, startOfDay,
 } from "date-fns";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Dumbbell, Zap, Eye, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Dumbbell, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import { ShareWorkoutButton, getWorkoutTypeLabel, type WorkoutData } from "@/components/ShareWorkoutCard";
 
@@ -261,11 +261,16 @@ function CalendarContent() {
     const existingFlexInWeek = weekFlexMap[weekStart];
 
     if (!isFlexDay && existingFlexInWeek && existingFlexInWeek !== dateStr) {
-      toast("Flex Day ya usado esta semana ⚡", {
-        description: "Solo puedes marcar un Flex Day por semana.",
+      toast(t("flex_day_used_week"), {
+        description: t("only_one_flex"),
         duration: 3000,
       });
       return;
+    }
+
+    // Monthly limit warning — show toast when marking the 5th+ flex day
+    if (!isFlexDay && flexDaysThisMonth >= 4) {
+      toast(t("flex_limit_toast", { n: flexDaysThisMonth + 1 }), { duration: 4000 });
     }
 
     setPendingFlex(dateStr);
@@ -278,7 +283,7 @@ function CalendarContent() {
         },
         onError: () => {
           setPendingFlex(null);
-          toast("No se pudo guardar el Flex Day. Inténtalo de nuevo.", { duration: 3000 });
+          toast(t("could_not_save_flex"), { duration: 3000 });
         },
       },
     );
@@ -304,7 +309,7 @@ function CalendarContent() {
     }
     if (flexDaysThisMonth > 0) {
       return {
-        emoji: "⚡",
+        emoji: "😋",
         msg: t("flex_days_across", {
           n: flexDaysThisMonth,
           s: flexDaysThisMonth !== 1 ? "s" : "",
@@ -350,23 +355,40 @@ function CalendarContent() {
       </div>
 
       {/* Flex Day Monthly Tracker */}
-      {flexFeedback && (
-        <div
-          className="rounded-lg border px-4 py-3 mb-4 flex items-center gap-3"
-          style={{
-            background: flexFeedback.highlight ? "color-mix(in srgb, var(--giq-accent) 6%, transparent)" : "var(--giq-bg-card)",
-            borderColor: flexFeedback.highlight ? "color-mix(in srgb, var(--giq-accent) 25%, transparent)" : "var(--giq-border)",
-          }}
-        >
-          <span className="text-xl shrink-0">{flexFeedback.emoji}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-[#AAFF45] uppercase tracking-wide mb-0.5">{t("flex_day_tracker")}</p>
-            <p className={`text-sm font-medium ${flexFeedback.highlight ? "text-[#AAFF45]" : "text-[#A0A0A0]"}`}>
+      <div
+        className="rounded-lg border px-4 py-3 mb-4 flex items-center gap-3"
+        style={{
+          background: flexFeedback?.highlight ? "color-mix(in srgb, var(--giq-accent) 6%, transparent)" : "var(--giq-bg-card)",
+          borderColor: flexDaysThisMonth > 4
+            ? "rgba(226,75,74,0.35)"
+            : flexFeedback?.highlight
+            ? "color-mix(in srgb, var(--giq-accent) 25%, transparent)"
+            : "var(--giq-border)",
+        }}
+      >
+        <span className="text-xl shrink-0">😋</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[#AAFF45] uppercase tracking-wide mb-0.5">{t("flex_day_tracker")}</p>
+              <p className="text-xs" style={{ color: "var(--giq-text-muted)" }}>{t("flex_day_desc")}</p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-sm font-bold tabular-nums" style={{ color: flexDaysThisMonth > 4 ? "#e24b4a" : "var(--giq-accent)" }}>
+                {t("flex_month_count", { n: flexDaysThisMonth })}
+              </p>
+              {flexDaysThisMonth > 4 && (
+                <p className="text-[10px] font-semibold mt-0.5" style={{ color: "#e24b4a" }}>{t("flex_limit_exceeded")}</p>
+              )}
+            </div>
+          </div>
+          {flexFeedback && (
+            <p className={`text-xs font-medium mt-1.5 ${flexFeedback.highlight ? "text-[#AAFF45]" : "text-[#A0A0A0]"}`}>
               {flexFeedback.msg}
             </p>
-          </div>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Adherence bar */}
       {totalWorkoutDaysInMonth > 0 && (
@@ -411,8 +433,8 @@ function CalendarContent() {
           {t("rest_day")}
         </div>
         <div className="flex items-center gap-1.5">
-          <Zap className="w-3 h-3 text-[#AAFF45]" />
-          {t("flex_day")} (tap ⚡)
+          <span className="text-xs leading-none">😋</span>
+          {t("flex_day")} (tap 😋)
         </div>
       </div>
 
@@ -487,21 +509,14 @@ function CalendarContent() {
                   <CheckCircle2 className="w-3 h-3 text-[#0A0A0A]" />
                 )}
 
-                {/* Flex Day label */}
+                {/* 😋 Flex Day label */}
                 {isFlexDay && (
-                  <span
-                    className="font-black leading-none mt-0.5"
-                    style={{
-                      fontSize: 8,
-                      color: isTodayDate ? "var(--giq-accent-text)" : "var(--giq-accent)",
-                      letterSpacing: "0.04em",
-                    }}
-                  >
-                    ⚡FLEX
+                  <span className="leading-none mt-0.5" style={{ fontSize: 9 }}>
+                    😋
                   </span>
                 )}
 
-                {/* ⚡ Flex Day button — large, always-clickable */}
+                {/* 😋 Flex Day button — always-clickable on future days */}
                 {canFlex && (
                   <button
                     type="button"
@@ -515,26 +530,13 @@ function CalendarContent() {
                       padding: 0,
                       cursor: "pointer",
                       zIndex: 10,
+                      fontSize: 13,
+                      opacity: isLoadingFlex ? 0.4 : isFlexDay ? 1 : isFlexWeekUsed ? 0.25 : 0.45,
+                      transition: "opacity 0.15s",
                     }}
                     aria-label={isFlexDay ? "Remove Flex Day" : "Mark as Flex Day"}
                   >
-                    <Zap
-                      style={{
-                        width: 14,
-                        height: 14,
-                        color: isFlexDay
-                          ? (isTodayDate ? "var(--giq-accent-text)" : "var(--giq-accent)")
-                          : isFlexWeekUsed
-                          ? "#333333"
-                          : "#666666",
-                        opacity: isLoadingFlex ? 0.4 : 1,
-                        filter: isFlexDay && !isTodayDate
-                          ? "drop-shadow(0 0 4px var(--giq-accent))"
-                          : "none",
-                        transition: "color 0.15s, filter 0.15s",
-                        flexShrink: 0,
-                      }}
-                    />
+                    😋
                   </button>
                 )}
 
