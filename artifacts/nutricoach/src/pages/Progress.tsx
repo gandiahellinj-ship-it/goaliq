@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useProgressStats, useLogWeight, useStrengthLogs, useStrengthMuscles } from "@/lib/supabase-queries";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Dot } from "recharts";
+import { useProgressStats, useLogWeight, useStrengthGroups, useStrengthGroupLogs } from "@/lib/supabase-queries";
+import type { StrengthLog } from "@/lib/supabase-queries";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { parseISO } from "date-fns";
 import { Loader2, Plus, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -316,80 +317,134 @@ function ProgressContent() {
   );
 }
 
+const MUSCLE_COLORS = ["#88ee22", "#7B8CDE", "#FFB347", "#FF6B6B", "#4ECDC4"];
+
+const ALL_GROUPS: { key: string; tKey: string; emoji: string }[] = [
+  { key: "legs",      tKey: "muscle_group_legs",      emoji: "🦵" },
+  { key: "back",      tKey: "muscle_group_back",       emoji: "🔙" },
+  { key: "shoulders", tKey: "muscle_group_shoulders",  emoji: "💪" },
+  { key: "chest",     tKey: "muscle_group_chest",      emoji: "🫁" },
+  { key: "arms",      tKey: "muscle_group_arms",       emoji: "💪" },
+  { key: "core",      tKey: "muscle_group_core",       emoji: "🎯" },
+];
+
+function buildMultiLineData(
+  byMuscle: Record<string, StrengthLog[]>,
+  muscles: string[],
+): { chartData: Record<string, any>[]; allWeeks: string[] } {
+  // Collect all unique week_starts across all muscles
+  const weekSet = new Set<string>();
+  for (const logs of Object.values(byMuscle)) {
+    for (const log of logs) weekSet.add(log.week_start);
+  }
+  const allWeeks = Array.from(weekSet).sort();
+
+  // For each week, for each muscle: pick max weight_kg
+  const chartData = allWeeks.map((week, i) => {
+    const point: Record<string, any> = { week, label: `S${i + 1}` };
+    for (const muscle of muscles) {
+      const logsForWeek = (byMuscle[muscle] ?? []).filter(l => l.week_start === week);
+      if (logsForWeek.length > 0) {
+        const maxKg = Math.max(...logsForWeek.map(l => l.weight_kg));
+        const maxLog = logsForWeek.find(l => l.weight_kg === maxKg)!;
+        point[muscle] = maxKg;
+        point[`${muscle}_reps`] = maxLog.reps;
+      } else {
+        point[muscle] = null;
+      }
+    }
+    return point;
+  });
+
+  return { chartData, allWeeks };
+}
+
 function StrengthSection() {
   const t = useT();
-  const { data: muscles = [] } = useStrengthMuscles();
-  const [activeMuscle, setActiveMuscle] = useState<string | null>(null);
+  const { data: groupsWithData = [] } = useStrengthGroups();
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
-  // Auto-select first muscle when list loads
-  const selectedMuscle = activeMuscle ?? (muscles[0] ?? null);
-  const { data: logs = [] } = useStrengthLogs(selectedMuscle);
+  // Auto-select first group with data when list loads
+  const selectedGroup = activeGroup ?? (groupsWithData[0] ?? ALL_GROUPS[0].key);
 
-  // Build per-week chart data: pick the max weight_kg per week_start
-  const weekMap = new Map<string, { maxKg: number; reps: number }>();
-  for (const log of logs) {
-    const existing = weekMap.get(log.week_start);
-    if (!existing || log.weight_kg > existing.maxKg) {
-      weekMap.set(log.week_start, { maxKg: log.weight_kg, reps: log.reps });
-    }
+  const { data: groupData } = useStrengthGroupLogs(selectedGroup);
+  const byMuscle = groupData?.byMuscle ?? {};
+  const muscles = groupData?.muscles ?? [];
+
+  const { chartData, allWeeks } = buildMultiLineData(byMuscle, muscles);
+
+  // Per-muscle max for PR detection
+  const muscleMaxMap: Record<string, number> = {};
+  for (const muscle of muscles) {
+    const allKg = (byMuscle[muscle] ?? []).map(l => l.weight_kg);
+    muscleMaxMap[muscle] = allKg.length > 0 ? Math.max(...allKg) : 0;
   }
-  const chartData = Array.from(weekMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, { maxKg, reps }], i) => ({
-      week,
-      kg: maxKg,
-      reps,
-      label: `S${i + 1}`,
-    }));
 
-  const maxKgOverall = chartData.length > 0 ? Math.max(...chartData.map(d => d.kg)) : 0;
-
-  // Last 6 individual log entries for the records list
-  const recentLogs = [...logs].slice(0, 6);
+  const hasData = muscles.length > 0 && allWeeks.length > 0;
+  const hasEnoughData = hasData && allWeeks.length >= 2;
 
   return (
     <div className="mt-4">
       <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] p-5">
         <h3 className="font-bold text-white mb-1">💪 {t("strength_progress")}</h3>
 
-        {muscles.length === 0 ? (
-          <div className="py-10 text-center">
+        {/* Group selector — always show all 6 groups */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4 scrollbar-hide mt-3">
+          {ALL_GROUPS.map(({ key, tKey }) => {
+            const isActive = key === selectedGroup;
+            const hasGroupData = groupsWithData.includes(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setActiveGroup(key)}
+                className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all"
+                style={isActive ? {
+                  background: "color-mix(in srgb, var(--giq-accent) 15%, transparent)",
+                  border: "1.5px solid var(--giq-accent)",
+                  color: "var(--giq-accent)",
+                } : hasGroupData ? {
+                  background: "var(--giq-bg-secondary)",
+                  border: "1.5px solid var(--giq-border)",
+                  color: "var(--giq-text-secondary)",
+                } : {
+                  background: "transparent",
+                  border: "1.5px solid var(--giq-border)",
+                  color: "var(--giq-text-muted)",
+                  opacity: 0.45,
+                }}
+              >
+                {t(tKey)}
+              </button>
+            );
+          })}
+        </div>
+
+        {!hasData ? (
+          <div className="py-8 text-center">
             <div className="text-3xl mb-3">🏋️</div>
             <p className="text-sm text-[#555555]">{t("no_strength_data")}</p>
           </div>
         ) : (
           <>
-            {/* Muscle group selector */}
-            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4 scrollbar-hide mt-3">
-              {muscles.map(muscle => {
-                const isActive = muscle === selectedMuscle;
-                return (
-                  <button
-                    key={muscle}
-                    type="button"
-                    onClick={() => setActiveMuscle(muscle)}
-                    className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all"
-                    style={isActive ? {
-                      background: "color-mix(in srgb, var(--giq-accent) 15%, transparent)",
-                      border: "1.5px solid var(--giq-accent)",
-                      color: "var(--giq-accent)",
-                    } : {
-                      background: "var(--giq-bg-secondary)",
-                      border: "1.5px solid var(--giq-border)",
-                      color: "var(--giq-text-muted)",
-                    }}
-                  >
-                    {muscle}
-                  </button>
-                );
-              })}
+            {/* Legend */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              {muscles.map((muscle, i) => (
+                <div key={muscle} className="flex items-center gap-1.5">
+                  <div
+                    className="w-2.5 h-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: MUSCLE_COLORS[i % MUSCLE_COLORS.length] }}
+                  />
+                  <span className="text-xs" style={{ color: "var(--giq-text-muted)" }}>{muscle}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Line chart */}
-            {chartData.length >= 2 ? (
-              <div className="h-[200px] w-full mb-4">
+            {/* Multi-line chart */}
+            {hasEnoughData ? (
+              <div className="h-[220px] w-full mb-5">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 5, left: -20 }}>
+                  <LineChart data={chartData} margin={{ top: 18, right: 16, bottom: 5, left: -20 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2A2A2A" />
                     <XAxis
                       dataKey="label"
@@ -412,89 +467,119 @@ function StrengthSection() {
                         backgroundColor: "#1A1A1A",
                         padding: "8px 12px",
                       }}
-                      itemStyle={{ color: "#88ee22", fontWeight: 700 }}
                       labelStyle={{ color: "#A0A0A0", fontSize: 12 }}
-                      formatter={(val: number, _name: string, props: any) =>
-                        [`${val}kg × ${props.payload.reps} reps`, ""]
-                      }
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="kg"
-                      stroke="#88ee22"
-                      strokeWidth={2.5}
-                      dot={(props: any) => {
-                        const isLast = props.index === chartData.length - 1;
-                        const isPR = props.payload.kg === maxKgOverall;
-                        return (
-                          <g key={props.key}>
-                            <circle
-                              cx={props.cx}
-                              cy={props.cy}
-                              r={isLast ? 6 : 4}
-                              fill={isLast ? "#88ee22" : "#0A0A0A"}
-                              stroke="#88ee22"
-                              strokeWidth={2}
-                            />
-                            {isPR && (
-                              <text
-                                x={props.cx}
-                                y={props.cy - 10}
-                                textAnchor="middle"
-                                fill="#FFB800"
-                                fontSize={9}
-                                fontWeight="bold"
-                              >
-                                PR
-                              </text>
-                            )}
-                          </g>
-                        );
+                      formatter={(val: number, name: string, props: any) => {
+                        const reps = props.payload[`${name}_reps`];
+                        return [`${val}kg${reps ? ` × ${reps}` : ""}`, name];
                       }}
-                      activeDot={{ r: 7, fill: "#88ee22" }}
                     />
+                    {muscles.map((muscle, i) => {
+                      const color = MUSCLE_COLORS[i % MUSCLE_COLORS.length];
+                      const muscleMax = muscleMaxMap[muscle] ?? 0;
+                      return (
+                        <Line
+                          key={muscle}
+                          type="monotone"
+                          dataKey={muscle}
+                          name={muscle}
+                          stroke={color}
+                          strokeWidth={2}
+                          connectNulls={false}
+                          dot={(props: any) => {
+                            if (props.payload[muscle] == null) return <g key={props.key} />;
+                            const isLast = props.index === chartData.length - 1 || chartData.slice(props.index + 1).every(d => d[muscle] == null);
+                            const isPR = props.payload[muscle] === muscleMax && muscleMax > 0;
+                            return (
+                              <g key={props.key}>
+                                <circle
+                                  cx={props.cx}
+                                  cy={props.cy}
+                                  r={isLast ? 5 : 3.5}
+                                  fill={isLast ? color : "#0A0A0A"}
+                                  stroke={color}
+                                  strokeWidth={2}
+                                />
+                                {isPR && (
+                                  <text
+                                    x={props.cx}
+                                    y={props.cy - 9}
+                                    textAnchor="middle"
+                                    fill="#FFB800"
+                                    fontSize={8}
+                                    fontWeight="bold"
+                                  >
+                                    PR
+                                  </text>
+                                )}
+                              </g>
+                            );
+                          }}
+                          activeDot={{ r: 6, fill: color }}
+                        />
+                      );
+                    })}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[120px] flex items-center justify-center mb-4">
+              <div className="h-[100px] flex items-center justify-center mb-4">
                 <p className="text-sm text-[#555555]">{t("log_to_see_trend")}</p>
               </div>
             )}
 
-            {/* Records list */}
-            {recentLogs.length > 0 && (
-              <div className="space-y-1.5">
-                {recentLogs.map((log, i) => {
-                  const pct = maxKgOverall > 0 ? Math.round((log.weight_kg / maxKgOverall) * 100) : 100;
-                  const isPR = log.weight_kg === maxKgOverall;
-                  const dateLabel = new Date(log.logged_at + "T00:00:00").toLocaleDateString("es-ES", {
-                    day: "numeric", month: "short",
-                  });
-                  return (
-                    <div key={log.id ?? i} className="flex items-center gap-3 py-1.5">
-                      <span className="text-xs w-14 shrink-0" style={{ color: "var(--giq-text-muted)" }}>{dateLabel}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-bold text-white">{log.weight_kg}kg × {log.reps}</span>
-                          {isPR && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
-                              PR
-                            </span>
-                          )}
-                        </div>
-                        <div className="h-1 rounded-full bg-[#2A2A2A] overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%`, backgroundColor: isPR ? "#FFB800" : "#88ee22" }}
-                          />
-                        </div>
+            {/* Records list — grouped by specific muscle */}
+            <div className="space-y-4">
+              {muscles.map((muscle, i) => {
+                const color = MUSCLE_COLORS[i % MUSCLE_COLORS.length];
+                const muscleLogs = [...(byMuscle[muscle] ?? [])].reverse().slice(0, 3);
+                const muscleMax = muscleMaxMap[muscle] ?? 0;
+                return (
+                  <div key={muscle}>
+                    {/* Muscle header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1 h-4 rounded-full" style={{ backgroundColor: color }} />
+                        <span className="text-xs font-bold text-white">{muscle}</span>
                       </div>
+                      <span className="text-xs font-bold tabular-nums" style={{ color }}>
+                        {muscleMax > 0 ? `${muscleMax}kg max` : ""}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    {/* Recent entries */}
+                    <div className="space-y-1.5 pl-3">
+                      {muscleLogs.map((log, j) => {
+                        const pct = muscleMax > 0 ? Math.round((log.weight_kg / muscleMax) * 100) : 100;
+                        const isPR = log.weight_kg === muscleMax;
+                        const dateLabel = new Date(log.logged_at + "T00:00:00").toLocaleDateString("es-ES", {
+                          day: "numeric", month: "short",
+                        });
+                        return (
+                          <div key={log.id ?? j} className="flex items-center gap-3">
+                            <span className="text-[10px] w-12 shrink-0" style={{ color: "var(--giq-text-muted)" }}>{dateLabel}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <span className="text-xs font-semibold text-white">{log.weight_kg}kg × {log.reps}</span>
+                                {isPR && (
+                                  <span className="text-[8px] font-bold px-1 py-0.5 rounded" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                                    PR
+                                  </span>
+                                )}
+                              </div>
+                              <div className="h-1 rounded-full bg-[#2A2A2A] overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${pct}%`, backgroundColor: isPR ? "#FFB800" : color }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </>
         )}
       </div>

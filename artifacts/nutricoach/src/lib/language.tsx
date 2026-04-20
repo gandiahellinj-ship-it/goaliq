@@ -224,6 +224,12 @@ const T: Record<Lang, Record<string, string>> = {
     save_log: "Save",
     no_strength_data: "Start logging weights to see your progress",
     select_muscle: "Select muscle group",
+    muscle_group_shoulders: "Shoulders",
+    muscle_group_back: "Back",
+    muscle_group_legs: "Legs",
+    muscle_group_chest: "Chest",
+    muscle_group_arms: "Arms",
+    muscle_group_core: "Core",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Shopping List",
@@ -780,6 +786,12 @@ const T: Record<Lang, Record<string, string>> = {
     save_log: "Guardar",
     no_strength_data: "Empieza a registrar pesos para ver tu progreso",
     select_muscle: "Selecciona grupo muscular",
+    muscle_group_shoulders: "Hombros",
+    muscle_group_back: "Espalda",
+    muscle_group_legs: "Piernas",
+    muscle_group_chest: "Pecho",
+    muscle_group_arms: "Brazos",
+    muscle_group_core: "Core",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Lista de la compra",

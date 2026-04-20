@@ -1111,6 +1111,40 @@ export function useStrengthMuscles() {
   });
 }
 
+export function useStrengthGroups() {
+  return useQuery({
+    queryKey: ["strength_groups"],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/strength/groups", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch strength groups");
+      const data = await res.json();
+      return (data.groups || []) as string[];
+    },
+  });
+}
+
+export function useStrengthGroupLogs(group: string | null) {
+  return useQuery({
+    queryKey: ["strength_group_logs", group],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const res = await fetch(`/api/strength/group?group=${encodeURIComponent(group!)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch group logs");
+      const data = await res.json();
+      return {
+        byMuscle: (data.byMuscle || {}) as Record<string, StrengthLog[]>,
+        muscles: (data.muscles || []) as string[],
+      };
+    },
+    enabled: group !== null,
+  });
+}
+
 export function useSaveWorkoutHistory() {
   const queryClient = useQueryClient();
   return useMutation({
