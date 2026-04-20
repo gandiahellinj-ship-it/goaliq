@@ -303,6 +303,18 @@ function SmartInsightCard({ feedback, streak: _streak }: { feedback: Feedback; s
   );
 }
 
+// ─── Daily quotes (rotate by day of week 0=Sun … 6=Sat) ─────────────────────
+
+const DAILY_QUOTES = [
+  "El descanso de hoy es la energía de mañana. Recupérate bien.",
+  "Cada repetición te acerca a la mejor versión de ti mismo.",
+  "El dolor de hoy es la fuerza de mañana. Sigue adelante.",
+  "No te rindas. El principio siempre es lo más difícil.",
+  "El cuerpo logra lo que la mente cree. Cree en ti.",
+  "Suda ahora, brilla después. Vale la pena el esfuerzo.",
+  "Un día a la vez. Un rep a la vez. Constancia es todo.",
+];
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -331,13 +343,13 @@ export default function Dashboard() {
   const firstName = profile?.full_name?.split(" ")[0] || undefined;
   const feedback = stats ? computeFeedback(stats, isWorkoutDay, t, firstName) : null;
 
-  // Stats
+  // Stats — cap at sensible maximums to avoid display bugs
   const currentWeight = stats?.currentWeightKg ?? null;
   const startWeight = stats?.startWeightKg ?? null;
   const weightDelta = currentWeight != null && startWeight != null ? currentWeight - startWeight : null;
-  const adherence = stats?.weeklyAdherencePercent ?? 0;
-  const completedWorkouts = stats?.completedWorkoutsThisWeek ?? 0;
   const totalWorkouts = stats?.totalWorkoutsThisWeek ?? 0;
+  const completedWorkouts = Math.min(stats?.completedWorkoutsThisWeek ?? 0, totalWorkouts);
+  const adherence = Math.min(stats?.weeklyAdherencePercent ?? 0, 100);
   const streak = stats?.streak ?? 0;
 
   // Weekly 7-day circles
@@ -353,12 +365,16 @@ export default function Dashboard() {
   const todayExerciseCount = todaysDayPlan?.workout?.exercises.length ?? 0;
   const estimatedMin = todayExerciseCount > 0 ? todayExerciseCount * 4 + 10 : 0;
   const workoutTypeInfo = WORKOUT_TYPE_LABELS[todaysDayPlan?.workout?.workout_type ?? ""] ?? { label: "Entrenamiento", emoji: "💪" };
-  const firstExerciseName = todaysDayPlan?.workout?.exercises[0]?.name ?? null;
+  const firstExercise = todaysDayPlan?.workout?.exercises[0] ?? null;
+  const firstExerciseName = firstExercise?.name ?? null;
+  const firstExerciseSets = (firstExercise as any)?.sets ?? null;
+  const firstExerciseReps = (firstExercise as any)?.reps ?? null;
 
   // Shopping
   const totalShoppingItems = shoppingCategories.reduce((sum, c) => sum + c.items.length, 0);
 
-  const dateLabel = now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+  // Daily quote
+  const todayQuote = DAILY_QUOTES[now.getDay()];
 
   return (
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto space-y-4">
@@ -367,26 +383,39 @@ export default function Dashboard() {
 
       {/* ── 1. Greeting header ─────────────────────────────────────────────── */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
-        <p className="text-sm font-medium mb-1 capitalize" style={{ color: "var(--giq-text-muted)" }}>
-          {dateLabel}
+        {/* Time-of-day greeting — small muted uppercase */}
+        <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: "var(--giq-text-muted)" }}>
+          {t(`greeting_${getTimeOfDay()}`)}
         </p>
+
+        {/* Name row with streak badge top-right */}
         <div className="flex items-start justify-between gap-3">
-          <h1 className="font-bold" style={{ fontSize: 30, lineHeight: "1.2", color: "var(--giq-text-primary)" }}>
-            {t(`greeting_${getTimeOfDay()}`)}, {displayName} 👋
+          <h1 className="font-bold" style={{ fontSize: 34, lineHeight: "1.1", color: "var(--giq-text-primary)" }}>
+            {displayName} 👋
           </h1>
+
+          {/* Streak badge — card style */}
           {streak >= 2 && (
             <div
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full shrink-0 text-sm font-bold"
-              style={{ backgroundColor: "color-mix(in srgb, #FF6B35 15%, transparent)", color: "#FF8C57", border: "1px solid color-mix(in srgb, #FF6B35 30%, transparent)" }}
+              className="flex flex-col items-center px-3 pt-2 pb-2.5 rounded-2xl shrink-0 min-w-[52px]"
+              style={{
+                backgroundColor: "color-mix(in srgb, #FF6B35 12%, var(--giq-bg-card))",
+                border: "1px solid color-mix(in srgb, #FF6B35 28%, transparent)",
+              }}
             >
-              <Flame className="w-4 h-4" />
-              {streak} {t("day_streak")}
+              <Zap className="w-4 h-4 mb-0.5" style={{ color: "#FF8C57" }} />
+              <p className="text-lg font-black leading-none" style={{ color: "#FF8C57" }}>{streak}</p>
+              <p className="text-[9px] font-semibold text-center leading-tight mt-0.5" style={{ color: "color-mix(in srgb, #FF8C57 70%, transparent)" }}>
+                {t("day_streak")}
+              </p>
             </div>
           )}
         </div>
+
+        {/* Goal / diet badge */}
         {(profile?.goal || profile?.diet_type) && (
           <div
-            className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 mt-2.5 px-3 py-1 rounded-full text-xs font-semibold"
             style={{ backgroundColor: "var(--giq-border)", color: "var(--giq-accent)" }}
           >
             <Target className="w-3 h-3" /> {translateGoal(profile.goal)} · {translateDiet(profile.diet_type)}
@@ -399,8 +428,26 @@ export default function Dashboard() {
         <TrialStatusCard trialEndsAt={subData.trialEndsAt ?? null} />
       )}
 
-      {/* ── 2. Motivational quote / Smart Insight ─────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+      {/* ── 2. Daily motivational quote — always visible ───────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+        <div
+          className="rounded-xl px-4 py-3.5"
+          style={{
+            backgroundColor: "var(--giq-bg-secondary)",
+            borderLeft: "3px solid var(--giq-accent)",
+            border: "1px solid var(--giq-border)",
+            borderLeftWidth: 3,
+            borderLeftColor: "var(--giq-accent)",
+          }}
+        >
+          <p className="text-sm italic leading-relaxed" style={{ color: "var(--giq-text-muted)" }}>
+            "{todayQuote}"
+          </p>
+        </div>
+      </motion.div>
+
+      {/* ── Smart Insight (pro) ────────────────────────────────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
         {canViewInsights && feedback && stats ? (
           <SmartInsightCard feedback={feedback} streak={stats.streak} />
         ) : (
@@ -410,7 +457,7 @@ export default function Dashboard() {
 
       {/* ── 3. Workout preview card ────────────────────────────────────────── */}
       {workoutPlan && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Link href="/workouts">
             {isWorkoutDay ? (
               <div
@@ -418,7 +465,7 @@ export default function Dashboard() {
                 style={{
                   background: "linear-gradient(135deg, #1a2a0e 0%, #111 60%)",
                   border: "1px solid color-mix(in srgb, var(--giq-accent) 25%, transparent)",
-                  padding: "20px 20px",
+                  padding: "18px 18px",
                 }}
               >
                 {/* Decorative glow */}
@@ -426,9 +473,11 @@ export default function Dashboard() {
                   className="absolute inset-0 pointer-events-none"
                   style={{ background: "radial-gradient(ellipse at top left, color-mix(in srgb, var(--giq-accent) 8%, transparent) 0%, transparent 70%)" }}
                 />
-                <div className="relative flex items-center gap-4">
+
+                {/* Top row: emoji + type name + counts */}
+                <div className="relative flex items-center gap-3 mb-3">
                   <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0"
+                    className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0"
                     style={{ backgroundColor: "color-mix(in srgb, var(--giq-accent) 12%, transparent)" }}
                   >
                     {workoutTypeInfo.emoji}
@@ -436,31 +485,49 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-bold tracking-widest uppercase mb-0.5" style={{ color: "var(--giq-accent)" }}>
                       {t("today").toUpperCase()}
-                      {stats?.todayWorkoutDone && <span className="ml-2">· {t("completed_check")}</span>}
+                      {stats?.todayWorkoutDone && <span className="ml-2 normal-case">· {t("completed_check")}</span>}
                     </p>
-                    <p className="font-bold text-lg leading-tight" style={{ color: "var(--giq-text-primary)" }}>{workoutTypeInfo.label}</p>
-                    {firstExerciseName && (
-                      <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
-                        {t("first_exercise")}: <span style={{ color: "var(--giq-text-secondary)" }}>{firstExerciseName}</span>
-                      </p>
-                    )}
+                    <p className="font-bold text-base leading-tight" style={{ color: "var(--giq-text-primary)" }}>{workoutTypeInfo.label}</p>
                     <p className="text-xs mt-0.5" style={{ color: "color-mix(in srgb, var(--giq-accent) 60%, transparent)" }}>
                       {t("exercises_n", { n: todayExerciseCount })} · ~{estimatedMin} min
                     </p>
                   </div>
-                  {!stats?.todayWorkoutDone && (
-                    <div
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl shrink-0 text-sm font-bold"
-                      style={{ backgroundColor: "var(--giq-accent)", color: "#0a0a0a" }}
-                    >
-                      <Play className="w-3.5 h-3.5" />
-                      {t("start")}
-                    </div>
-                  )}
-                  {stats?.todayWorkoutDone && (
-                    <CheckCircle2 className="w-6 h-6 shrink-0" style={{ color: "var(--giq-accent)" }} />
-                  )}
                 </div>
+
+                {/* First exercise preview box */}
+                {firstExerciseName && (
+                  <div
+                    className="relative rounded-xl flex items-center gap-3"
+                    style={{
+                      backgroundColor: "rgba(0,0,0,0.35)",
+                      border: "1px solid color-mix(in srgb, var(--giq-accent) 12%, transparent)",
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider mb-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                        {t("first_exercise")}
+                      </p>
+                      <p className="text-sm font-bold truncate" style={{ color: "var(--giq-text-primary)" }}>{firstExerciseName}</p>
+                      {firstExerciseSets && firstExerciseReps && (
+                        <p className="text-xs mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                          {t("sets_x_reps", { sets: firstExerciseSets, reps: firstExerciseReps })}
+                        </p>
+                      )}
+                    </div>
+                    {!stats?.todayWorkoutDone ? (
+                      <div
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl shrink-0 text-xs font-bold"
+                        style={{ backgroundColor: "var(--giq-accent)", color: "#0a0a0a" }}
+                      >
+                        <Play className="w-3 h-3" />
+                        {t("start")}
+                      </div>
+                    ) : (
+                      <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "var(--giq-accent)" }} />
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div
@@ -485,11 +552,24 @@ export default function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.11 }}
+          transition={{ delay: 0.13 }}
           className="rounded-2xl p-4"
           style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
         >
-          <div className="flex justify-between gap-1">
+          {/* Header: Esta semana / X% completado */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>
+              {t("this_week")}
+            </p>
+            {totalWorkouts > 0 && adherence > 0 && (
+              <p className="text-xs font-bold" style={{ color: "var(--giq-accent)" }}>
+                {t("completed_pct", { n: adherence })}
+              </p>
+            )}
+          </div>
+
+          {/* Day circles */}
+          <div className="flex justify-between gap-1 mb-3">
             {WEEK_DAY_KEYS.map((dayKey, i) => {
               const dateStr = weekDates[i];
               const planDay = workoutPlan?.days.find(d => d.day === dayKey);
@@ -532,23 +612,25 @@ export default function Dashboard() {
               );
             })}
           </div>
+
+          {/* Progress bar */}
           {totalWorkouts > 0 && (
-            <p className="text-xs mt-3" style={{ color: "var(--giq-text-muted)" }}>
-              {t("workouts_x_of_y", { done: completedWorkouts, total: totalWorkouts })}
-              {completedWorkouts > 0 && (
-                <span style={{ color: "var(--giq-accent)" }}> · {t("completed_pct", { n: Math.round(adherence) })}</span>
-              )}
-            </p>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--giq-border)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${adherence}%`, backgroundColor: "var(--giq-accent)" }}
+              />
+            </div>
           )}
         </motion.div>
       )}
 
-      {/* ── 5. Stats row ──────────────────────────────────────────────────── */}
+      {/* ── 5. Stats row — 2 columns ──────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.14 }}
-        className="grid grid-cols-3 gap-3"
+        transition={{ delay: 0.16 }}
+        className="grid grid-cols-2 gap-3"
       >
         {/* Weight */}
         <div
@@ -562,7 +644,7 @@ export default function Dashboard() {
           </p>
           {weightDelta != null && (
             <p className="text-xs mt-1.5 font-semibold" style={{ color: weightDeltaColor(weightDelta, profile?.goal ?? null) }}>
-              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg
+              {weightDelta > 0 ? "+" : ""}{weightDelta.toFixed(1)}kg {t("from_start")}
             </p>
           )}
           {profile?.target_weight_kg && (
@@ -579,39 +661,17 @@ export default function Dashboard() {
         >
           <p className="text-xs font-medium mb-2" style={{ color: "var(--giq-text-muted)" }}>{t("weekly_adherence_label")}</p>
           <p className="text-2xl font-bold leading-none" style={{ color: "var(--giq-accent)" }}>{adherence}%</p>
-          {adherence > 0 && (
-            <div className="mt-auto pt-3">
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--giq-border)" }}>
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${adherence}%`, backgroundColor: "var(--giq-accent)" }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Workouts */}
-        <div
-          className="rounded-2xl p-4 flex flex-col"
-          style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
-        >
-          <p className="text-xs font-medium mb-2" style={{ color: "var(--giq-text-muted)" }}>{t("workouts_label")}</p>
-          <p className="text-2xl font-bold leading-none" style={{ color: "var(--giq-text-primary)" }}>
-            {completedWorkouts}
-            <span className="text-sm font-medium" style={{ color: "var(--giq-text-muted)" }}>/{totalWorkouts}</span>
+          <p className="text-xs mt-1" style={{ color: "var(--giq-text-muted)" }}>
+            {t("workouts_x_of_y", { done: completedWorkouts, total: totalWorkouts })}
           </p>
-          {totalWorkouts > 0 && (
-            <div className="flex gap-1 mt-auto pt-2 flex-wrap">
-              {Array.from({ length: Math.min(totalWorkouts, 7) }).map((_, i) => (
-                <div
-                  key={i}
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: i < completedWorkouts ? "var(--giq-accent)" : "var(--giq-border)" }}
-                />
-              ))}
+          <div className="mt-auto pt-3">
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--giq-border)" }}>
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${adherence}%`, backgroundColor: "var(--giq-accent)" }}
+              />
             </div>
-          )}
+          </div>
         </div>
       </motion.div>
 
@@ -619,7 +679,7 @@ export default function Dashboard() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.17 }}
+        transition={{ delay: 0.19 }}
         className="rounded-2xl overflow-hidden"
         style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
       >
@@ -674,7 +734,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ── 7. Shopping list card ──────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
         <Link href="/shopping">
           <div
             className="flex items-center gap-4 rounded-2xl p-5 cursor-pointer transition-opacity hover:opacity-90"
@@ -710,7 +770,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ── Share progress ─────────────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }}>
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.24 }}>
         <ShareProgressButton variant="outlined" />
       </motion.div>
 
