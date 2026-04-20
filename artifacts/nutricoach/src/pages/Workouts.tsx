@@ -13,39 +13,21 @@ import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean; equipment?: string };
 
 async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
-  // 1. WorkoutX (animated GIF, primary source)
   try {
-    const wxRes = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
-    if (wxRes.ok) {
-      const wxData = await wxRes.json();
-      if (wxData.gifUrl) return { imageStart: wxData.gifUrl, imageEnd: null, isGif: true, equipment: wxData.equipment ?? undefined };
-    }
-  } catch {}
-
-  // 2. free-exercise-db (static start/end images)
-  try {
-    const res = await fetch(`/api/exercises/gif?name=${encodeURIComponent(name)}`);
+    const res = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.imageStart) return { imageStart: data.imageStart, imageEnd: data.imageEnd ?? null, isGif: false };
+      if (data.gifUrl) {
+        return { imageStart: data.gifUrl, imageEnd: null, isGif: true, equipment: data.equipment ?? undefined };
+      }
     }
   } catch {}
-
-  // 3. Wger API (fallback)
-  try {
-    const wgerRes = await fetch(`/api/exercises/search?q=${encodeURIComponent(name)}&lang=${lang}`);
-    if (wgerRes.ok) {
-      const wgerData = await wgerRes.json();
-      if (wgerData.imageStart) return { imageStart: wgerData.imageStart, imageEnd: wgerData.imageEnd ?? null, isGif: false };
-    }
-  } catch {}
-
-  return { imageStart: null, imageEnd: null };
+  return { imageStart: null, imageEnd: null, isGif: false };
 }
 
 function useExerciseImages(name: string, lang: string = "en") {
   return useQuery<ExerciseImages>({
-    queryKey: ["exercise-images", name.toLowerCase(), lang],
+    queryKey: ["exercise-images-wx", name.toLowerCase(), lang],
     queryFn: () => fetchExerciseImages(name, lang),
     staleTime: Infinity,
     retry: 1,
