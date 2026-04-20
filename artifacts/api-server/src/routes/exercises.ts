@@ -5,6 +5,84 @@ const router = Router();
 const IMAGE_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
 const INDEX_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
 
+// ── Spanish → English name translation for image lookup ───────────────────────
+const ES_TO_EN: Record<string, string> = {
+  "press de banca": "bench press",
+  "sentadilla": "squat",
+  "peso muerto": "deadlift",
+  "dominadas": "pull up",
+  "fondos": "dips",
+  "curl de biceps": "bicep curl",
+  "curl de bíceps": "bicep curl",
+  "extension de triceps": "tricep extension",
+  "extensión de tríceps": "tricep extension",
+  "press militar": "overhead press",
+  "remo con barra": "barbell row",
+  "plancha": "plank",
+  "flexiones": "push up",
+  "zancadas": "lunge",
+  "hip thrust": "hip thrust",
+  "press inclinado": "incline press",
+  "aperturas": "chest fly",
+  "jalon al pecho": "lat pulldown",
+  "jalón al pecho": "lat pulldown",
+  "remo en polea": "cable row",
+  "elevaciones laterales": "lateral raise",
+  "crunch abdominal": "crunch",
+  "abdominales": "crunch",
+  "leg press": "leg press",
+  "extension de cuadriceps": "leg extension",
+  "extensión de cuádriceps": "leg extension",
+  "curl femoral": "leg curl",
+  "gemelos de pie": "calf raise",
+  "pantorrillas": "calf raise",
+  "prensa de hombros": "shoulder press",
+  "encogimientos": "shrug",
+  "remo con mancuerna": "dumbbell row",
+  "curl martillo": "hammer curl",
+  "press frances": "skull crusher",
+  "press francés": "skull crusher",
+  "pull over": "pullover",
+  "buenos dias": "good morning",
+  "buenos días": "good morning",
+  "peso muerto rumano": "romanian deadlift",
+  "sentadilla bulgara": "bulgarian split squat",
+  "sentadilla búlgara": "bulgarian split squat",
+  "burpees": "burpee",
+  "mountain climbers": "mountain climber",
+  "press de hombros": "shoulder press",
+  "press de hombros con mancuernas": "dumbbell shoulder press",
+  "remo al menton": "upright row",
+  "remo al mentón": "upright row",
+  "patada de triceps": "tricep kickback",
+  "patada de tríceps": "tricep kickback",
+  "curl concentrado": "concentration curl",
+  "superman": "superman",
+  "puente de gluteos": "glute bridge",
+  "puente de glúteos": "glute bridge",
+  "prensa de piernas": "leg press",
+  "sentadilla con mancuernas": "dumbbell squat",
+  "press de banca con mancuernas": "dumbbell bench press",
+  "elevaciones frontales": "front raise",
+  "extension de espalda": "back extension",
+  "extensión de espalda": "back extension",
+  "hiperextension": "back extension",
+  "tijeras": "scissors",
+  "bicicleta": "bicycle crunch",
+  "russian twist": "russian twist",
+  "plancha lateral": "side plank",
+  "step up": "step up",
+};
+
+function translateName(name: string): string {
+  const lower = name.toLowerCase();
+  const sorted = Object.entries(ES_TO_EN).sort((a, b) => b[0].length - a[0].length);
+  for (const [es, en] of sorted) {
+    if (lower.includes(es)) return en;
+  }
+  return name;
+}
+
 type ExerciseEntry = { id: string; name: string; images: string[] };
 type ImageResult = { imageStart: string; imageEnd: string } | null;
 
@@ -67,9 +145,13 @@ router.get("/exercises/gif", async (req, res) => {
 
   try {
     const index = await loadIndex();
-    const match = findBestMatch(index, key);
+    const translated = translateName(key);
 
-    console.log(`[exercises] query="${key}" → match="${match?.name ?? "none"}"`);
+    // Try translated name first (handles Spanish → English), then original
+    let match = translated !== key ? findBestMatch(index, translated) : null;
+    if (!match) match = findBestMatch(index, key);
+
+    console.log(`[exercises] query="${key}" translated="${translated}" → match="${match?.name ?? "none"}"`);
 
     if (!match || !match.images?.length) {
       imageCache.set(key, null);
