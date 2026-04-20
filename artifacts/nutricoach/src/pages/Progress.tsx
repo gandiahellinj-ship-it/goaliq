@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useProgressStats, useLogWeight } from "@/lib/supabase-queries";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { useProgressStats, useLogWeight, useStrengthLogs, useStrengthMuscles } from "@/lib/supabase-queries";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Dot } from "recharts";
 import { parseISO } from "date-fns";
 import { Loader2, Plus, TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -309,6 +309,195 @@ function ProgressContent() {
         </div>
       )}
       </>
+
+      {/* Strength progression */}
+      <StrengthSection />
+    </div>
+  );
+}
+
+function StrengthSection() {
+  const t = useT();
+  const { data: muscles = [] } = useStrengthMuscles();
+  const [activeMuscle, setActiveMuscle] = useState<string | null>(null);
+
+  // Auto-select first muscle when list loads
+  const selectedMuscle = activeMuscle ?? (muscles[0] ?? null);
+  const { data: logs = [] } = useStrengthLogs(selectedMuscle);
+
+  // Build per-week chart data: pick the max weight_kg per week_start
+  const weekMap = new Map<string, { maxKg: number; reps: number }>();
+  for (const log of logs) {
+    const existing = weekMap.get(log.week_start);
+    if (!existing || log.weight_kg > existing.maxKg) {
+      weekMap.set(log.week_start, { maxKg: log.weight_kg, reps: log.reps });
+    }
+  }
+  const chartData = Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, { maxKg, reps }], i) => ({
+      week,
+      kg: maxKg,
+      reps,
+      label: `S${i + 1}`,
+    }));
+
+  const maxKgOverall = chartData.length > 0 ? Math.max(...chartData.map(d => d.kg)) : 0;
+
+  // Last 6 individual log entries for the records list
+  const recentLogs = [...logs].slice(0, 6);
+
+  return (
+    <div className="mt-4">
+      <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] p-5">
+        <h3 className="font-bold text-white mb-1">💪 {t("strength_progress")}</h3>
+
+        {muscles.length === 0 ? (
+          <div className="py-10 text-center">
+            <div className="text-3xl mb-3">🏋️</div>
+            <p className="text-sm text-[#555555]">{t("no_strength_data")}</p>
+          </div>
+        ) : (
+          <>
+            {/* Muscle group selector */}
+            <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 mb-4 scrollbar-hide mt-3">
+              {muscles.map(muscle => {
+                const isActive = muscle === selectedMuscle;
+                return (
+                  <button
+                    key={muscle}
+                    type="button"
+                    onClick={() => setActiveMuscle(muscle)}
+                    className="shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-all"
+                    style={isActive ? {
+                      background: "color-mix(in srgb, var(--giq-accent) 15%, transparent)",
+                      border: "1.5px solid var(--giq-accent)",
+                      color: "var(--giq-accent)",
+                    } : {
+                      background: "var(--giq-bg-secondary)",
+                      border: "1.5px solid var(--giq-border)",
+                      color: "var(--giq-text-muted)",
+                    }}
+                  >
+                    {muscle}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Line chart */}
+            {chartData.length >= 2 ? (
+              <div className="h-[200px] w-full mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 16, right: 16, bottom: 5, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2A2A2A" />
+                    <XAxis
+                      dataKey="label"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#555555", fontSize: 11 }}
+                      dy={8}
+                    />
+                    <YAxis
+                      domain={["auto", "auto"]}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#555555", fontSize: 11 }}
+                      unit="kg"
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: "8px",
+                        border: "1px solid #2A2A2A",
+                        backgroundColor: "#1A1A1A",
+                        padding: "8px 12px",
+                      }}
+                      itemStyle={{ color: "#88ee22", fontWeight: 700 }}
+                      labelStyle={{ color: "#A0A0A0", fontSize: 12 }}
+                      formatter={(val: number, _name: string, props: any) =>
+                        [`${val}kg × ${props.payload.reps} reps`, ""]
+                      }
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="kg"
+                      stroke="#88ee22"
+                      strokeWidth={2.5}
+                      dot={(props: any) => {
+                        const isLast = props.index === chartData.length - 1;
+                        const isPR = props.payload.kg === maxKgOverall;
+                        return (
+                          <g key={props.key}>
+                            <circle
+                              cx={props.cx}
+                              cy={props.cy}
+                              r={isLast ? 6 : 4}
+                              fill={isLast ? "#88ee22" : "#0A0A0A"}
+                              stroke="#88ee22"
+                              strokeWidth={2}
+                            />
+                            {isPR && (
+                              <text
+                                x={props.cx}
+                                y={props.cy - 10}
+                                textAnchor="middle"
+                                fill="#FFB800"
+                                fontSize={9}
+                                fontWeight="bold"
+                              >
+                                PR
+                              </text>
+                            )}
+                          </g>
+                        );
+                      }}
+                      activeDot={{ r: 7, fill: "#88ee22" }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[120px] flex items-center justify-center mb-4">
+                <p className="text-sm text-[#555555]">{t("log_to_see_trend")}</p>
+              </div>
+            )}
+
+            {/* Records list */}
+            {recentLogs.length > 0 && (
+              <div className="space-y-1.5">
+                {recentLogs.map((log, i) => {
+                  const pct = maxKgOverall > 0 ? Math.round((log.weight_kg / maxKgOverall) * 100) : 100;
+                  const isPR = log.weight_kg === maxKgOverall;
+                  const dateLabel = new Date(log.logged_at + "T00:00:00").toLocaleDateString("es-ES", {
+                    day: "numeric", month: "short",
+                  });
+                  return (
+                    <div key={log.id ?? i} className="flex items-center gap-3 py-1.5">
+                      <span className="text-xs w-14 shrink-0" style={{ color: "var(--giq-text-muted)" }}>{dateLabel}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-white">{log.weight_kg}kg × {log.reps}</span>
+                          {isPR && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(255,184,0,0.15)", color: "#FFB800" }}>
+                              PR
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-1 rounded-full bg-[#2A2A2A] overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, backgroundColor: isPR ? "#FFB800" : "#88ee22" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

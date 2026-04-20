@@ -1034,6 +1034,83 @@ export function useWorkoutHistory(year: number, month: number) {
   });
 }
 
+// ─── Strength Logs ───────────────────────────────────────────────────────────
+
+export type StrengthLog = {
+  id: number;
+  exercise_name: string;
+  muscle_group: string;
+  weight_kg: number;
+  reps: number;
+  logged_at: string;
+  week_start: string;
+};
+
+export function useStrengthLogs(muscle: string | null) {
+  return useQuery({
+    queryKey: ["strength_logs", muscle],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const url = muscle
+        ? `/api/strength?muscle=${encodeURIComponent(muscle)}`
+        : "/api/strength";
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error("Failed to fetch strength logs");
+      const data = await res.json();
+      return (data.logs || []) as StrengthLog[];
+    },
+    enabled: muscle !== undefined,
+  });
+}
+
+export function useSaveStrengthLog() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      exerciseName: string;
+      muscleGroup: string;
+      weightKg: number;
+      reps: number;
+    }) => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/strength", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? "Failed to save strength log");
+      }
+      return res.json() as Promise<{
+        log: StrengthLog;
+        isNewPR: boolean;
+        prDelta: number | null;
+        prevMax: number | null;
+      }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["strength_logs"] });
+      queryClient.invalidateQueries({ queryKey: ["strength_muscles"] });
+    },
+  });
+}
+
+export function useStrengthMuscles() {
+  return useQuery({
+    queryKey: ["strength_muscles"],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/strength/muscles", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch muscle groups");
+      const data = await res.json();
+      return (data.muscles || []) as string[];
+    },
+  });
+}
+
 export function useSaveWorkoutHistory() {
   const queryClient = useQueryClient();
   return useMutation({

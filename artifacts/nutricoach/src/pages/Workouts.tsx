@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWorkoutPlan, useGenerateWorkoutPlan } from "@/lib/supabase-queries";
+import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
@@ -456,6 +456,126 @@ function ExerciseModal({
 }
 
 
+function WeightLogSection({ exercise }: { exercise: Exercise }) {
+  const t = useT();
+  const muscleGroup = exercise.muscles?.split(/[,·]/)[0].trim() ?? "general";
+  const { data: logs = [] } = useStrengthLogs(muscleGroup);
+  const saveLog = useSaveStrengthLog();
+
+  const [expanded, setExpanded] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const [repsInput, setRepsInput] = useState("");
+  const [prInfo, setPrInfo] = useState<{ delta: number | null } | null>(null);
+
+  // Find previous max for this specific exercise
+  const exerciseLogs = logs.filter(l => l.exercise_name === exercise.name);
+  const prevMax = exerciseLogs.length > 0
+    ? Math.max(...exerciseLogs.map(l => l.weight_kg))
+    : null;
+
+  const currentWeight = parseFloat(weightInput);
+  const isPotentialPR = prevMax !== null && !isNaN(currentWeight) && currentWeight > prevMax;
+
+  const handleSave = () => {
+    const kg = parseFloat(weightInput);
+    const reps = parseInt(repsInput, 10);
+    if (!kg || isNaN(kg) || kg <= 0 || !reps || isNaN(reps) || reps <= 0) return;
+    saveLog.mutate(
+      { exerciseName: exercise.name, muscleGroup, weightKg: kg, reps },
+      {
+        onSuccess: (result) => {
+          setPrInfo({ delta: result.prDelta });
+          setWeightInput("");
+          setRepsInput("");
+          setTimeout(() => setPrInfo(null), 4000);
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--giq-border)" }}>
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        className="flex items-center gap-1.5 text-xs font-semibold transition-colors"
+        style={{ color: expanded ? "var(--giq-accent)" : "var(--giq-text-muted)" }}
+      >
+        <span>🏋️</span>
+        {t("log_todays_max")}
+        <span className="ml-0.5" style={{ fontSize: 10 }}>{expanded ? "▲" : "▼"}</span>
+      </button>
+
+      {expanded && (
+        <div className="mt-2.5 space-y-2">
+          {prevMax !== null && (
+            <p className="text-xs" style={{ color: "var(--giq-text-muted)" }}>
+              {t("prev_record", { n: prevMax })}
+            </p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              step="0.5"
+              min="0"
+              max="999"
+              value={weightInput}
+              onChange={e => setWeightInput(e.target.value)}
+              placeholder="kg"
+              className="w-20 text-sm font-bold rounded-lg px-2.5 py-2 focus:outline-none"
+              style={{
+                background: "var(--giq-bg-secondary)",
+                border: `1px solid ${isPotentialPR ? "#FFB800" : "var(--giq-border)"}`,
+                color: "var(--giq-text-primary)",
+              }}
+            />
+            <span className="text-xs" style={{ color: "var(--giq-text-muted)" }}>×</span>
+            <input
+              type="number"
+              min="1"
+              max="999"
+              value={repsInput}
+              onChange={e => setRepsInput(e.target.value)}
+              placeholder={t("reps") ?? "reps"}
+              className="w-20 text-sm font-bold rounded-lg px-2.5 py-2 focus:outline-none"
+              style={{
+                background: "var(--giq-bg-secondary)",
+                border: "1px solid var(--giq-border)",
+                color: "var(--giq-text-primary)",
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saveLog.isPending || !weightInput || !repsInput}
+              className="px-3 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
+              style={{
+                background: "var(--giq-accent)",
+                color: "var(--giq-accent-text)",
+              }}
+            >
+              {saveLog.isPending ? "…" : t("save_log")}
+            </button>
+          </div>
+
+          {isPotentialPR && !prInfo && (
+            <p className="text-xs font-semibold" style={{ color: "#FFB800" }}>
+              🏆 {t("personal_record")}
+            </p>
+          )}
+
+          {prInfo && (
+            <p className="text-xs font-bold animate-pulse" style={{ color: "#FFB800" }}>
+              🏆 {prInfo.delta != null ? t("new_pr", { n: prInfo.delta }) : t("personal_record")}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }) {
   const { data, isLoading } = useExerciseImages(exercise.name);
   const [modalOpen, setModalOpen] = useState(false);
@@ -541,6 +661,8 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
                 {t("view_example_arrow")}
               </button>
             )}
+
+            <WeightLogSection exercise={exercise} />
           </div>
 
           {/* Exercise visual — two images side by side or SVG fallback */}

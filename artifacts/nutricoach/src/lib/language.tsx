@@ -215,6 +215,16 @@ const T: Record<Lang, Record<string, string>> = {
     mark_as_done: "Mark as complete",
     confirm: "Confirm",
 
+    // ── Strength tracking ──────────────────────────────────────────────────────
+    log_todays_max: "Log today's max",
+    strength_progress: "Strength progress",
+    personal_record: "Personal record!",
+    new_pr: "+{{n}}kg new record",
+    prev_record: "Previous: {{n}}kg",
+    save_log: "Save",
+    no_strength_data: "Start logging weights to see your progress",
+    select_muscle: "Select muscle group",
+
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Shopping List",
     vegetables: "Vegetables",
@@ -760,6 +770,16 @@ const T: Record<Lang, Record<string, string>> = {
     could_not_save_flex: "No se pudo guardar el Flex Day. Por favor, inténtalo de nuevo.",
     mark_as_done: "Marcar como hecho",
     confirm: "Confirmar",
+
+    // ── Strength tracking ──────────────────────────────────────────────────────
+    log_todays_max: "Registrar máximo de hoy",
+    strength_progress: "Progresión de fuerza",
+    personal_record: "¡Récord personal!",
+    new_pr: "+{{n}}kg nuevo récord",
+    prev_record: "Anterior: {{n}}kg",
+    save_log: "Guardar",
+    no_strength_data: "Empieza a registrar pesos para ver tu progreso",
+    select_muscle: "Selecciona grupo muscular",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Lista de la compra",

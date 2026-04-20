@@ -10,6 +10,7 @@ import stripeRouter from "./stripe";
 import exercisesRouter from "./exercises";
 import flexDaysRouter from "./flex-days";
 import workoutHistoryRouter from "./workout-history";
+import strengthRouter from "./strength";
 import qaRouter from "./qa";
 import qaE2eRouter from "./qa-e2e";
 
@@ -26,6 +27,7 @@ router.use(stripeRouter);
 router.use(exercisesRouter);
 router.use(flexDaysRouter);
 router.use(workoutHistoryRouter);
+router.use(strengthRouter);
 router.use(qaRouter);
 router.use(qaE2eRouter);
 
