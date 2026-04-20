@@ -13,15 +13,22 @@ import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean; equipment?: string };
 
 async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
+  console.log("[WorkoutX] fetching image for:", name, lang);
   try {
     const res = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
+    console.log("[WorkoutX] response status:", res.status);
     if (res.ok) {
       const data = await res.json();
+      console.log("[WorkoutX] data:", data);
       if (data.gifUrl) {
+        console.log("[WorkoutX] found GIF:", data.gifUrl);
         return { imageStart: data.gifUrl, imageEnd: null, isGif: true, equipment: data.equipment ?? undefined };
       }
     }
-  } catch {}
+  } catch (err) {
+    console.error("[WorkoutX] error:", err);
+  }
+  console.log("[WorkoutX] no GIF found for:", name);
   return { imageStart: null, imageEnd: null, isGif: false };
 }
 
