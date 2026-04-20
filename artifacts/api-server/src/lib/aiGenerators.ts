@@ -5,6 +5,42 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODEL = "claude-sonnet-4-6";
 
+// ── WorkoutX exercise name pre-fetch ──────────────────────────────────────────
+
+async function fetchWorkoutXExercises(location: string, limit = 80): Promise<string[]> {
+  try {
+    const LOCATION_EQUIPMENT: Record<string, string[]> = {
+      gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine"],
+      home:    ["body weight", "resistance band", "dumbbell", "kettlebell"],
+      outdoor: ["body weight", "kettlebell", "resistance band"],
+    };
+    const equipmentList = LOCATION_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_EQUIPMENT.gym;
+    const perEquipment = Math.ceil(limit / equipmentList.length);
+
+    const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
+    const results = await Promise.allSettled(
+      equipmentList.map(eq =>
+        fetch(`https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}`, {
+          headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
+          signal: AbortSignal.timeout(8000),
+        }).then(r => r.json()),
+      ),
+    );
+
+    const names: string[] = [];
+    for (const result of results) {
+      if (result.status !== "fulfilled") continue;
+      const list = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
+      for (const ex of list) {
+        if (ex.name && !names.includes(ex.name)) names.push(ex.name);
+      }
+    }
+    return names.slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
 function getMealSystem(lang: "es" | "en"): string {
   if (lang === "en") {
     return "You are a professional nutritionist. LANGUAGE REQUIRED: Generate ALL content in English (UK). All meal names, ingredient names, portions, notes, and descriptions must be in English. Use internationally recognisable food terminology. You create personalised, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
@@ -341,7 +377,11 @@ ${dayNameRule}
 
 function isWorkoutArray(val: unknown): val is any[] {
   if (!Array.isArray(val) || val.length === 0) return false;
-  return val.every((day: any) => Array.isArray(day.exercises) && day.exercises.length >= 4);
+  return val.every((day: any) =>
+    Array.isArray(day.exercises) &&
+    day.exercises.length >= 4 &&
+    day.exercises.every((ex: any) => typeof ex.name === "string" && ex.name.length > 0),
+  );
 }
 
 export async function generateWorkoutPlanForUser(profile: {
@@ -355,8 +395,8 @@ export async function generateWorkoutPlanForUser(profile: {
   const WORKOUT_SYSTEM = getWorkoutSystem(lang);
 
   const langInstruction = lang === "en"
-    ? "LANGUAGE REQUIRED: All content must be in English (UK). Exercise names, notes, warmup/cooldown — everything in English. Example: \"Squat\", \"Bench Press\", \"Deadlift\". NEVER use Spanish."
-    : "IDIOMA OBLIGATORIO: Todos los nombres de ejercicios, notas, descripciones de calentamiento, enfriamiento y cualquier texto deben estar en español de España. Ejemplo correcto: \"Sentadilla\", \"Press de banca\", \"Peso muerto\". NUNCA uses inglés.";
+    ? "LANGUAGE REQUIRED: Exercise names must match exactly the names from the EXERCISE LIBRARY above. Notes, warmup/cooldown descriptions, and workout_type must be in English."
+    : "IDIOMA: Las notas, descripciones de calentamiento y enfriamiento, y workout_type deben estar en español. PERO los nombres de ejercicios (campo 'name') deben estar en inglés exactamente como aparecen en la lista de ejercicios proporcionada. Ejemplo: usa 'Barbell Squat' no 'Sentadilla con barra'.";
 
   const LOCATION_EQUIPMENT: Record<string, string> = {
     gym:     "barbell, dumbbell, cable machine, smith machine, leg press, lat pulldown machine, leverage machines",
@@ -365,6 +405,14 @@ export async function generateWorkoutPlanForUser(profile: {
   };
   const locationKey = (profile.trainingLocation ?? "gym").toLowerCase();
   const allowedEquipment = LOCATION_EQUIPMENT[locationKey] ?? LOCATION_EQUIPMENT.gym;
+
+  // Pre-fetch WorkoutX exercise names so the AI uses exact matchable names
+  const workoutxExercises = await fetchWorkoutXExercises(profile.trainingLocation ?? "gym", 80);
+  console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}"`);
+
+  const exerciseLibraryBlock = workoutxExercises.length > 0
+    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations. Only use exercises appropriate for the training location and goal:\n${workoutxExercises.join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Do not translate, modify, or invent exercise names. If an exercise name is in English, keep it in English exactly as written.\n`
+    : "";
 
   const prompt = `Create a weekly workout plan for this person:
 - Goal: ${profile.goalType.replace(/_/g, " ")}
@@ -375,7 +423,7 @@ export async function generateWorkoutPlanForUser(profile: {
 TRAINING LOCATION: The user trains at ${profile.trainingLocation}.
 ALLOWED EQUIPMENT: ${allowedEquipment}
 CRITICAL: Only suggest exercises using the allowed equipment above. Never suggest barbell or machine exercises for home/outdoor users. Never suggest bodyweight-only exercises when gym equipment is available (unless warmup or cardio burst).
-
+${exerciseLibraryBlock}
 GOAL-SPECIFIC TRAINING APPROACH:
 - lose_weight: Mix cardio + strength. 40% cardio (HIIT, circuits, metabolic conditioning), 40% full body strength, 20% core/mobility. Keep rest periods short (30-45s) to maintain heart rate.
 - gain_muscle: Focus on progressive overload. 70% hypertrophy strength training (8-12 reps), 20% compound movements (5 reps heavy), 10% mobility/stretching. Longer rest periods (60-90s).
