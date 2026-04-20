@@ -419,7 +419,7 @@ Each object must follow this exact schema:
       reps: string (e.g. '10-12' or '45 seconds' or '5 heavy'),
       rest_seconds: number,
       notes: string (form tip or intensity note),
-      exercise_type: "strength" | "cardio" | "bodyweight"
+      exercise_type: "strength" | "cardio" | "bodyweight" | "timed"
     }
   ],
   warmup: string (specific 5 min warmup for this session),
@@ -432,7 +432,8 @@ CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a n
 CRITICAL - EXERCISE TYPE: Every exercise MUST have an exercise_type field. Use exactly one of:
 - "strength": uses external weight (barbell, dumbbell, machine, cable, kettlebell). Examples: Bench press, Squat with bar, Bicep curl, Lat pulldown, Cable fly, Leg press.
 - "cardio": aerobic/endurance exercise (running, cycling, rowing, burpees, jump rope, box jumps, mountain climbers, jumping jacks). Examples: Sprints, Rowing machine, Burpees, Jump rope.
-- "bodyweight": no external weight added. Examples: Push-ups, Pull-ups (unweighted), Bodyweight squats, Planks, Lunges without weight, Dips, Ab crunches.
+- "bodyweight": no external weight added. Examples: Push-ups, Pull-ups (unweighted), Bodyweight squats, Lunges without weight, Dips, Ab crunches.
+- "timed": held for time, no weight or rep counting. Examples: Plank (40 seconds), Dead hang, Wall sit, L-sit, Hollow hold, Superman hold, Static stretches.
 Never leave exercise_type empty, null, or undefined.
 
 ${langInstruction}

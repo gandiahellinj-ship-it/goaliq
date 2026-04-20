@@ -12,20 +12,32 @@ import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 
 type ExerciseImages = { imageStart: string | null; imageEnd: string | null };
 
-async function fetchExerciseImages(name: string): Promise<ExerciseImages> {
-  const res = await fetch(`/api/exercises/gif?name=${encodeURIComponent(name)}`);
-  if (!res.ok) return { imageStart: null, imageEnd: null };
-  const data = await res.json();
-  return {
-    imageStart: data.imageStart ?? null,
-    imageEnd: data.imageEnd ?? null,
-  };
+async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
+  // Primary: free-exercise-db via /api/exercises/gif
+  try {
+    const res = await fetch(`/api/exercises/gif?name=${encodeURIComponent(name)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.imageStart) return { imageStart: data.imageStart, imageEnd: data.imageEnd ?? null };
+    }
+  } catch {}
+
+  // Fallback: Wger API search by exercise name
+  try {
+    const wgerRes = await fetch(`/api/exercises/search?q=${encodeURIComponent(name)}&lang=${lang}`);
+    if (wgerRes.ok) {
+      const wgerData = await wgerRes.json();
+      if (wgerData.imageStart) return { imageStart: wgerData.imageStart, imageEnd: wgerData.imageEnd ?? null };
+    }
+  } catch {}
+
+  return { imageStart: null, imageEnd: null };
 }
 
-function useExerciseImages(name: string) {
+function useExerciseImages(name: string, lang: string = "en") {
   return useQuery<ExerciseImages>({
-    queryKey: ["exercise-images", name.toLowerCase()],
-    queryFn: () => fetchExerciseImages(name),
+    queryKey: ["exercise-images", name.toLowerCase(), lang],
+    queryFn: () => fetchExerciseImages(name, lang),
     staleTime: Infinity,
     retry: 1,
   });
@@ -457,12 +469,21 @@ function ExerciseModal({
 
 
 // ── Auto-detect exercise type from name when field is missing ─────────────────
-function detectExerciseType(name: string): "strength" | "cardio" | "bodyweight" {
+function detectExerciseType(name: string): "strength" | "cardio" | "bodyweight" | "timed" {
   const n = name.toLowerCase();
+  if (/plank|dead.?hang|wall.?sit|l.?sit|hollow.?hold|superman.?hold|isometric|aguantar|sostener/.test(n)) return "timed";
   if (/correr|running|cycling|cardio|bici|remo|rowing|saltar|jump rope|burpee|sprint|box jump|mountain climb|jumping jack/.test(n)) return "cardio";
   if (/press|curl|row(?! your)|pull(?!up|-up)|deadlift|squat with|sentadilla con|mancuerna|barbell|cable|machine|kettlebell|lat pulldown|leg press/.test(n)) return "strength";
-  if (/push.?up|pull.?up|plank|lunge|dip|crunch|abs|squat(?! with| con)/.test(n)) return "bodyweight";
+  if (/push.?up|pull.?up|lunge|dip|crunch|abs|squat(?! with| con)/.test(n)) return "bodyweight";
   return "strength"; // safe default
+}
+
+// Parse target seconds from reps strings like "40 segundos", "45 seconds", "30-45 sec"
+function parseTargetSeconds(reps: string | number | undefined): number {
+  if (!reps) return 30;
+  const str = String(reps);
+  const match = str.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 30;
 }
 
 function NumericInput({
@@ -538,6 +559,10 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
   const [timeInput, setTimeInput] = useState("");
   const [hrInput, setHrInput] = useState("");
 
+  // Timed fields
+  const targetSecs = parseTargetSeconds(exercise.reps);
+  const [timedInput, setTimedInput] = useState(String(targetSecs));
+
   // Find previous max for strength PR detection
   const exerciseLogs = logs.filter(l => l.exercise_name === exercise.name);
   const prevMax = exerciseLogs.length > 0
@@ -553,12 +578,13 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
   const pace = !isNaN(dist) && !isNaN(mins) && dist > 0 ? (mins / dist).toFixed(2) : null;
 
   // Toggle label per type
-  const toggleEmoji = exType === "cardio" ? "🏃" : exType === "bodyweight" ? "💪" : "🏋️";
-  const toggleLabel = exType === "cardio" ? t("log_cardio") : exType === "bodyweight" ? t("log_bodyweight") : t("log_todays_max");
+  const toggleEmoji = exType === "cardio" ? "🏃" : exType === "bodyweight" ? "💪" : exType === "timed" ? "⏱" : "🏋️";
+  const toggleLabel = exType === "cardio" ? t("log_cardio") : exType === "bodyweight" ? t("log_bodyweight") : exType === "timed" ? t("log_timed") : t("log_todays_max");
 
   const canSaveStrength = weightInput !== "" && repsInput !== "";
   const canSaveBodyweight = repsInput !== "";
   const canSaveCardio = distInput !== "" || timeInput !== "";
+  const canSaveTimed = timedInput !== "";
 
   const handleSave = () => {
     if (exType === "strength") {
@@ -576,6 +602,13 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
       saveLog.mutate(
         { exerciseName: exercise.name, muscleGroup, weightKg: 0, reps: reps * sets },
         { onSuccess: () => { setRepsInput(""); setSetsDoneInput(""); } },
+      );
+    } else if (exType === "timed") {
+      const secs = parseInt(timedInput, 10);
+      if (!secs || isNaN(secs) || secs <= 0) return;
+      saveLog.mutate(
+        { exerciseName: exercise.name, muscleGroup, weightKg: 0, reps: secs },
+        { onSuccess: () => { setTimedInput(String(targetSecs)); } },
       );
     } else {
       // cardio
@@ -691,6 +724,40 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
             </>
           )}
 
+          {/* ── TIMED ──────────────────────────────────────────────────── */}
+          {exType === "timed" && (
+            <>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--giq-text-muted)" }}>
+                {t("log_timed")}
+              </p>
+              {/* Target time display */}
+              <div className="flex flex-col items-center py-3 mb-3 rounded-xl" style={{ background: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}>
+                <p className="text-[10px] uppercase tracking-wider mb-1" style={{ color: "var(--giq-text-muted)" }}>{t("target_time")}</p>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl font-black" style={{ color: "var(--giq-accent)" }}>{targetSecs}</span>
+                  <span className="text-sm font-semibold" style={{ color: "var(--giq-text-muted)" }}>{t("seconds_unit")}</span>
+                </div>
+              </div>
+              {/* Actual time input */}
+              <div>
+                <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>{t("actual_time")}</p>
+                <input
+                  type="number"
+                  min="1"
+                  max="9999"
+                  value={timedInput}
+                  onChange={e => setTimedInput(e.target.value)}
+                  className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
+                  style={{
+                    background: "var(--giq-bg-card)",
+                    border: `1.5px solid ${timedInput && parseInt(timedInput) >= targetSecs ? "var(--giq-accent)" : "var(--giq-border)"}`,
+                    color: timedInput && parseInt(timedInput) >= targetSecs ? "var(--giq-accent)" : "var(--giq-text-primary)",
+                  }}
+                />
+              </div>
+            </>
+          )}
+
           {/* ── CARDIO ─────────────────────────────────────────────────── */}
           {exType === "cardio" && (
             <>
@@ -727,22 +794,26 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
           )}
 
           {/* Save button */}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saveLog.isPending || (exType === "strength" ? !canSaveStrength : exType === "bodyweight" ? !canSaveBodyweight : !canSaveCardio)}
-            className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
-            style={{
-              background: (exType === "strength" ? canSaveStrength : exType === "bodyweight" ? canSaveBodyweight : canSaveCardio)
-                ? "var(--giq-accent)"
-                : "var(--giq-border)",
-              color: (exType === "strength" ? canSaveStrength : exType === "bodyweight" ? canSaveBodyweight : canSaveCardio)
-                ? "var(--giq-accent-text)"
-                : "var(--giq-text-muted)",
-            }}
-          >
-            {saveLog.isPending ? "…" : t("save_log")}
-          </button>
+          {(() => {
+            const canSave = exType === "strength" ? canSaveStrength
+              : exType === "bodyweight" ? canSaveBodyweight
+              : exType === "timed" ? canSaveTimed
+              : canSaveCardio;
+            return (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saveLog.isPending || !canSave}
+                className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+                style={{
+                  background: canSave ? "var(--giq-accent)" : "var(--giq-border)",
+                  color: canSave ? "var(--giq-accent-text)" : "var(--giq-text-muted)",
+                }}
+              >
+                {saveLog.isPending ? "…" : t("save_log")}
+              </button>
+            );
+          })()}
         </div>
       )}
     </div>
@@ -750,7 +821,8 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
 }
 
 function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }) {
-  const { data, isLoading } = useExerciseImages(exercise.name);
+  const { lang } = useLanguage();
+  const { data, isLoading } = useExerciseImages(exercise.name, lang);
   const [modalOpen, setModalOpen] = useState(false);
   const t = useT();
 

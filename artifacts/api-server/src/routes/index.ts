@@ -11,6 +11,7 @@ import exercisesRouter from "./exercises";
 import flexDaysRouter from "./flex-days";
 import workoutHistoryRouter from "./workout-history";
 import strengthRouter from "./strength";
+import wgerRouter from "./wger";
 import qaRouter from "./qa";
 import qaE2eRouter from "./qa-e2e";
 
@@ -28,6 +29,7 @@ router.use(exercisesRouter);
 router.use(flexDaysRouter);
 router.use(workoutHistoryRouter);
 router.use(strengthRouter);
+router.use(wgerRouter);
 router.use(qaRouter);
 router.use(qaE2eRouter);
 

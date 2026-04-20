@@ -33,7 +33,7 @@ export type Exercise = {
   duration_sec?: number;
   rest_sec?: number;
   notes?: string;
-  exercise_type?: "strength" | "cardio" | "bodyweight";
+  exercise_type?: "strength" | "cardio" | "bodyweight" | "timed";
 };
 
 export type WorkoutRow = {
@@ -1147,6 +1147,35 @@ export function useStrengthGroupLogs(group: string | null) {
       };
     },
     enabled: group !== null,
+  });
+}
+
+// ─── Wger exercise database ────────────────────────────────────────────────────
+
+export type WgerExercise = {
+  id: number;
+  name: string;
+  description: string;
+  muscles: string[];
+  category: string;
+  imageStart: string | null;
+  imageEnd: string | null;
+};
+
+export function useWgerExercises(muscle: string | null, lang: string) {
+  return useQuery({
+    queryKey: ["wger_exercises", muscle, lang],
+    queryFn: async () => {
+      const url = muscle
+        ? `/api/exercises/wger?muscle=${encodeURIComponent(muscle)}&lang=${lang}`
+        : `/api/exercises/wger?lang=${lang}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch Wger exercises");
+      const data = await res.json();
+      return (data.exercises || []) as WgerExercise[];
+    },
+    enabled: muscle !== null,
+    staleTime: 60 * 60 * 1000, // 1 hour
   });
 }
 
