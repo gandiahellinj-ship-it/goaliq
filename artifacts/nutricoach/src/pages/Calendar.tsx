@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   useProgressLogs,
   useWorkoutPlan,
@@ -13,9 +13,10 @@ import {
 import { TrialGate } from "@/components/TrialGate";
 import { useT } from "@/lib/language";
 import {
-  format, startOfMonth, endOfMonth, eachDayOfInterval,
+  format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, addMonths, subMonths, getDay, isBefore, startOfDay,
 } from "date-fns";
+import { es } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Dumbbell, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import { ShareWorkoutButton, getWorkoutTypeLabel, type WorkoutData } from "@/components/ShareWorkoutCard";
@@ -150,8 +151,10 @@ export default function CalendarPage() {
 
 function CalendarContent() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [pendingFlex, setPendingFlex] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedAction, setSelectedAction] = useState<"workout" | "flex" | null>(null);
   const [historyModalRecord, setHistoryModalRecord] = useState<WorkoutHistoryRecord | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const t = useT();
 
   const { data: workoutPlan } = useWorkoutPlan();
@@ -167,6 +170,19 @@ function CalendarContent() {
   const toggleMutation = useToggleWorkoutComplete();
   const flexMutation = useToggleFlexDay();
   const saveHistoryMutation = useSaveWorkoutHistory();
+
+  // Auto-scroll action panel into view when a date is selected
+  useEffect(() => {
+    if (selectedDate && panelRef.current) {
+      panelRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [selectedDate]);
+
+  // Reset selection when month changes
+  useEffect(() => {
+    setSelectedDate(null);
+    setSelectedAction(null);
+  }, [currentDate]);
 
   const historyMap: Record<string, WorkoutHistoryRecord> = {};
   workoutHistory.forEach(r => { historyMap[r.workout_date] = r; });
@@ -204,11 +220,15 @@ function CalendarContent() {
 
   const flexDaysThisMonth = daysInMonth.filter(d => flexSet.has(format(d, "yyyy-MM-dd"))).length;
   const isoWeeksInMonth = new Set(daysInMonth.map(d => getISOWeekStart(d))).size;
-  const flexWeeksUsed = new Set(
-    daysInMonth
-      .filter(d => flexSet.has(format(d, "yyyy-MM-dd")))
-      .map(d => getISOWeekStart(d))
-  ).size;
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+
+  function isTrainingDay(dateStr: string): boolean {
+    if (!workoutPlan) return false;
+    const d = new Date(dateStr + "T00:00:00");
+    const dayName = DAY_NAME_MAP[getDay(d)];
+    return trainingDays.has(dayName);
+  }
 
   function getWorkoutForDate(dateStr: string) {
     if (!workoutPlan) return null;
@@ -216,6 +236,8 @@ function CalendarContent() {
     const dayName = DAY_NAME_MAP[getDay(d)];
     return workoutPlan.days.find(w => w.day === dayName)?.workout ?? null;
   }
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleToggleWorkout = (dateStr: string, currentStatus: boolean) => {
     const willBeCompleted = !currentStatus;
@@ -249,14 +271,9 @@ function CalendarContent() {
     );
   };
 
-  const handleToggleFlex = (e: React.MouseEvent, dateStr: string, day: Date) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
-    if (isPast) return;
-
+  const handleToggleFlex = (dateStr: string) => {
     const isFlexDay = flexSet.has(dateStr);
+    const day = new Date(dateStr + "T00:00:00");
     const weekStart = getISOWeekStart(day);
     const existingFlexInWeek = weekFlexMap[weekStart];
 
@@ -273,21 +290,42 @@ function CalendarContent() {
       toast(t("flex_limit_toast", { n: flexDaysThisMonth + 1 }), { duration: 4000 });
     }
 
-    setPendingFlex(dateStr);
     flexMutation.mutate(
       { date: dateStr, isFlexDay },
       {
-        onSuccess: () => {
-          refetchFlex();
-          setPendingFlex(null);
-        },
-        onError: () => {
-          setPendingFlex(null);
-          toast(t("could_not_save_flex"), { duration: 3000 });
-        },
+        onSuccess: () => refetchFlex(),
+        onError: () => toast(t("could_not_save_flex"), { duration: 3000 }),
       },
     );
   };
+
+  function handleConfirm() {
+    if (!selectedDate || !selectedAction) return;
+    if (selectedAction === "workout") {
+      const isCompleted = logMap[selectedDate] === true;
+      handleToggleWorkout(selectedDate, isCompleted);
+    } else if (selectedAction === "flex") {
+      handleToggleFlex(selectedDate);
+    }
+    setSelectedDate(null);
+    setSelectedAction(null);
+  }
+
+  // ── Panel context ──────────────────────────────────────────────────────────
+
+  const selectedDateIsPast = selectedDate
+    ? isBefore(parseISO(selectedDate), startOfDay(new Date()))
+    : false;
+  const selectedDateIsTraining = selectedDate ? isTrainingDay(selectedDate) : false;
+  const selectedDateCompleted = selectedDate ? logMap[selectedDate] === true : false;
+  const selectedDateIsFlexDay = selectedDate ? flexSet.has(selectedDate) : false;
+
+  // Show workout option if it's a training day or already has a log entry
+  const showWorkoutOption = selectedDateIsTraining || selectedDateCompleted;
+  // Show flex option for today/future, or to remove an existing flex day
+  const showFlexOption = !selectedDateIsPast || selectedDateIsFlexDay;
+
+  // ── Feedback ───────────────────────────────────────────────────────────────
 
   const adherenceFeedback = (() => {
     if (totalWorkoutDaysInMonth === 0) return null;
@@ -302,14 +340,12 @@ function CalendarContent() {
   const flexFeedback = (() => {
     if (flexDaysThisMonth === 0 && isoWeeksInMonth > 0) {
       return {
-        emoji: "🧠",
         msg: t("clean_weeks", { n: isoWeeksInMonth, s: isoWeeksInMonth !== 1 ? "s" : "" }),
         highlight: true,
       };
     }
     if (flexDaysThisMonth > 0) {
       return {
-        emoji: "😋",
         msg: t("flex_days_across", {
           n: flexDaysThisMonth,
           s: flexDaysThisMonth !== 1 ? "s" : "",
@@ -321,6 +357,8 @@ function CalendarContent() {
     }
     return null;
   })();
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
@@ -434,7 +472,7 @@ function CalendarContent() {
         </div>
         <div className="flex items-center gap-1.5">
           <span className="text-xs leading-none">😋</span>
-          {t("flex_day")} (tap 😋)
+          {t("flex_day")}
         </div>
       </div>
 
@@ -461,30 +499,37 @@ function CalendarContent() {
             const isTodayDate = isToday(day);
             const completed = logMap[dateStr] === true;
             const isFlexDay = flexSet.has(dateStr);
-            const weekStart = getISOWeekStart(day);
-            const existingFlexInWeek = weekFlexMap[weekStart];
-            const isFlexWeekUsed = !!existingFlexInWeek && existingFlexInWeek !== dateStr;
-            const isLoadingFlex = pendingFlex === dateStr;
-            const canFlex = !isPast;
+            const isSelected = dateStr === selectedDate;
+
+            // A day is interactive if it's a training day, completed, flex day, today, or future
+            const canInteract = isWorkoutDay || completed || isFlexDay || isTodayDate || !isPast;
 
             return (
               <div
                 key={dateStr}
-                className={`aspect-square border-b border-r border-[#2A2A2A] flex flex-col items-center justify-center relative transition-colors
-                  ${isTodayDate ? "bg-[#AAFF45]" : ""}
-                  ${!isTodayDate && isFlexDay ? "bg-[#AAFF45]/10" : ""}
-                  ${!isTodayDate && isWorkoutDay && !completed && !isFlexDay ? "bg-[#AAFF45]/10" : ""}
-                  ${!isTodayDate && completed ? "bg-[#AAFF45]/15" : ""}
-                  ${(isWorkoutDay || completed) ? "cursor-pointer" : "cursor-default"}
+                className={`aspect-square border-b border-r border-[#2A2A2A] flex flex-col items-center justify-center relative transition-all
+                  ${!isSelected && isTodayDate ? "bg-[#AAFF45]" : ""}
+                  ${!isSelected && !isTodayDate && isFlexDay ? "bg-[#AAFF45]/10" : ""}
+                  ${!isSelected && !isTodayDate && isWorkoutDay && !completed && !isFlexDay ? "bg-[#AAFF45]/10" : ""}
+                  ${!isSelected && !isTodayDate && completed ? "bg-[#AAFF45]/15" : ""}
+                  ${canInteract ? "cursor-pointer" : "cursor-default"}
                 `}
+                style={isSelected ? {
+                  backgroundColor: "color-mix(in srgb, var(--giq-accent) 8%, var(--giq-bg-card))",
+                  outline: "2px solid var(--giq-accent)",
+                  outlineOffset: "-2px",
+                } : {}}
                 onClick={() => {
-                  if (isWorkoutDay || completed) handleToggleWorkout(dateStr, completed);
+                  if (!canInteract) return;
+                  setSelectedDate(dateStr === selectedDate ? null : dateStr);
+                  setSelectedAction(null);
                 }}
               >
                 {/* Date number */}
                 <span
                   className={`text-sm font-bold leading-none mb-0.5 ${
-                    isTodayDate ? "text-[#0A0A0A]"
+                    isSelected ? "text-[#AAFF45]"
+                    : isTodayDate ? "text-[#0A0A0A]"
                     : isWorkoutDay ? "text-[#AAFF45]"
                     : "text-[#555555]"
                   }`}
@@ -492,9 +537,9 @@ function CalendarContent() {
                   {format(day, "d")}
                 </span>
 
-                {/* Workout status */}
+                {/* Workout status icons */}
                 {isWorkoutDay && completed && (
-                  <CheckCircle2 className={`w-3.5 h-3.5 ${isTodayDate ? "text-[#0A0A0A]" : "text-[#AAFF45]"}`} />
+                  <CheckCircle2 className={`w-3.5 h-3.5 ${isTodayDate && !isSelected ? "text-[#0A0A0A]" : "text-[#AAFF45]"}`} />
                 )}
                 {isWorkoutDay && !completed && isPast && !isTodayDate && (
                   <Circle className="w-3.5 h-3.5 text-[#2A2A2A]" />
@@ -509,35 +554,9 @@ function CalendarContent() {
                   <CheckCircle2 className="w-3 h-3 text-[#0A0A0A]" />
                 )}
 
-                {/* 😋 Flex Day label */}
+                {/* 😋 Flex Day indicator */}
                 {isFlexDay && (
-                  <span className="leading-none mt-0.5" style={{ fontSize: 9 }}>
-                    😋
-                  </span>
-                )}
-
-                {/* 😋 Flex Day button — always-clickable on future days */}
-                {canFlex && (
-                  <button
-                    type="button"
-                    onClick={e => handleToggleFlex(e, dateStr, day)}
-                    className="absolute top-0 right-0 flex items-center justify-center transition-opacity"
-                    style={{
-                      width: 26,
-                      height: 26,
-                      background: "transparent",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      zIndex: 10,
-                      fontSize: 13,
-                      opacity: isLoadingFlex ? 0.4 : isFlexDay ? 1 : isFlexWeekUsed ? 0.25 : 0.45,
-                      transition: "opacity 0.15s",
-                    }}
-                    aria-label={isFlexDay ? "Remove Flex Day" : "Mark as Flex Day"}
-                  >
-                    😋
-                  </button>
+                  <span className="leading-none mt-0.5" style={{ fontSize: 9 }}>😋</span>
                 )}
 
                 {/* 👁 Eye icon — completed workout days with saved history */}
@@ -577,9 +596,105 @@ function CalendarContent() {
         </div>
       </div>
 
-      <p className="text-xs text-[#555555] text-center mt-4">
-        {t("tap_workout_hint")}
-      </p>
+      {/* ── Action panel ──────────────────────────────────────────────────────── */}
+      {selectedDate && (
+        <div
+          ref={panelRef}
+          className="mt-3 rounded-xl p-4"
+          style={{ background: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" }}
+        >
+          {/* Date label */}
+          <p className="text-xs font-semibold text-center mb-4 capitalize" style={{ color: "var(--giq-text-muted)" }}>
+            {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
+          </p>
+
+          {/* Option cards */}
+          <div className={`grid gap-2 mb-4 ${showWorkoutOption && showFlexOption ? "grid-cols-2" : "grid-cols-1"}`}>
+
+            {/* Workout / completion option */}
+            {showWorkoutOption && (
+              <button
+                type="button"
+                onClick={() => setSelectedAction("workout")}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                style={{
+                  background: selectedAction === "workout"
+                    ? "color-mix(in srgb, var(--giq-accent) 10%, transparent)"
+                    : "var(--giq-bg-card)",
+                  border: selectedAction === "workout"
+                    ? "1.5px solid var(--giq-accent)"
+                    : "1.5px solid var(--giq-border)",
+                }}
+              >
+                <span className="text-2xl">{selectedDateCompleted ? "↩️" : "✅"}</span>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-text-primary)" }}
+                >
+                  {selectedDateCompleted ? t("cancel") : t("completed_label")}
+                </span>
+                <span className="text-[10px] text-center leading-tight" style={{ color: "var(--giq-text-muted)" }}>
+                  {selectedDateCompleted ? t("mark_as_done") + " ↩" : t("mark_as_done")}
+                </span>
+              </button>
+            )}
+
+            {/* Flex Day option */}
+            {showFlexOption && (
+              <button
+                type="button"
+                onClick={() => setSelectedAction("flex")}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                style={{
+                  background: selectedAction === "flex"
+                    ? "rgba(255,184,0,0.08)"
+                    : "var(--giq-bg-card)",
+                  border: selectedAction === "flex"
+                    ? "1.5px solid #FFB800"
+                    : "1.5px solid var(--giq-border)",
+                }}
+              >
+                <span className="text-2xl">😋</span>
+                <span
+                  className="text-xs font-semibold"
+                  style={{ color: selectedAction === "flex" ? "#FFB800" : "var(--giq-text-primary)" }}
+                >
+                  {selectedDateIsFlexDay ? `${t("flex_day")} ↩` : t("flex_day")}
+                </span>
+                <span className="text-[10px] text-center leading-tight" style={{ color: "var(--giq-text-muted)" }}>
+                  {t("flex_day_desc")}
+                </span>
+              </button>
+            )}
+          </div>
+
+          {/* Confirm / Cancel buttons */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setSelectedDate(null); setSelectedAction(null); }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors"
+              style={{ background: "var(--giq-border)", color: "var(--giq-text-muted)" }}
+            >
+              {t("cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!selectedAction}
+              className="py-2.5 rounded-xl text-sm font-bold transition-colors"
+              style={{
+                flex: 2,
+                background: selectedAction ? "var(--giq-accent)" : "var(--giq-border)",
+                color: selectedAction ? "#0a0a0a" : "var(--giq-text-muted)",
+                cursor: selectedAction ? "pointer" : "not-allowed",
+              }}
+            >
+              {t("confirm")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {historyModalRecord && (
         <WorkoutHistoryModal

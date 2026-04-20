@@ -212,6 +212,8 @@ const T: Record<Lang, Record<string, string>> = {
     flex_day_used_week: "You already have a Flex Day this week 😋",
     only_one_flex: "You can only mark one Flex Day per week.",
     could_not_save_flex: "Could not save Flex Day. Please try again.",
+    mark_as_done: "Mark as complete",
+    confirm: "Confirm",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Shopping List",
@@ -756,6 +758,8 @@ const T: Record<Lang, Record<string, string>> = {
     flex_day_used_week: "Ya tienes un Flex Day esta semana 😋",
     only_one_flex: "Solo puedes marcar un Flex Day por semana.",
     could_not_save_flex: "No se pudo guardar el Flex Day. Por favor, inténtalo de nuevo.",
+    mark_as_done: "Marcar como hecho",
+    confirm: "Confirmar",
 
     // ── Shopping ──────────────────────────────────────────────────────────────
     shopping_list: "Lista de la compra",
