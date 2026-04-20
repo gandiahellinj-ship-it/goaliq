@@ -495,81 +495,122 @@ function WeightLogSection({ exercise }: { exercise: Exercise }) {
 
   return (
     <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--giq-border)" }}>
+
+      {/* Toggle button */}
       <button
         type="button"
         onClick={() => setExpanded(v => !v)}
-        className="flex items-center gap-1.5 text-xs font-semibold transition-colors"
+        className="flex items-center gap-2 text-xs font-semibold transition-colors w-full"
         style={{ color: expanded ? "var(--giq-accent)" : "var(--giq-text-muted)" }}
       >
         <span>🏋️</span>
-        {t("log_todays_max")}
-        <span className="ml-0.5" style={{ fontSize: 10 }}>{expanded ? "▲" : "▼"}</span>
+        <span>{t("log_todays_max")}</span>
+        {prevMax !== null && !expanded && (
+          <span className="ml-auto text-xs" style={{ color: "var(--giq-text-muted)" }}>
+            {t("prev_record", { n: prevMax })}
+          </span>
+        )}
+        <span style={{ fontSize: 10, marginLeft: prevMax !== null && !expanded ? 4 : "auto" }}>
+          {expanded ? "▲" : "▼"}
+        </span>
       </button>
 
       {expanded && (
-        <div className="mt-2.5 space-y-2">
+        <div
+          className="mt-3 rounded-xl p-3"
+          style={{ background: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" }}
+        >
+          {/* Previous record info */}
           {prevMax !== null && (
-            <p className="text-xs" style={{ color: "var(--giq-text-muted)" }}>
+            <p className="text-xs mb-3" style={{ color: "var(--giq-text-muted)" }}>
               {t("prev_record", { n: prevMax })}
             </p>
           )}
 
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              step="0.5"
-              min="0"
-              max="999"
-              value={weightInput}
-              onChange={e => setWeightInput(e.target.value)}
-              placeholder="kg"
-              className="w-20 text-sm font-bold rounded-lg px-2.5 py-2 focus:outline-none"
-              style={{
-                background: "var(--giq-bg-secondary)",
-                border: `1px solid ${isPotentialPR ? "#FFB800" : "var(--giq-border)"}`,
-                color: "var(--giq-text-primary)",
-              }}
-            />
-            <span className="text-xs" style={{ color: "var(--giq-text-muted)" }}>×</span>
-            <input
-              type="number"
-              min="1"
-              max="999"
-              value={repsInput}
-              onChange={e => setRepsInput(e.target.value)}
-              placeholder={t("reps") ?? "reps"}
-              className="w-20 text-sm font-bold rounded-lg px-2.5 py-2 focus:outline-none"
-              style={{
-                background: "var(--giq-bg-secondary)",
-                border: "1px solid var(--giq-border)",
-                color: "var(--giq-text-primary)",
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saveLog.isPending || !weightInput || !repsInput}
-              className="px-3 py-2 rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
-              style={{
-                background: "var(--giq-accent)",
-                color: "var(--giq-accent-text)",
-              }}
-            >
-              {saveLog.isPending ? "…" : t("save_log")}
-            </button>
+          {/* Small label */}
+          <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--giq-text-muted)" }}>
+            {t("log_todays_max")}
+          </p>
+
+          {/* Inputs row */}
+          <div className="flex items-center gap-3">
+
+            {/* Weight input */}
+            <div className="flex-1">
+              <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Peso (kg)</p>
+              <input
+                type="number"
+                step="0.5"
+                min="0"
+                max="999"
+                value={weightInput}
+                onChange={e => setWeightInput(e.target.value)}
+                placeholder="0"
+                className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
+                style={{
+                  background: "var(--giq-bg-card)",
+                  border: `1.5px solid ${isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
+                  color: isPotentialPR ? "#FFB800" : weightInput ? "var(--giq-accent)" : "var(--giq-text-primary)",
+                }}
+              />
+            </div>
+
+            {/* × separator */}
+            <span className="text-xl font-bold mt-4" style={{ color: "var(--giq-text-muted)" }}>×</span>
+
+            {/* Reps input */}
+            <div className="flex-1">
+              <p className="text-[10px] mb-1.5" style={{ color: "var(--giq-text-muted)" }}>Reps</p>
+              <input
+                type="number"
+                min="1"
+                max="999"
+                value={repsInput}
+                onChange={e => setRepsInput(e.target.value)}
+                placeholder="0"
+                className="w-full text-center text-lg font-bold rounded-xl py-3 focus:outline-none"
+                style={{
+                  background: "var(--giq-bg-card)",
+                  border: `1.5px solid ${repsInput ? "var(--giq-accent)" : "var(--giq-border)"}`,
+                  color: repsInput ? "var(--giq-text-primary)" : "var(--giq-text-muted)",
+                }}
+              />
+            </div>
           </div>
 
+          {/* PR warning before saving */}
           {isPotentialPR && !prInfo && (
-            <p className="text-xs font-semibold" style={{ color: "#FFB800" }}>
-              🏆 {t("personal_record")}
-            </p>
+            <div className="flex items-center gap-2 mt-2.5">
+              <span className="text-sm">🏆</span>
+              <p className="text-xs font-bold" style={{ color: "#FFB800" }}>
+                {t("personal_record")}
+              </p>
+            </div>
           )}
 
+          {/* PR confirmed after saving */}
           {prInfo && (
-            <p className="text-xs font-bold animate-pulse" style={{ color: "#FFB800" }}>
-              🏆 {prInfo.delta != null ? t("new_pr", { n: prInfo.delta }) : t("personal_record")}
-            </p>
+            <div className="flex items-center gap-2 mt-2.5">
+              <span className="text-sm">🏆</span>
+              <p className="text-xs font-bold" style={{ color: "#FFB800" }}>
+                {prInfo.delta != null ? t("new_pr", { n: prInfo.delta }) : t("personal_record")}
+              </p>
+            </div>
           )}
+
+          {/* Save button */}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saveLog.isPending || !weightInput || !repsInput}
+            className="w-full mt-3 py-2.5 rounded-xl text-sm font-bold transition-all disabled:opacity-40"
+            style={{
+              background: (weightInput && repsInput) ? "var(--giq-accent)" : "var(--giq-border)",
+              color: (weightInput && repsInput) ? "var(--giq-accent-text)" : "var(--giq-text-muted)",
+            }}
+          >
+            {saveLog.isPending ? "…" : t("save_log")}
+          </button>
         </div>
       )}
     </div>
