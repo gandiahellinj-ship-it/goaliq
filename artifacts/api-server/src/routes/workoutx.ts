@@ -237,6 +237,32 @@ router.get("/api/workoutx/exercise", async (req, res) => {
   }
 });
 
+// ── GET /api/workoutx/gif/:id — proxy GIF with API key header ─────────────────
+
+router.get("/api/workoutx/gif/:id", async (req, res) => {
+  const { id } = req.params;
+  const key = process.env.WORKOUTX_API_KEY ?? "";
+
+  try {
+    const response = await fetch(`https://api.workoutxapp.com/v1/gifs/${id}.gif`, {
+      headers: { "X-WorkoutX-Key": key },
+      signal: AbortSignal.timeout(10000),
+    });
+
+    if (!response.ok) {
+      res.status(404).json({ error: "GIF not found" });
+      return;
+    }
+
+    const buffer = await response.arrayBuffer();
+    res.setHeader("Content-Type", "image/gif");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(Buffer.from(buffer));
+  } catch (err) {
+    res.status(500).json({ error: "Failed to proxy GIF" });
+  }
+});
+
 // ── GET /api/workoutx/by-location?location=gym&limit=20 ──────────────────────
 
 router.get("/api/workoutx/by-location", async (req, res) => {

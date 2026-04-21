@@ -22,7 +22,9 @@ async function fetchExerciseImages(name: string, lang: string = "en"): Promise<E
       console.log("[WorkoutX] data:", data);
       if (data.gifUrl) {
         console.log("[WorkoutX] found GIF:", data.gifUrl);
-        return { imageStart: data.gifUrl, imageEnd: null, isGif: true, equipment: data.equipment ?? undefined };
+        const gifId = data.gifUrl.split("/gifs/")[1]?.replace(".gif", "");
+        const proxyUrl = gifId ? `/api/workoutx/gif/${gifId}` : null;
+        if (proxyUrl) return { imageStart: proxyUrl, imageEnd: null, isGif: true, equipment: data.equipment ?? undefined };
       }
     }
   } catch (err) {
