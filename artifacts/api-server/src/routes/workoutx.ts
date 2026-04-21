@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { loadWorkoutXCache, findExerciseByName } from "../lib/workoutx-cache";
 
 const router = Router();
 
@@ -234,40 +235,38 @@ router.get("/api/workoutx/exercise", async (req, res) => {
   }
 
   try {
+    await loadWorkoutXCache();
+
     const translated = translateExerciseName(name);
-    const normalizedTranslated = normalizeName(translated);
-    const normalizedOriginal = normalizeName(name);
+    const normalized = normalizeName(translated);
 
-    // Search order: translated → normalize(translated) → normalize(original) → original
-    const seen = new Set<string>();
-    const searchTerms: string[] = [];
-    for (const t of [translated, normalizedTranslated, normalizedOriginal, name]) {
-      const lower = t.toLowerCase();
-      if (!seen.has(lower)) { seen.add(lower); searchTerms.push(t); }
+    const exercise =
+      findExerciseByName(translated) ??
+      findExerciseByName(normalized) ??
+      findExerciseByName(normalizeName(name)) ??
+      findExerciseByName(name);
+
+    if (exercise) {
+      const result = {
+        id: exercise.id,
+        gifUrl: `/api/workoutx/gif/${exercise.id}`,
+        name: exercise.name,
+        target: exercise.target,
+        bodyPart: exercise.bodyPart,
+        equipment: exercise.equipment,
+        instructions: [],
+      };
+      cacheSet(cacheKey, result);
+      res.json(result);
+      return;
     }
 
-    let result: WxExerciseOut | null = null;
-    for (const term of searchTerms) {
-      result = await searchByName(term);
-      if (result?.gifUrl) break;
-    }
-
-    // Last resort: first significant word of the translated name
-    if (!result?.gifUrl) {
-      const firstWord = translated.split(/\s+/).find(w => w.length > 3);
-      if (firstWord && !seen.has(firstWord.toLowerCase())) {
-        result = await searchByName(firstWord);
-      }
-    }
-
-    // If still nothing, check for cardio and return placeholder
-    if (!result?.gifUrl && isCardioExercise(name)) {
+    if (isCardioExercise(name)) {
       res.json({ gifUrl: null, isCardio: true, name });
       return;
     }
 
-    cacheSet(cacheKey, result);
-    res.json(result ?? { gifUrl: null });
+    res.json({ gifUrl: null });
   } catch (err: any) {
     console.error("[workoutx] exercise search error:", err.message);
     res.json({ gifUrl: null });

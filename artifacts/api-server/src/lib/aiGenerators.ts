@@ -1,84 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonrepair } from "jsonrepair";
+import { loadWorkoutXCache, getExercisesByLocationAndLevel } from "./workoutx-cache";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODEL = "claude-sonnet-4-6";
 
-// ── WorkoutX exercise pre-fetch ───────────────────────────────────────────────
-
-function mapDifficulty(level: string, location: string): string {
-  const l = level?.toLowerCase();
-  const loc = location?.toLowerCase();
-  // Only apply beginner filter for gym — home/outdoor have too few exercises to risk filtering
-  if ((l === "beginner" || l === "principiante") && loc === "gym") return "beginner";
-  return ""; // no filter for home/outdoor or intermediate/advanced
-}
-
-const LOCATION_ALLOWED_EQUIPMENT: Record<string, Set<string>> = {
-  gym:     new Set(["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "ez barbell", "body weight", "assisted"]),
-  home:    new Set(["body weight", "resistance band", "dumbbell", "kettlebell"]),
-  outdoor: new Set(["body weight", "kettlebell", "resistance band"]),
-};
-
-// Muscle targets to fetch from WorkoutX /exercises/target/:target
-const MUSCLE_TARGETS = [
-  "pectorals",
-  "lats",
-  "upper back",
-  "delts",
-  "biceps",
-  "triceps",
-  "quads",
-  "hamstrings",
-  "glutes",
-  "abs",
-  "calves",
-];
+// ── WorkoutX exercise pool ────────────────────────────────────────────────────
 
 type WxPoolEntry = { name: string; id: string; target: string; equipment: string };
 
-async function fetchWorkoutXByMuscle(
-  location: string,
-  trainingLevel: string = "intermediate",
-  perMuscle = 8,
-): Promise<WxPoolEntry[]> {
-  const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
-  const diffParam = mapDifficulty(trainingLevel, location);
-  const allowedEquip = LOCATION_ALLOWED_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_ALLOWED_EQUIPMENT.gym;
-  // Fetch more than perMuscle from API to account for equipment filtering losses
-  const fetchLimit = Math.max(perMuscle * 3, 30);
+async function getExercisePool(location: string, level: string): Promise<WxPoolEntry[]> {
+  await loadWorkoutXCache();
+  const exercises = getExercisesByLocationAndLevel(location, level);
 
-  const results = await Promise.allSettled(
-    MUSCLE_TARGETS.map(target => {
-      const url = diffParam
-        ? `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=${fetchLimit}&difficulty=${diffParam}`
-        : `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=${fetchLimit}`;
-      return fetch(url, {
-        headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
-        signal: AbortSignal.timeout(8000),
-      }).then(r => r.json());
-    }),
-  );
+  const byTarget = new Map<string, typeof exercises>();
+  for (const ex of exercises) {
+    const t = ex.target.toLowerCase();
+    if (!byTarget.has(t)) byTarget.set(t, []);
+    byTarget.get(t)!.push(ex);
+  }
 
-  const seen = new Set<string>();
   const pool: WxPoolEntry[] = [];
-
-  for (const result of results) {
-    if (result.status !== "fulfilled") continue;
-    const list: any[] = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
-
-    // Filter by location-allowed equipment, take up to perMuscle
-    let taken = 0;
-    for (const ex of list) {
-      if (!ex.name || !ex.id || seen.has(ex.id)) continue;
-      if (!allowedEquip.has((ex.equipment ?? "").toLowerCase())) continue;
-      seen.add(ex.id);
-      pool.push({ name: ex.name, id: ex.id, target: ex.target ?? "", equipment: ex.equipment ?? "" });
-      if (++taken >= perMuscle) break;
+  for (const exList of byTarget.values()) {
+    const shuffled = [...exList].sort(() => Math.random() - 0.5).slice(0, 15);
+    for (const ex of shuffled) {
+      pool.push({ name: ex.name, id: ex.id, target: ex.target, equipment: ex.equipment });
     }
   }
 
+  console.log(`[aiGenerators] Pool: ${pool.length} exercises for ${location}/${level}`);
   return pool;
 }
 
@@ -465,8 +416,8 @@ export async function generateWorkoutPlanForUser(profile: {
   const location = (profile.trainingLocation ?? "gym").toLowerCase();
   const level = profile.trainingLevel ?? "intermediate";
 
-  // ── Step 1: Pre-select exercises from WorkoutX by muscle group ───────────────
-  const pool = await fetchWorkoutXByMuscle(location, level, 15);
+  // ── Step 1: Pre-select exercises from WorkoutX cache ────────────────────────
+  const pool = await getExercisePool(location, level);
   console.log(`[aiGenerators] WorkoutX pool: ${pool.length} exercises for location="${location}" level="${level}"`);
 
   // Build reconciliation maps for safety net

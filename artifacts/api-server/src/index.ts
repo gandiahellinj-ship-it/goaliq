@@ -4,6 +4,7 @@ import { ensureWorkoutHistoryTable } from "./routes/workout-history";
 import { ensureSupabaseTablesReady } from "./db-migrations";
 import app from "./app";
 import { logger } from "./lib/logger";
+import { loadWorkoutXCache } from "./lib/workoutx-cache";
 
 const rawPort = process.env["PORT"];
 if (!rawPort) {
@@ -91,3 +92,5 @@ app.listen(port, (err) => {
   }
   logger.info({ port }, "Server listening");
 });
+
+loadWorkoutXCache().catch(err => console.error("[workoutx-cache] Load failed:", err));
