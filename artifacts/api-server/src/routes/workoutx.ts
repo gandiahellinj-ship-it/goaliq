@@ -188,10 +188,10 @@ async function fetchByEquipment(equipment: string, limit: number): Promise<WxExe
 function normalizeName(name: string): string {
   return name
     .toLowerCase()
-    .replace(/[-–—]/g, " ")       // hyphens/dashes → spaces
-    .replace(/[''`]s\b/g, "")     // remove possessive 's
-    .replace(/s\b/g, "")          // remove trailing s (plurals)
-    .replace(/\s+/g, " ")         // collapse spaces
+    .replace(/[-–—]/g, " ")          // hyphens/dashes → spaces
+    .replace(/[''`]s\b/g, "")        // remove possessive 's
+    .replace(/\b(\w+)s\b/g, "$1")   // remove plural s: push ups → push up
+    .replace(/\s+/g, " ")            // collapse spaces
     .trim();
 }
 
@@ -235,12 +235,13 @@ router.get("/api/workoutx/exercise", async (req, res) => {
 
   try {
     const translated = translateExerciseName(name);
-    const normalized = normalizeName(translated);
+    const normalizedTranslated = normalizeName(translated);
+    const normalizedOriginal = normalizeName(name);
 
-    // Build search term list: translated → normalized (if different) → original
+    // Search order: translated → normalize(translated) → normalize(original) → original
     const seen = new Set<string>();
     const searchTerms: string[] = [];
-    for (const t of [translated, normalized, name]) {
+    for (const t of [translated, normalizedTranslated, normalizedOriginal, name]) {
       const lower = t.toLowerCase();
       if (!seen.has(lower)) { seen.add(lower); searchTerms.push(t); }
     }
@@ -257,6 +258,12 @@ router.get("/api/workoutx/exercise", async (req, res) => {
       if (firstWord && !seen.has(firstWord.toLowerCase())) {
         result = await searchByName(firstWord);
       }
+    }
+
+    // If still nothing, check for cardio and return placeholder
+    if (!result?.gifUrl && isCardioExercise(name)) {
+      res.json({ gifUrl: null, isCardio: true, name });
+      return;
     }
 
     cacheSet(cacheKey, result);

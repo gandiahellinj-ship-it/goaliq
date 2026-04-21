@@ -7,11 +7,12 @@ const MODEL = "claude-sonnet-4-6";
 
 // ── WorkoutX exercise pre-fetch ───────────────────────────────────────────────
 
-function mapDifficulty(level: string): string {
+function mapDifficulty(level: string, location: string): string {
   const l = level?.toLowerCase();
-  if (l === "beginner" || l === "principiante") return "beginner";
-  if (l === "intermediate" || l === "intermedio") return "intermediate";
-  return ""; // advanced = no filter
+  const loc = location?.toLowerCase();
+  // Only apply beginner filter for gym — home/outdoor have too few exercises to risk filtering
+  if ((l === "beginner" || l === "principiante") && loc === "gym") return "beginner";
+  return ""; // no filter for home/outdoor or intermediate/advanced
 }
 
 const LOCATION_ALLOWED_EQUIPMENT: Record<string, Set<string>> = {
@@ -43,14 +44,16 @@ async function fetchWorkoutXByMuscle(
   perMuscle = 8,
 ): Promise<WxPoolEntry[]> {
   const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
-  const diffParam = mapDifficulty(trainingLevel);
+  const diffParam = mapDifficulty(trainingLevel, location);
   const allowedEquip = LOCATION_ALLOWED_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_ALLOWED_EQUIPMENT.gym;
+  // Fetch more than perMuscle from API to account for equipment filtering losses
+  const fetchLimit = Math.max(perMuscle * 3, 30);
 
   const results = await Promise.allSettled(
     MUSCLE_TARGETS.map(target => {
       const url = diffParam
-        ? `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=20&difficulty=${diffParam}`
-        : `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=20`;
+        ? `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=${fetchLimit}&difficulty=${diffParam}`
+        : `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=${fetchLimit}`;
       return fetch(url, {
         headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
         signal: AbortSignal.timeout(8000),
@@ -463,7 +466,7 @@ export async function generateWorkoutPlanForUser(profile: {
   const level = profile.trainingLevel ?? "intermediate";
 
   // ── Step 1: Pre-select exercises from WorkoutX by muscle group ───────────────
-  const pool = await fetchWorkoutXByMuscle(location, level, 8);
+  const pool = await fetchWorkoutXByMuscle(location, level, 15);
   console.log(`[aiGenerators] WorkoutX pool: ${pool.length} exercises for location="${location}" level="${level}"`);
 
   // Build reconciliation maps for safety net
