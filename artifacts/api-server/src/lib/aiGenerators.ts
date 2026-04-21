@@ -7,7 +7,18 @@ const MODEL = "claude-sonnet-4-6";
 
 // ── WorkoutX exercise name pre-fetch ──────────────────────────────────────────
 
-async function fetchWorkoutXExercises(location: string, limit = 100): Promise<{ name: string; id: string }[]> {
+function mapDifficulty(level: string): string {
+  const l = level?.toLowerCase();
+  if (l === "beginner" || l === "principiante") return "beginner";
+  if (l === "intermediate" || l === "intermedio") return "intermediate";
+  return ""; // advanced = no filter
+}
+
+async function fetchWorkoutXExercises(
+  location: string,
+  trainingLevel: string = "intermediate",
+  limit = 100,
+): Promise<{ name: string; id: string; difficulty: string; equipment: string; target: string }[]> {
   try {
     const LOCATION_EQUIPMENT: Record<string, string[]> = {
       gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine"],
@@ -16,26 +27,36 @@ async function fetchWorkoutXExercises(location: string, limit = 100): Promise<{ 
     };
     const equipmentList = LOCATION_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_EQUIPMENT.gym;
     const perEquipment = Math.ceil(limit / equipmentList.length);
+    const diffParam = mapDifficulty(trainingLevel);
 
     const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
     const results = await Promise.allSettled(
-      equipmentList.map(eq =>
-        fetch(`https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}`, {
+      equipmentList.map(eq => {
+        const url = diffParam
+          ? `https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}&difficulty=${diffParam}`
+          : `https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}`;
+        return fetch(url, {
           headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
           signal: AbortSignal.timeout(8000),
-        }).then(r => r.json()),
-      ),
+        }).then(r => r.json());
+      }),
     );
 
     const seen = new Set<string>();
-    const exercises: { name: string; id: string }[] = [];
+    const exercises: { name: string; id: string; difficulty: string; equipment: string; target: string }[] = [];
     for (const result of results) {
       if (result.status !== "fulfilled") continue;
       const list = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
       for (const ex of list) {
         if (ex.name && ex.id && !seen.has(ex.id)) {
           seen.add(ex.id);
-          exercises.push({ name: ex.name, id: ex.id });
+          exercises.push({
+            name: ex.name,
+            id: ex.id,
+            difficulty: ex.difficulty ?? "",
+            equipment: ex.equipment ?? "",
+            target: ex.target ?? "",
+          });
         }
       }
     }
@@ -43,6 +64,26 @@ async function fetchWorkoutXExercises(location: string, limit = 100): Promise<{ 
   } catch {
     return [];
   }
+}
+
+function reconcileExerciseIds(days: any[], wxMap: Map<string, string>): any[] {
+  return days.map(day => ({
+    ...day,
+    exercises: day.exercises.map((ex: any) => {
+      if (ex.exercise_id) return ex;
+      // Exact name match
+      const exactId = wxMap.get(ex.name.toLowerCase());
+      if (exactId) return { ...ex, exercise_id: exactId };
+      // Partial match — any significant word from the exercise name appears in a WorkoutX name
+      const words = ex.name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
+      for (const [wxName, wxId] of wxMap.entries()) {
+        if (words.some((w: string) => wxName.includes(w))) {
+          return { ...ex, exercise_id: wxId };
+        }
+      }
+      return ex;
+    }),
+  }));
 }
 
 function getMealSystem(lang: "es" | "en"): string {
@@ -411,11 +452,15 @@ export async function generateWorkoutPlanForUser(profile: {
   const allowedEquipment = LOCATION_EQUIPMENT[locationKey] ?? LOCATION_EQUIPMENT.gym;
 
   // Pre-fetch WorkoutX exercise names so the AI uses exact matchable names
-  const workoutxExercises = await fetchWorkoutXExercises(profile.trainingLocation ?? "gym", 100);
-  console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}"`);
+  const workoutxExercises = await fetchWorkoutXExercises(
+    profile.trainingLocation ?? "gym",
+    profile.trainingLevel ?? "intermediate",
+    100,
+  );
+  console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}" level="${profile.trainingLevel}"`);
 
   const exerciseLibraryBlock = workoutxExercises.length > 0
-    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name}`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\n`
+    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name (target, equipment)). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name} (${e.target}, ${e.equipment})`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\n`
     : "";
 
   const prompt = `Create a weekly workout plan for this person:
@@ -513,7 +558,7 @@ ${langInstruction}
 Return ONLY the JSON array, nothing else.`;
 
   const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray, "claude-haiku-4-5-20251001");
-  return (workoutData as any[]).map((day: any) => ({
+  const processedDays = (workoutData as any[]).map((day: any) => ({
     ...day,
     exercises: (day.exercises ?? []).map((ex: any) => ({
       ...ex,
@@ -525,6 +570,10 @@ Return ONLY the JSON array, nothing else.`;
       exercise_id: ex.exercise_id || null,
     })),
   }));
+
+  // Reconcile missing exercise_ids using the WorkoutX library
+  const wxMap = new Map(workoutxExercises.map(e => [e.name.toLowerCase(), e.id]));
+  return reconcileExerciseIds(processedDays, wxMap);
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────
