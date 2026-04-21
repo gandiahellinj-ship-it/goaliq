@@ -5,7 +5,7 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const MODEL = "claude-sonnet-4-6";
 
-// ── WorkoutX exercise name pre-fetch ──────────────────────────────────────────
+// ── WorkoutX exercise pre-fetch ───────────────────────────────────────────────
 
 function mapDifficulty(level: string): string {
   const l = level?.toLowerCase();
@@ -14,56 +14,69 @@ function mapDifficulty(level: string): string {
   return ""; // advanced = no filter
 }
 
-async function fetchWorkoutXExercises(
+const LOCATION_ALLOWED_EQUIPMENT: Record<string, Set<string>> = {
+  gym:     new Set(["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "ez barbell", "body weight", "assisted"]),
+  home:    new Set(["body weight", "resistance band", "dumbbell", "kettlebell"]),
+  outdoor: new Set(["body weight", "kettlebell", "resistance band"]),
+};
+
+// Muscle targets to fetch from WorkoutX /exercises/target/:target
+const MUSCLE_TARGETS = [
+  "pectorals",
+  "lats",
+  "upper back",
+  "delts",
+  "biceps",
+  "triceps",
+  "quads",
+  "hamstrings",
+  "glutes",
+  "abs",
+  "calves",
+];
+
+type WxPoolEntry = { name: string; id: string; target: string; equipment: string };
+
+async function fetchWorkoutXByMuscle(
   location: string,
   trainingLevel: string = "intermediate",
-  limit = 100,
-): Promise<{ name: string; id: string; difficulty: string; equipment: string; target: string }[]> {
-  try {
-    const LOCATION_EQUIPMENT: Record<string, string[]> = {
-      gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "body weight"],
-      home:    ["body weight", "resistance band", "dumbbell", "kettlebell"],
-      outdoor: ["body weight", "kettlebell", "resistance band"],
-    };
-    const equipmentList = LOCATION_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_EQUIPMENT.gym;
-    const perEquipment = Math.ceil(limit / equipmentList.length);
-    const diffParam = mapDifficulty(trainingLevel);
+  perMuscle = 8,
+): Promise<WxPoolEntry[]> {
+  const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
+  const diffParam = mapDifficulty(trainingLevel);
+  const allowedEquip = LOCATION_ALLOWED_EQUIPMENT[location?.toLowerCase()] ?? LOCATION_ALLOWED_EQUIPMENT.gym;
 
-    const WORKOUTX_KEY = process.env.WORKOUTX_API_KEY ?? "";
-    const results = await Promise.allSettled(
-      equipmentList.map(eq => {
-        const url = diffParam
-          ? `https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}&difficulty=${diffParam}`
-          : `https://api.workoutxapp.com/v1/exercises/equipment/${encodeURIComponent(eq)}?limit=${perEquipment}`;
-        return fetch(url, {
-          headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
-          signal: AbortSignal.timeout(8000),
-        }).then(r => r.json());
-      }),
-    );
+  const results = await Promise.allSettled(
+    MUSCLE_TARGETS.map(target => {
+      const url = diffParam
+        ? `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=20&difficulty=${diffParam}`
+        : `https://api.workoutxapp.com/v1/exercises/target/${encodeURIComponent(target)}?limit=20`;
+      return fetch(url, {
+        headers: { "X-WorkoutX-Key": WORKOUTX_KEY },
+        signal: AbortSignal.timeout(8000),
+      }).then(r => r.json());
+    }),
+  );
 
-    const seen = new Set<string>();
-    const exercises: { name: string; id: string; difficulty: string; equipment: string; target: string }[] = [];
-    for (const result of results) {
-      if (result.status !== "fulfilled") continue;
-      const list = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
-      for (const ex of list) {
-        if (ex.name && ex.id && !seen.has(ex.id)) {
-          seen.add(ex.id);
-          exercises.push({
-            name: ex.name,
-            id: ex.id,
-            difficulty: ex.difficulty ?? "",
-            equipment: ex.equipment ?? "",
-            target: ex.target ?? "",
-          });
-        }
-      }
+  const seen = new Set<string>();
+  const pool: WxPoolEntry[] = [];
+
+  for (const result of results) {
+    if (result.status !== "fulfilled") continue;
+    const list: any[] = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
+
+    // Filter by location-allowed equipment, take up to perMuscle
+    let taken = 0;
+    for (const ex of list) {
+      if (!ex.name || !ex.id || seen.has(ex.id)) continue;
+      if (!allowedEquip.has((ex.equipment ?? "").toLowerCase())) continue;
+      seen.add(ex.id);
+      pool.push({ name: ex.name, id: ex.id, target: ex.target ?? "", equipment: ex.equipment ?? "" });
+      if (++taken >= perMuscle) break;
     }
-    return exercises.slice(0, limit);
-  } catch {
-    return [];
   }
+
+  return pool;
 }
 
 function reconcileExerciseIds(days: any[], wxMap: Map<string, string>): any[] {
@@ -437,123 +450,90 @@ export async function generateWorkoutPlanForUser(profile: {
   [key: string]: unknown;
 }, lang: "es" | "en" = "es") {
   const trainingDays = profile.trainingDaysPerWeek;
-  const WORKOUT_SYSTEM = getWorkoutSystem(lang);
+  const location = (profile.trainingLocation ?? "gym").toLowerCase();
+  const level = profile.trainingLevel ?? "intermediate";
 
-  const langInstruction = lang === "en"
-    ? "LANGUAGE REQUIRED: Exercise names must match exactly the names from the EXERCISE LIBRARY above. Notes, warmup/cooldown descriptions, and workout_type must be in English."
-    : "IDIOMA: Las notas, descripciones de calentamiento y enfriamiento, y workout_type deben estar en español. PERO los nombres de ejercicios (campo 'name') deben estar en inglés exactamente como aparecen en la lista de ejercicios proporcionada. Ejemplo: usa 'Barbell Squat' no 'Sentadilla con barra'.";
+  // ── Step 1: Pre-select exercises from WorkoutX by muscle group ───────────────
+  const pool = await fetchWorkoutXByMuscle(location, level, 8);
+  console.log(`[aiGenerators] WorkoutX pool: ${pool.length} exercises for location="${location}" level="${level}"`);
 
-  const LOCATION_EQUIPMENT: Record<string, string> = {
-    gym:     "barbell, dumbbell, cable machine, smith machine, leg press, lat pulldown machine, leverage machines",
-    home:    "bodyweight, resistance bands, dumbbells, kettlebell",
-    outdoor: "bodyweight, kettlebell, resistance bands, park equipment",
+  // Build reconciliation map (name → id) for safety net
+  const wxMap = new Map(pool.map(e => [e.name.toLowerCase(), e.id]));
+
+  // Format pool for the prompt
+  const poolLines = pool.map(e => `${e.id}:${e.name} [${e.target}, ${e.equipment}]`).join("\n");
+
+  // ── Step 2: AI structures the plan using the pre-selected pool ───────────────
+  const WORKOUT_SYSTEM = lang === "en"
+    ? "You are a professional personal trainer organizing a workout plan. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON."
+    : "Eres un entrenador personal profesional organizando un plan de entrenamiento. Siempre respondes únicamente con JSON válido — sin markdown, sin explicaciones, sin bloques de código. Solo JSON puro.";
+
+  const langNoteInstruction = lang === "en"
+    ? "Notes, warmup, cooldown, and workout_type must be in English."
+    : "Las notas, calentamiento, enfriamiento y workout_type deben estar en español. Los nombres de ejercicios (name) y exercise_id deben copiarse EXACTAMENTE del pool — no los traduzcas.";
+
+  const goalApproach: Record<string, string> = {
+    lose_weight:   "Short rest (30-45s). Mix compound lifts with cardio bursts. 5-6 exercises/day.",
+    gain_muscle:   "Longer rest (60-90s). Focus on progressive overload, 8-12 reps. 5-7 exercises/day.",
+    maintain:      "Balanced sets/reps. Mix strength and endurance. 5-6 exercises/day.",
+    recomposition: "Alternate heavy compound and cardio-focused days. 5-6 exercises/day.",
   };
-  const locationKey = (profile.trainingLocation ?? "gym").toLowerCase();
-  const allowedEquipment = LOCATION_EQUIPMENT[locationKey] ?? LOCATION_EQUIPMENT.gym;
+  const goalKey = profile.goalType ?? "maintain";
+  const goalGuidance = goalApproach[goalKey] ?? goalApproach.maintain;
 
-  // Pre-fetch WorkoutX exercise names so the AI uses exact matchable names
-  const workoutxExercises = await fetchWorkoutXExercises(
-    profile.trainingLocation ?? "gym",
-    profile.trainingLevel ?? "intermediate",
-    100,
-  );
-  console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}" level="${profile.trainingLevel}"`);
+  const sessionStructure: Record<number, string> = {
+    2: "Full Body A / Full Body B — completely different exercises each day",
+    3: "Push Day (chest, shoulders, triceps) / Pull Day (back, biceps) / Leg Day (quads, hamstrings, glutes)",
+    4: "Upper Body / Lower Body / Push Day / Pull Day",
+    5: "Push / Pull / Legs / Upper Body / Cardio+Core",
+    6: "Push / Pull / Legs / Push (different) / Pull (different) / Legs (different)",
+  };
+  const structure = sessionStructure[trainingDays] ?? sessionStructure[3];
 
-  const exerciseLibraryBlock = workoutxExercises.length > 0
-    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name (target, equipment)). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name} (${e.target}, ${e.equipment})`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\nNote: For cardio exercises (running, jogging, cycling), you may use descriptive names like "Treadmill Run", "Outdoor Jog", "Cycling" — these will show a cardio icon instead of a GIF. Set exercise_id to null for cardio exercises.\n`
-    : "";
+  const prompt = `You are organizing a ${trainingDays}-day workout plan. The exercises are PRE-SELECTED — DO NOT change or invent exercise names or IDs.
 
-  const prompt = `Create a weekly workout plan for this person:
-- Goal: ${profile.goalType.replace(/_/g, " ")}
-- Training level: ${profile.trainingLevel}
-- Training days per week: ${trainingDays}
-- Training location: ${profile.trainingLocation}
+USER:
+- Goal: ${goalKey.replace(/_/g, " ")} — ${goalGuidance}
+- Level: ${level}
+- Location: ${location}
+- Days/week: ${trainingDays}
 
-TRAINING LOCATION: The user trains at ${profile.trainingLocation}.
-ALLOWED EQUIPMENT: ${allowedEquipment}
-CRITICAL: Only suggest exercises using the allowed equipment above. Never suggest barbell or machine exercises for home/outdoor users. Never suggest bodyweight-only exercises when gym equipment is available (unless warmup or cardio burst).
-${exerciseLibraryBlock}
-GOAL-SPECIFIC TRAINING APPROACH:
-- lose_weight: Mix cardio + strength. 40% cardio (HIIT, circuits, metabolic conditioning), 40% full body strength, 20% core/mobility. Keep rest periods short (30-45s) to maintain heart rate.
-- gain_muscle: Focus on progressive overload. 70% hypertrophy strength training (8-12 reps), 20% compound movements (5 reps heavy), 10% mobility/stretching. Longer rest periods (60-90s).
-- maintain: Balanced mix. 33% strength, 33% cardio/endurance, 33% flexibility/mobility/yoga-style.
-- recomposition: Alternate strength and cardio days. 50% strength (compound lifts), 30% HIIT/cardio, 20% core and mobility.
+WEEKLY STRUCTURE: ${structure}
 
-MUSCLE GROUP DISTRIBUTION RULES:
-- NEVER train the same primary muscle group on consecutive days
-- NEVER repeat the same exercise twice in the same week
-- Rotate through ALL of these muscle groups across the week: chest, back, shoulders, biceps, triceps, quads, hamstrings, glutes, calves, core, cardio
-- Session structure by days per week:
-  * 2 days: Full Body A / Full Body B (completely different exercises)
-  * 3 days: Push Day / Pull Day / Leg Day
-  * 4 days: Upper Body / Lower Body / Push Day / Pull Day
-  * 5 days: Push / Pull / Legs / Upper Body / Cardio+Core
-  * 6 days: Push / Pull / Legs / Push / Pull / Legs (different exercises each rotation)
+EXERCISE POOL — use ONLY these exercises (format: ID:Name [target, equipment]):
+${poolLines}
 
-EXERCISE VARIETY REQUIREMENTS:
-- Include a mix of these exercise types across the week:
-  * Compound barbell/dumbbell lifts (squat, deadlift, bench press, overhead press, row)
-  * Bodyweight movements (push-ups, pull-ups, dips, lunges, step-ups)
-  * Cardio bursts (jumping jacks, mountain climbers, burpees, jump rope, sprints)
-  * Isolation exercises (curls, lateral raises, tricep extensions, leg curls)
-  * Core work (planks, dead bugs, russian twists, hanging leg raises)
-  * Mobility/flexibility (hip flexor stretch, thoracic rotation, foam rolling)
-  * HIIT circuits (work/rest intervals like 40s on / 20s off)
-- For gym users: use barbells, dumbbells, cables, machines
-- For home users: use bodyweight, resistance bands, dumbbells only
-- For outdoor users: use running, bodyweight, park equipment
+RULES:
+- Copy name and exercise_id EXACTLY from the pool above — no modifications, no translations
+- Each exercise may appear AT MOST ONCE across the whole week
+- Each day must have 5-7 exercises from the pool
+- Distribute muscle groups logically (no same primary muscle on consecutive days)
+- Set sets/reps/rest based on the user's goal and level
+- exercise_type: "strength" if uses equipment weight, "bodyweight" if body weight, "timed" if held for time, "cardio" if aerobic
 
-WEEKLY STRUCTURE EXAMPLE FOR LOSE WEIGHT / 3 DAYS:
-- Monday: HIIT Cardio + Core (burpees, mountain climbers, jump squats, plank variations)
-- Wednesday: Full Body Strength Circuit (squat, push-up, row, lunge, shoulder press)
-- Friday: Metabolic Conditioning (kettlebell swings, box jumps, battle ropes, sled push)
+${langNoteInstruction}
 
-WEEKLY STRUCTURE EXAMPLE FOR GAIN MUSCLE / 4 DAYS:
-- Monday: Push Day (bench press, overhead press, incline dumbbell press, lateral raises, tricep dips)
-- Tuesday: Pull Day (barbell row, lat pulldown, face pulls, bicep curls, rear delt flies)
-- Thursday: Leg Day (squat, romanian deadlift, leg press, walking lunges, calf raises)
-- Friday: Arms + Core (skull crushers, hammer curls, cable pushdown, hanging leg raises, ab wheel)
-
-Return a JSON array with exactly ${trainingDays} workout objects.
-Each object must follow this exact schema:
+Return a JSON array with exactly ${trainingDays} objects. Each object:
 {
-  day_name: string (e.g. Monday),
-  workout_type: string (descriptive, e.g. 'Push Day — Chest & Triceps' or 'HIIT Cardio + Core'),
-  duration_minutes: number,
-  exercises: [
+  "day_name": string (e.g. "Monday"),
+  "workout_type": string (descriptive session name),
+  "duration_minutes": number,
+  "exercises": [
     {
-      name: string (exact exercise name from the EXERCISE LIBRARY above),
-      exercise_id: string (the ID from the EXERCISE LIBRARY, e.g. "0024"),
-      muscles: string (primary muscles worked, max 2-3, e.g. "Chest, Triceps" or "Quads, Glutes"),
-      sets: number,
-      reps: string (e.g. '10-12' or '45 seconds' or '5 heavy'),
-      rest_seconds: number,
-      notes: string (form tip or intensity note),
-      exercise_type: "strength" | "cardio" | "bodyweight" | "timed"
+      "name": string (EXACT name from pool),
+      "exercise_id": string (EXACT ID from pool, e.g. "0024"),
+      "muscles": string (primary muscles, e.g. "Chest, Triceps"),
+      "sets": number,
+      "reps": string (e.g. "10-12" or "45 seconds"),
+      "rest_seconds": number,
+      "notes": string (form tip),
+      "exercise_type": "strength" | "bodyweight" | "timed" | "cardio"
     }
   ],
-  warmup: string (specific 5 min warmup for this session),
-  cooldown: string (specific 5 min cooldown for this session),
-  notes: string (session coaching note)
+  "warmup": string,
+  "cooldown": string,
+  "notes": string
 }
-
-VARIETY RULES - CRITICAL:
-- Each exercise must appear AT MOST ONCE across the entire week plan
-- No exercise name can be repeated in any day
-- Use different exercises for each training day — maximum variety
-- If training chest on Monday and Thursday, use completely different chest exercises each day
-- Aim for at least 20+ unique exercises across the week
-
-CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 seconds'). Never leave sets or reps empty, null, or undefined.
-
-CRITICAL - EXERCISE TYPE: Every exercise MUST have an exercise_type field. Use exactly one of:
-- "strength": uses external weight (barbell, dumbbell, machine, cable, kettlebell). Examples: Bench press, Squat with bar, Bicep curl, Lat pulldown, Cable fly, Leg press.
-- "cardio": aerobic/endurance exercise (running, cycling, rowing, burpees, jump rope, box jumps, mountain climbers, jumping jacks). Examples: Sprints, Rowing machine, Burpees, Jump rope.
-- "bodyweight": no external weight added. Examples: Push-ups, Pull-ups (unweighted), Bodyweight squats, Lunges without weight, Dips, Ab crunches.
-- "timed": held for time, no weight or rep counting. Examples: Plank (40 seconds), Dead hang, Wall sit, L-sit, Hollow hold, Superman hold, Static stretches.
-Never leave exercise_type empty, null, or undefined.
-
-${langInstruction}
 
 Return ONLY the JSON array, nothing else.`;
 
@@ -571,8 +551,7 @@ Return ONLY the JSON array, nothing else.`;
     })),
   }));
 
-  // Reconcile missing exercise_ids using the WorkoutX library
-  const wxMap = new Map(workoutxExercises.map(e => [e.name.toLowerCase(), e.id]));
+  // Safety net: fill in any missing exercise_ids from the pool
   return reconcileExerciseIds(processedDays, wxMap);
 }
 
