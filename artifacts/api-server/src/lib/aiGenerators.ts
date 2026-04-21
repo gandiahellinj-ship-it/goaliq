@@ -21,7 +21,7 @@ async function fetchWorkoutXExercises(
 ): Promise<{ name: string; id: string; difficulty: string; equipment: string; target: string }[]> {
   try {
     const LOCATION_EQUIPMENT: Record<string, string[]> = {
-      gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine"],
+      gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "body weight"],
       home:    ["body weight", "resistance band", "dumbbell", "kettlebell"],
       outdoor: ["body weight", "kettlebell", "resistance band"],
     };
@@ -460,7 +460,7 @@ export async function generateWorkoutPlanForUser(profile: {
   console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}" level="${profile.trainingLevel}"`);
 
   const exerciseLibraryBlock = workoutxExercises.length > 0
-    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name (target, equipment)). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name} (${e.target}, ${e.equipment})`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\n`
+    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name (target, equipment)). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name} (${e.target}, ${e.equipment})`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\nNote: For cardio exercises (running, jogging, cycling), you may use descriptive names like "Treadmill Run", "Outdoor Jog", "Cycling" — these will show a cardio icon instead of a GIF. Set exercise_id to null for cardio exercises.\n`
     : "";
 
   const prompt = `Create a weekly workout plan for this person:

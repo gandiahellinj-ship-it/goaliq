@@ -159,7 +159,7 @@ function toOut(ex: WxExercise): WxExerciseOut {
 // ── Location → equipment mapping ──────────────────────────────────────────────
 
 const LOCATION_EQUIPMENT: Record<string, string[]> = {
-  gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "ez barbell"],
+  gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine", "ez barbell", "body weight"],
   home:    ["body weight", "resistance band", "dumbbell", "kettlebell"],
   outdoor: ["body weight", "kettlebell", "resistance band"],
 };
@@ -183,6 +183,24 @@ async function fetchByEquipment(equipment: string, limit: number): Promise<WxExe
   return exercises;
 }
 
+// ── Name normalization ────────────────────────────────────────────────────────
+
+function normalizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[-–—]/g, " ")       // hyphens/dashes → spaces
+    .replace(/[''`]s\b/g, "")     // remove possessive 's
+    .replace(/s\b/g, "")          // remove trailing s (plurals)
+    .replace(/\s+/g, " ")         // collapse spaces
+    .trim();
+}
+
+const CARDIO_KEYWORDS = /\b(run|jog|walk|cycl|bike|bik|swim|cardio|sprint|skip|jump rope|treadmill|elliptic|row(ing)?|stair)\b/i;
+
+function isCardioExercise(name: string): boolean {
+  return CARDIO_KEYWORDS.test(name);
+}
+
 // Search by name using the dedicated /exercises/name/:name endpoint
 async function searchByName(term: string): Promise<WxExerciseOut | null> {
   const data = await wxFetch(`/exercises/name/${encodeURIComponent(term.toLowerCase())}`);
@@ -202,6 +220,12 @@ router.get("/api/workoutx/exercise", async (req, res) => {
     return;
   }
 
+  // Cardio exercises won't have GIFs in WorkoutX — return early
+  if (isCardioExercise(name)) {
+    res.json({ gifUrl: null, isCardio: true });
+    return;
+  }
+
   const cacheKey = `wx:name:${name.toLowerCase()}:${lang}`;
   const cached = cacheGet<WxExerciseOut | null>(cacheKey);
   if (cached !== undefined) {
@@ -211,9 +235,15 @@ router.get("/api/workoutx/exercise", async (req, res) => {
 
   try {
     const translated = translateExerciseName(name);
-    const searchTerms = translated.toLowerCase() !== name.toLowerCase()
-      ? [translated, name]
-      : [name];
+    const normalized = normalizeName(translated);
+
+    // Build search term list: translated → normalized (if different) → original
+    const seen = new Set<string>();
+    const searchTerms: string[] = [];
+    for (const t of [translated, normalized, name]) {
+      const lower = t.toLowerCase();
+      if (!seen.has(lower)) { seen.add(lower); searchTerms.push(t); }
+    }
 
     let result: WxExerciseOut | null = null;
     for (const term of searchTerms) {
@@ -221,10 +251,10 @@ router.get("/api/workoutx/exercise", async (req, res) => {
       if (result?.gifUrl) break;
     }
 
-    // Last resort: try first significant word
+    // Last resort: first significant word of the translated name
     if (!result?.gifUrl) {
-      const firstWord = translated.split(" ")[0];
-      if (firstWord.length > 3 && firstWord !== translated) {
+      const firstWord = translated.split(/\s+/).find(w => w.length > 3);
+      if (firstWord && !seen.has(firstWord.toLowerCase())) {
         result = await searchByName(firstWord);
       }
     }
