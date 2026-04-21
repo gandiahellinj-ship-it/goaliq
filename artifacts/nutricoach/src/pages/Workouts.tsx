@@ -15,20 +15,14 @@ type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGi
 async function fetchExerciseImages(name: string, lang: string = "en", exerciseId?: string | null): Promise<ExerciseImages> {
   // If we have an exact exercise_id from WorkoutX, skip name search entirely
   if (exerciseId) {
-    console.log("[WorkoutX] using exercise_id directly:", exerciseId);
-    console.log("[GIF PROXY]", `/api/workoutx/gif/${exerciseId}`);
     return { imageStart: `/api/workoutx/gif/${exerciseId}`, imageEnd: null, isGif: true };
   }
 
-  console.log("[WorkoutX] fetching image for:", name, lang);
   try {
     const res = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
-    console.log("[WorkoutX] response status:", res.status);
     if (res.ok) {
       const data = await res.json();
-      console.log("[WorkoutX] data:", data);
       if (data.gifUrl) {
-        console.log("[WorkoutX] found GIF:", data.gifUrl);
         const gifId = data.gifUrl.split("/gifs/")[1]?.replace(".gif", "");
         const proxyUrl = gifId ? `/api/workoutx/gif/${gifId}` : null;
         if (proxyUrl) return { imageStart: proxyUrl, imageEnd: null, isGif: true, equipment: data.equipment ?? undefined };
@@ -37,7 +31,6 @@ async function fetchExerciseImages(name: string, lang: string = "en", exerciseId
   } catch (err) {
     console.error("[WorkoutX] error:", err);
   }
-  console.log("[WorkoutX] no GIF found for:", name);
   return { imageStart: null, imageEnd: null, isGif: false };
 }
 
@@ -118,17 +111,10 @@ export default function Workouts() {
   );
 }
 
-// English exercise keywords that would NOT appear in a correctly Spanish-generated plan
-const ENGLISH_EX_RE = /\b(deadlift|lunge|squat|push-ups?|pull-ups?|jumping jack|mountain climber|bicep curl|bench press|overhead press|lat pulldown|leg press)\b/i;
-
-function hasEnglishExercises(exercises: Exercise[]): boolean {
-  return exercises.some(e => ENGLISH_EX_RE.test(e.name));
-}
 
 function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
-  const regenTriggeredRef = useRef(false);
   const hasTriggeredRegen = useRef(false);
   const t = useT();
   const { lang } = useLanguage();
@@ -136,41 +122,18 @@ function WorkoutsContent() {
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Auto-regenerate once per session if exercise names are in English
-  useEffect(() => {
-    if (!workoutPlan || regenTriggeredRef.current || generateMutation.isPending) return;
-    const allExercises = workoutPlan.days.flatMap(d => d.workout?.exercises ?? []);
-    if (allExercises.length === 0) return;
-    if (!hasEnglishExercises(allExercises)) return;
-
-    const sessionKey = "goaliq_workout_regen_done";
-    if (sessionStorage.getItem(sessionKey)) return;
-
-    regenTriggeredRef.current = true;
-    sessionStorage.setItem(sessionKey, "1");
-
-    supabase.auth.getSession().then(({ data }) => {
-      const token = data.session?.access_token;
-      if (!token) return;
-      generateMutation.mutate({ token, lang });
-    });
-  }, [workoutPlan]);
-
   // Auto-regenerate once if plan has exercises without exercise_id (pre-WorkoutX plans)
   useEffect(() => {
-    if (!workoutPlan) return;
-    if (hasTriggeredRegen.current) return;
+    if (!workoutPlan || hasTriggeredRegen.current || generateMutation.isPending) return;
     const allDays = workoutPlan.days ?? [];
     const missingIds = allDays.some(day =>
-      day.exercises?.some((ex: any) => !ex.exercise_id)
+      day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
     );
-    if (missingIds && !generateMutation.isPending) {
+    if (missingIds) {
       hasTriggeredRegen.current = true;
-      console.log("[WorkoutX] Old plan detected - auto-regenerating...");
       supabase.auth.getSession().then(({ data }) => {
         const token = data.session?.access_token;
         if (token) generateMutation.mutate({ token, lang });
-        else console.error("[WorkoutX] No session token available");
       });
     }
   }, [workoutPlan]);
@@ -907,9 +870,6 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
   const isGif = data?.isGif ?? false;
   const equipment = data?.equipment ?? null;
   const hasImages = !isLoading && imageStart;
-
-  console.log("[GIF DEBUG]", exercise.name, "| exercise_id:", exercise.exercise_id, "| imageStart:", data?.imageStart);
-  console.log("[ExerciseCard]", exercise.name, "| imageStart:", imageStart, "| isGif:", isGif, "| hasImages:", hasImages);
 
   return (
     <>

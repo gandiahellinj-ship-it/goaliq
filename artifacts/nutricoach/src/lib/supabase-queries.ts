@@ -281,17 +281,17 @@ export function useMealPlan() {
 // ─── Workout Plan ─────────────────────────────────────────────────────────────
 
 export function useWorkoutPlan() {
-  const weekStart = getWeekStart();
   return useQuery({
-    queryKey: ["workout_plans", weekStart],
+    queryKey: ["workout_plans"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("workout_plans")
-        .select("*")
-        .eq("week_start", weekStart);
-      if (error) throw error;
+      const token = await getAccessToken();
+      const res = await fetch("/api/workouts", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
 
-      const rows = (data || []) as WorkoutRow[];
+      const rows = (data.days ?? []) as WorkoutRow[];
       const trainingDays = new Set(rows.map(r => r.day_name));
 
       if (trainingDays.size === 0) return null;
@@ -302,7 +302,7 @@ export function useWorkoutPlan() {
         workout: rows.find(r => r.day_name === day),
       }));
 
-      return { days, weekStart, trainingDays } as WorkoutPlan;
+      return { days, weekStart: data.weekStart, trainingDays } as WorkoutPlan;
     },
   });
 }
