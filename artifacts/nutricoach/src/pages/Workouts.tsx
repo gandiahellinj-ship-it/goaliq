@@ -122,21 +122,22 @@ function WorkoutsContent() {
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Auto-regenerate once if plan has exercises without exercise_id (pre-WorkoutX plans)
+  // Auto-regenerate: no plan in DB yet, or plan has exercises without exercise_id
   useEffect(() => {
-    if (!workoutPlan || hasTriggeredRegen.current || generateMutation.isPending) return;
-    const allDays = workoutPlan.days ?? [];
-    const missingIds = allDays.some(day =>
+    if (isLoading || hasTriggeredRegen.current || generateMutation.isPending) return;
+
+    const needsRegen = !workoutPlan || (workoutPlan.days ?? []).some(day =>
       day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
     );
-    if (missingIds) {
+
+    if (needsRegen) {
       hasTriggeredRegen.current = true;
       supabase.auth.getSession().then(({ data }) => {
         const token = data.session?.access_token;
         if (token) generateMutation.mutate({ token, lang });
       });
     }
-  }, [workoutPlan]);
+  }, [workoutPlan, isLoading]);
 
   const [activeDay, setActiveDay] = useState(defaultDay);
 
@@ -153,9 +154,25 @@ function WorkoutsContent() {
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
         <Dumbbell className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
         <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("no_workout_plan")}</h2>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
+        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--giq-text-secondary)" }}>
           {t("complete_onboarding_workout")}
         </p>
+        <button
+          onClick={() => {
+            supabase.auth.getSession().then(({ data }) => {
+              const token = data.session?.access_token;
+              if (token) generateMutation.mutate({ token, lang });
+            });
+          }}
+          disabled={generateMutation.isPending}
+          className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-opacity disabled:opacity-50"
+          style={{ backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }}
+        >
+          {generateMutation.isPending
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <RefreshCw className="w-4 h-4" />}
+          {generateMutation.isPending ? t("regenerating") : t("regenerate_plan")}
+        </button>
       </div>
     );
   }

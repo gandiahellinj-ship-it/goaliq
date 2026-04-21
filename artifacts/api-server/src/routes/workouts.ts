@@ -50,6 +50,8 @@ router.get("/workouts", async (req, res) => {
       [req.user.id, weekStart],
     );
 
+    console.log("[workouts GET] user:", req.user?.id, "weekStart:", weekStart, "rows:", rows?.length, "hasDays:", rows[0]?.days?.length ?? 0);
+
     if (rows.length === 0 || !rows[0].days || (rows[0].days as any[]).length === 0) {
       res.status(404).json({ error: "No workout plan found" });
       return;
