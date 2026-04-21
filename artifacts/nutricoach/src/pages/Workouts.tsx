@@ -129,6 +129,7 @@ function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
   const regenTriggeredRef = useRef(false);
+  const hasTriggeredRegen = useRef(false);
   const t = useT();
   const { lang } = useLanguage();
 
@@ -158,15 +159,18 @@ function WorkoutsContent() {
   // Auto-regenerate once if plan has exercises without exercise_id (pre-WorkoutX plans)
   useEffect(() => {
     if (!workoutPlan) return;
+    if (hasTriggeredRegen.current) return;
     const allDays = workoutPlan.days ?? [];
     const missingIds = allDays.some(day =>
       day.exercises?.some((ex: any) => !ex.exercise_id)
     );
     if (missingIds && !generateMutation.isPending) {
+      hasTriggeredRegen.current = true;
       console.log("[WorkoutX] Old plan detected - auto-regenerating...");
       supabase.auth.getSession().then(({ data }) => {
         const token = data.session?.access_token;
         if (token) generateMutation.mutate({ token, lang });
+        else console.error("[WorkoutX] No session token available");
       });
     }
   }, [workoutPlan]);
