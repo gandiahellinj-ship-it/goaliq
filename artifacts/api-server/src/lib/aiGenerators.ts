@@ -79,19 +79,28 @@ async function fetchWorkoutXByMuscle(
   return pool;
 }
 
-function reconcileExerciseIds(days: any[], wxMap: Map<string, string>): any[] {
+function reconcileExerciseIds(
+  days: any[],
+  wxMap: Map<string, string>,
+  wxNameMap: Map<string, string>,
+): any[] {
   return days.map(day => ({
     ...day,
     exercises: day.exercises.map((ex: any) => {
-      if (ex.exercise_id) return ex;
-      // Exact name match
+      // If AI returned a valid ID, trust it but overwrite name with exact WorkoutX name
+      if (ex.exercise_id && wxNameMap.has(ex.exercise_id)) {
+        return { ...ex, exercise_id: ex.exercise_id, name: wxNameMap.get(ex.exercise_id)! };
+      }
+      // Try exact name match
       const exactId = wxMap.get(ex.name.toLowerCase());
-      if (exactId) return { ...ex, exercise_id: exactId };
+      if (exactId) {
+        return { ...ex, exercise_id: exactId, name: wxNameMap.get(exactId) ?? ex.name };
+      }
       // Partial match — any significant word from the exercise name appears in a WorkoutX name
       const words = ex.name.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
       for (const [wxName, wxId] of wxMap.entries()) {
         if (words.some((w: string) => wxName.includes(w))) {
-          return { ...ex, exercise_id: wxId };
+          return { ...ex, exercise_id: wxId, name: wxNameMap.get(wxId) ?? ex.name };
         }
       }
       return ex;
@@ -457,8 +466,9 @@ export async function generateWorkoutPlanForUser(profile: {
   const pool = await fetchWorkoutXByMuscle(location, level, 8);
   console.log(`[aiGenerators] WorkoutX pool: ${pool.length} exercises for location="${location}" level="${level}"`);
 
-  // Build reconciliation map (name → id) for safety net
+  // Build reconciliation maps for safety net
   const wxMap = new Map(pool.map(e => [e.name.toLowerCase(), e.id]));
+  const wxNameMap = new Map(pool.map(e => [e.id, e.name]));
 
   // Format pool for the prompt
   const poolLines = pool.map(e => `${e.id}:${e.name} [${e.target}, ${e.equipment}]`).join("\n");
@@ -552,7 +562,7 @@ Return ONLY the JSON array, nothing else.`;
   }));
 
   // Safety net: fill in any missing exercise_ids from the pool
-  return reconcileExerciseIds(processedDays, wxMap);
+  return reconcileExerciseIds(processedDays, wxMap, wxNameMap);
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────
