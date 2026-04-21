@@ -7,7 +7,7 @@ const MODEL = "claude-sonnet-4-6";
 
 // ── WorkoutX exercise name pre-fetch ──────────────────────────────────────────
 
-async function fetchWorkoutXExercises(location: string, limit = 80): Promise<string[]> {
+async function fetchWorkoutXExercises(location: string, limit = 100): Promise<{ name: string; id: string }[]> {
   try {
     const LOCATION_EQUIPMENT: Record<string, string[]> = {
       gym:     ["barbell", "dumbbell", "cable", "leverage machine", "smith machine"],
@@ -27,15 +27,19 @@ async function fetchWorkoutXExercises(location: string, limit = 80): Promise<str
       ),
     );
 
-    const names: string[] = [];
+    const seen = new Set<string>();
+    const exercises: { name: string; id: string }[] = [];
     for (const result of results) {
       if (result.status !== "fulfilled") continue;
       const list = result.value.data ?? result.value.exercises ?? (Array.isArray(result.value) ? result.value : []);
       for (const ex of list) {
-        if (ex.name && !names.includes(ex.name)) names.push(ex.name);
+        if (ex.name && ex.id && !seen.has(ex.id)) {
+          seen.add(ex.id);
+          exercises.push({ name: ex.name, id: ex.id });
+        }
       }
     }
-    return names.slice(0, limit);
+    return exercises.slice(0, limit);
   } catch {
     return [];
   }
@@ -407,11 +411,11 @@ export async function generateWorkoutPlanForUser(profile: {
   const allowedEquipment = LOCATION_EQUIPMENT[locationKey] ?? LOCATION_EQUIPMENT.gym;
 
   // Pre-fetch WorkoutX exercise names so the AI uses exact matchable names
-  const workoutxExercises = await fetchWorkoutXExercises(profile.trainingLocation ?? "gym", 80);
+  const workoutxExercises = await fetchWorkoutXExercises(profile.trainingLocation ?? "gym", 100);
   console.log(`[aiGenerators] WorkoutX exercises fetched: ${workoutxExercises.length} for location="${profile.trainingLocation}"`);
 
   const exerciseLibraryBlock = workoutxExercises.length > 0
-    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations. Only use exercises appropriate for the training location and goal:\n${workoutxExercises.join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Do not translate, modify, or invent exercise names. If an exercise name is in English, keep it in English exactly as written.\n`
+    ? `\nEXERCISE LIBRARY: You MUST use exercises from this list. These are the exact names available with visual demonstrations (format: ID:Name). Only use exercises appropriate for the training location and goal:\n${workoutxExercises.map(e => `${e.id}:${e.name}`).join(", ")}\n\nCRITICAL: Use the EXACT exercise names from the list above. Set exercise_id to the corresponding ID (e.g. "0024"). Do not translate, modify, or invent exercise names.\n`
     : "";
 
   const prompt = `Create a weekly workout plan for this person:
@@ -473,7 +477,8 @@ Each object must follow this exact schema:
   duration_minutes: number,
   exercises: [
     {
-      name: string (specific exercise name, never generic),
+      name: string (exact exercise name from the EXERCISE LIBRARY above),
+      exercise_id: string (the ID from the EXERCISE LIBRARY, e.g. "0024"),
       muscles: string (primary muscles worked, max 2-3, e.g. "Chest, Triceps" or "Quads, Glutes"),
       sets: number,
       reps: string (e.g. '10-12' or '45 seconds' or '5 heavy'),
@@ -486,6 +491,13 @@ Each object must follow this exact schema:
   cooldown: string (specific 5 min cooldown for this session),
   notes: string (session coaching note)
 }
+
+VARIETY RULES - CRITICAL:
+- Each exercise must appear AT MOST ONCE across the entire week plan
+- No exercise name can be repeated in any day
+- Use different exercises for each training day — maximum variety
+- If training chest on Monday and Thursday, use completely different chest exercises each day
+- Aim for at least 20+ unique exercises across the week
 
 CRITICAL: Every single exercise MUST have sets (a positive number) and reps (a non-empty string like '10-12' or '30 seconds'). Never leave sets or reps empty, null, or undefined.
 
@@ -510,6 +522,7 @@ Return ONLY the JSON array, nothing else.`;
       rest_seconds: ex.rest_seconds || 60,
       notes: ex.notes || "",
       exercise_type: ex.exercise_type || "strength",
+      exercise_id: ex.exercise_id || null,
     })),
   }));
 }

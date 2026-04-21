@@ -12,7 +12,13 @@ import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
 
 type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean; equipment?: string };
 
-async function fetchExerciseImages(name: string, lang: string = "en"): Promise<ExerciseImages> {
+async function fetchExerciseImages(name: string, lang: string = "en", exerciseId?: string | null): Promise<ExerciseImages> {
+  // If we have an exact exercise_id from WorkoutX, skip name search entirely
+  if (exerciseId) {
+    console.log("[WorkoutX] using exercise_id directly:", exerciseId);
+    return { imageStart: `/api/workoutx/gif/${exerciseId}`, imageEnd: null, isGif: true };
+  }
+
   console.log("[WorkoutX] fetching image for:", name, lang);
   try {
     const res = await fetch(`/api/workoutx/exercise?name=${encodeURIComponent(name)}&lang=${lang}`);
@@ -34,10 +40,10 @@ async function fetchExerciseImages(name: string, lang: string = "en"): Promise<E
   return { imageStart: null, imageEnd: null, isGif: false };
 }
 
-function useExerciseImages(name: string, lang: string = "en") {
+function useExerciseImages(name: string, lang: string = "en", exerciseId?: string | null) {
   return useQuery<ExerciseImages>({
-    queryKey: ["exercise-images-wx", name.toLowerCase(), lang],
-    queryFn: () => fetchExerciseImages(name, lang),
+    queryKey: ["exercise-images-wx", exerciseId ?? name.toLowerCase(), lang],
+    queryFn: () => fetchExerciseImages(name, lang, exerciseId),
     staleTime: Infinity,
     retry: 1,
   });
@@ -849,7 +855,7 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
 
 function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }) {
   const { lang } = useLanguage();
-  const { data, isLoading } = useExerciseImages(exercise.name, lang);
+  const { data, isLoading } = useExerciseImages(exercise.name, lang, exercise.exercise_id);
   const [modalOpen, setModalOpen] = useState(false);
   const t = useT();
 

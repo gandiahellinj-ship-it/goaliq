@@ -27,6 +27,7 @@ export type MealPlan = {
 
 export type Exercise = {
   name: string;
+  exercise_id?: string | null;
   muscles?: string;
   sets?: number;
   reps?: number;
