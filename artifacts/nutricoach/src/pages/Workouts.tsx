@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
-import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell, RefreshCw } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
@@ -132,10 +131,7 @@ function WorkoutsContent() {
 
     if (needsRegen) {
       hasTriggeredRegen.current = true;
-      supabase.auth.getSession().then(({ data }) => {
-        const token = data.session?.access_token;
-        if (token) generateMutation.mutate({ token, lang });
-      });
+      generateMutation.mutate({ lang });
     }
   }, [workoutPlan, isLoading]);
 
@@ -158,12 +154,7 @@ function WorkoutsContent() {
           {t("complete_onboarding_workout")}
         </p>
         <button
-          onClick={() => {
-            supabase.auth.getSession().then(({ data }) => {
-              const token = data.session?.access_token;
-              if (token) generateMutation.mutate({ token, lang });
-            });
-          }}
+          onClick={() => generateMutation.mutate({ lang })}
           disabled={generateMutation.isPending}
           className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-opacity disabled:opacity-50"
           style={{ backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }}
@@ -193,12 +184,7 @@ function WorkoutsContent() {
           </p>
         </div>
         <button
-          onClick={() => {
-            supabase.auth.getSession().then(({ data }) => {
-              const token = data.session?.access_token;
-              if (token) generateMutation.mutate({ token, lang });
-            });
-          }}
+          onClick={() => generateMutation.mutate({ lang })}
           disabled={generateMutation.isPending}
           className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg shrink-0 transition-opacity disabled:opacity-50"
           style={{

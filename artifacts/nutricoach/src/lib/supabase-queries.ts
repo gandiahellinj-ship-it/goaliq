@@ -827,7 +827,8 @@ export function useToggleWorkoutComplete() {
 export function useGenerateWorkoutPlan() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ token, lang = "es" }: { token: string; lang?: "es" | "en" }) => {
+    mutationFn: async ({ lang = "es" }: { lang?: "es" | "en" } = {}) => {
+      const token = await getAccessToken();
       const res = await fetch("/api/workouts", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
