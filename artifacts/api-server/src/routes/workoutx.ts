@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loadWorkoutXCache, findExerciseByName } from "../lib/workoutx-cache";
+import { loadWorkoutXCache, findExerciseByName, getExerciseCache, getDbExerciseCount, clearDbExercises, resetWorkoutXCache } from "../lib/workoutx-cache";
 
 const router = Router();
 
@@ -383,6 +383,36 @@ router.get("/api/workoutx/muscle", async (req, res) => {
   } catch (err: any) {
     console.error("[workoutx] muscle target error:", err.message);
     res.json({ exercises: [] });
+  }
+});
+
+// ── GET /api/workoutx/sync-status ─────────────────────────────────────────────
+
+router.get("/api/workoutx/sync-status", async (_req, res) => {
+  const cached = getExerciseCache().length;
+  const db = await getDbExerciseCount();
+  res.json({ cached, db });
+});
+
+// ── POST /api/workoutx/force-sync ─────────────────────────────────────────────
+
+router.post("/api/workoutx/force-sync", async (req, res) => {
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey || req.headers["x-admin-key"] !== adminKey) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  try {
+    console.log("[workoutx] force-sync: clearing DB and reloading from API...");
+    await clearDbExercises();
+    await resetWorkoutXCache();
+    // Kick off async re-download without blocking the response
+    loadWorkoutXCache().catch(err => console.error("[workoutx] force-sync reload failed:", err));
+    res.json({ ok: true, message: "Sync started — check logs for progress" });
+  } catch (err: any) {
+    console.error("[workoutx] force-sync error:", err.message);
+    res.status(500).json({ error: "Sync failed", detail: err.message });
   }
 });
 

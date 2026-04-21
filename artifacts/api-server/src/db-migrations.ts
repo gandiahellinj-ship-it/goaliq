@@ -51,7 +51,29 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     END $$
   `);
 
-  // 3. calendar_events — create if missing; not defined in supabase-schema.sql
+  // 3. workoutx_exercises — local permanent cache of WorkoutX exercise catalogue
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.workoutx_exercises (
+      id VARCHAR(20) PRIMARY KEY,
+      name TEXT NOT NULL,
+      body_part TEXT,
+      target TEXT,
+      equipment TEXT,
+      difficulty TEXT,
+      category TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS workoutx_exercises_equipment_idx
+    ON public.workoutx_exercises(equipment)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS workoutx_exercises_target_idx
+    ON public.workoutx_exercises(target)
+  `);
+
+  // 4. calendar_events — create if missing; not defined in supabase-schema.sql
   await pool.query(`
     CREATE TABLE IF NOT EXISTS public.calendar_events (
       id            SERIAL PRIMARY KEY,
