@@ -16,6 +16,7 @@ async function fetchExerciseImages(name: string, lang: string = "en", exerciseId
   // If we have an exact exercise_id from WorkoutX, skip name search entirely
   if (exerciseId) {
     console.log("[WorkoutX] using exercise_id directly:", exerciseId);
+    console.log("[GIF PROXY]", `/api/workoutx/gif/${exerciseId}`);
     return { imageStart: `/api/workoutx/gif/${exerciseId}`, imageEnd: null, isGif: true };
   }
 
@@ -152,6 +153,22 @@ function WorkoutsContent() {
       if (!token) return;
       generateMutation.mutate({ token, lang });
     });
+  }, [workoutPlan]);
+
+  // Auto-regenerate once if plan has exercises without exercise_id (pre-WorkoutX plans)
+  useEffect(() => {
+    if (!workoutPlan) return;
+    const allDays = workoutPlan.days ?? [];
+    const missingIds = allDays.some(day =>
+      day.exercises?.some((ex: any) => !ex.exercise_id)
+    );
+    if (missingIds && !generateMutation.isPending) {
+      console.log("[WorkoutX] Old plan detected - auto-regenerating...");
+      supabase.auth.getSession().then(({ data }) => {
+        const token = data.session?.access_token;
+        if (token) generateMutation.mutate({ token, lang });
+      });
+    }
   }, [workoutPlan]);
 
   const [activeDay, setActiveDay] = useState(defaultDay);
@@ -887,6 +904,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
   const equipment = data?.equipment ?? null;
   const hasImages = !isLoading && imageStart;
 
+  console.log("[GIF DEBUG]", exercise.name, "| exercise_id:", exercise.exercise_id, "| imageStart:", data?.imageStart);
   console.log("[ExerciseCard]", exercise.name, "| imageStart:", imageStart, "| isGif:", isGif, "| hasImages:", hasImages);
 
   return (
