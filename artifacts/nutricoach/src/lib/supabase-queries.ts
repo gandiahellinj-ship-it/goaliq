@@ -284,25 +284,31 @@ export function useWorkoutPlan() {
   return useQuery({
     queryKey: ["workout_plans"],
     queryFn: async () => {
-      const token = await getAccessToken();
-      const res = await fetch("/api/workouts", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/workouts", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 404) return null; // no plan yet — not an error
+        if (!res.ok) throw new Error("Failed to fetch workout plan");
+        const data = await res.json();
 
-      const rows = (data.days ?? []) as WorkoutRow[];
-      const trainingDays = new Set(rows.map(r => r.day_name));
+        const rows = (data.days ?? []) as WorkoutRow[];
+        const trainingDays = new Set(rows.map(r => r.day_name));
 
-      if (trainingDays.size === 0) return null;
+        if (trainingDays.size === 0) return null;
 
-      const days: DayWorkout[] = ALL_DAYS.map(day => ({
-        day,
-        isRestDay: !trainingDays.has(day),
-        workout: rows.find(r => r.day_name === day),
-      }));
+        const days: DayWorkout[] = ALL_DAYS.map(day => ({
+          day,
+          isRestDay: !trainingDays.has(day),
+          workout: rows.find(r => r.day_name === day),
+        }));
 
-      return { days, weekStart: data.weekStart, trainingDays } as WorkoutPlan;
+        return { days, weekStart: data.weekStart, trainingDays } as WorkoutPlan;
+      } catch (err) {
+        console.error("[useWorkoutPlan] error:", err);
+        return null;
+      }
     },
   });
 }
@@ -970,8 +976,13 @@ export function useGenerateMealPlan() {
 
 async function getAccessToken(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) throw new Error("Not authenticated");
-  return session.access_token;
+  if (session?.access_token) return session.access_token;
+
+  // Session absent or expired — try refreshing before giving up
+  const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+  if (refreshed?.access_token) return refreshed.access_token;
+
+  throw new Error("No active session");
 }
 
 export function useFlexDays(year: number, month: number) {
