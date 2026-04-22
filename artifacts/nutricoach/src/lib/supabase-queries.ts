@@ -280,6 +280,20 @@ export function useMealPlan() {
 
 // ─── Workout Plan ─────────────────────────────────────────────────────────────
 
+const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+
+function normalizeDayName(name: string): string {
+  const lower = name.toLowerCase().trim();
+  if (WEEKDAYS.includes(lower)) return lower;
+  // "day 1" → "monday", "day 2" → "tuesday", etc.
+  const match = lower.match(/day\s*(\d+)/);
+  if (match) {
+    const idx = parseInt(match[1]) - 1;
+    return WEEKDAYS[idx % 7] ?? lower;
+  }
+  return lower;
+}
+
 export function useWorkoutPlan() {
   return useQuery({
     queryKey: ["workout_plans"],
@@ -293,7 +307,10 @@ export function useWorkoutPlan() {
         if (!res.ok) throw new Error("Failed to fetch workout plan");
         const data = await res.json();
 
-        const rows = (data.days ?? []) as WorkoutRow[];
+        const rows = (data.days ?? []).map((r: any) => ({
+          ...r,
+          day_name: normalizeDayName(r.day_name),
+        })) as WorkoutRow[];
         const trainingDays = new Set(rows.map(r => r.day_name));
 
         if (trainingDays.size === 0) return null;

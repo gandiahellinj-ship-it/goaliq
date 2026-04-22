@@ -479,7 +479,7 @@ ${langNoteInstruction}
 
 Return a JSON array with exactly ${trainingDays} objects. Each object:
 {
-  "day_name": string (e.g. "Monday"),
+  "day_name": string — MUST be a weekday name: monday, tuesday, wednesday, thursday, friday, saturday, or sunday. Never use "day 1", "day 2" etc. Example values: "monday", "tuesday", "wednesday".
   "workout_type": string (descriptive session name),
   "duration_minutes": number,
   "exercises": [
