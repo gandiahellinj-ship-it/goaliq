@@ -89,7 +89,41 @@ function normalizeUnit(unit: string): string {
 }
 
 function normalizeKey(name: string): string {
-  return name.toLowerCase().trim().replace(/\s+/g, " ");
+  let s = name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Normalize common ingredient variations so they consolidate under one key
+  s = s
+    .replace(/^aceite de oliva virgen extra$/, "aceite de oliva")
+    .replace(/^aceite de oliva virgen$/, "aceite de oliva")
+    .replace(/^aceite de oliva extra virgen$/, "aceite de oliva")
+    .replace(/^sal marina.*/, "sal")
+    .replace(/^sal gruesa.*/, "sal")
+    .replace(/^sal himalaya.*/, "sal")
+    .replace(/^sal y pimienta.*/, "sal y pimienta")
+    .replace(/^pimienta (negra|blanca|roja|molida|recien molida|en grano).*/, "pimienta")
+    .replace(/^aguacate.*/, "aguacate")
+    .replace(/^mantequilla.*/, "mantequilla")
+    .replace(/^limon.*/, "limon")
+    .replace(/^zumo de limon.*/, "zumo de limon")
+    .replace(/^caldo de (pollo|verduras|carne) .*/, (_, t) => `caldo de ${t}`)
+    .replace(/^yogur griego.*/, "yogur griego")
+    .replace(/^queso cottage.*/, "queso cottage")
+    .replace(/^pechuga de pollo.*/, "pechuga de pollo")
+    .replace(/^filete de salmon.*/, "filete de salmon")
+    .replace(/^arroz integral.*/, "arroz integral")
+    .replace(/^boniato.*/, "boniato")
+    .replace(/^tomate(s)?$/, "tomate")
+    .replace(/^tomate(s)? (triturado|en lata|cherry).*/, (_, _s, t) => `tomate ${t}`)
+    .replace(/^ajo(s)?$/, "ajo")
+    .replace(/^cebolla(s)?$/, "cebolla")
+    .replace(/^aceite de coco.*/, "aceite de coco")
+    .replace(/^leche (entera|semi|semidesnatada|desnatada)$/, "leche");
+
+  return s;
 }
 
 function parseAmount(amount: string): { num: number; unit: string } | null {
@@ -157,6 +191,8 @@ export function buildShoppingCategories(mealPlan: MealPlan): ShoppingCategory[] 
         if (existing) {
           existing.amounts.push(ing.amount);
           existing.rawCount++;
+          // Prefer the shorter, cleaner name (e.g. "Aceite de oliva" over "Aceite de oliva virgen extra")
+          if (ing.name.length < existing.name.length) existing.name = ing.name;
           const alreadyHas = existing.sources.some(
             s => s.day === source.day && s.mealType === source.mealType
           );

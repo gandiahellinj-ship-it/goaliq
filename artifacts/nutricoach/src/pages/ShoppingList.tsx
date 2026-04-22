@@ -389,9 +389,10 @@ function PlanItemRow({
   showMealCount: boolean;
 }) {
   const t = useT();
-  const MAX_SOURCES = 3;
-  const shownSources = item.sources.slice(0, MAX_SOURCES);
-  const extraSources = item.sources.length - MAX_SOURCES;
+  const MAX_SOURCES = 2;
+  const manyMeals = item.sources.length >= 3;
+  const shownSources = manyMeals ? [] : item.sources.slice(0, MAX_SOURCES);
+  const extraSources = manyMeals ? 0 : item.sources.length - MAX_SOURCES;
 
   return (
     <motion.li
@@ -449,14 +450,20 @@ function PlanItemRow({
               className="flex flex-wrap gap-1 mt-1 transition-opacity duration-300"
               style={{ opacity: isChecked ? 0.4 : 1 }}
             >
-              {shownSources.map((s, i) => (
-                <span key={i} className="text-[10px] text-[#AAAAAA]">
-                  {formatSource(s.day, s.mealType, t)}
-                  {i < shownSources.length - 1 || extraSources > 0 ? " ·" : ""}
-                </span>
-              ))}
-              {extraSources > 0 && (
-                <span className="text-[10px] text-[#AAAAAA]">+{extraSources} más</span>
+              {manyMeals ? (
+                <span className="text-[10px] text-[#AAAAAA]">Varios</span>
+              ) : (
+                <>
+                  {shownSources.map((s, i) => (
+                    <span key={i} className="text-[10px] text-[#AAAAAA]">
+                      {formatSource(s.day, s.mealType, t)}
+                      {i < shownSources.length - 1 || extraSources > 0 ? " ·" : ""}
+                    </span>
+                  ))}
+                  {extraSources > 0 && (
+                    <span className="text-[10px] text-[#AAAAAA]">+{extraSources} más</span>
+                  )}
+                </>
               )}
             </div>
           )}
