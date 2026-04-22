@@ -337,15 +337,28 @@ export async function generateMealPlanForUser(profile: {
     aggressive: "Use a larger caloric adjustment (±750-1000 kcal/day). Maximise rate of change while maintaining nutritional adequacy.",
   };
 
+  const fastingProtocol = (profile as any).fastingProtocol as string | null | undefined;
+  const fastingWindows: Record<string, string> = {
+    "12:12": "12-hour eating window (e.g. 08:00–20:00). Distribute all meals within this window.",
+    "16:8":  "8-hour eating window (e.g. 12:00–20:00). No breakfast — first meal at noon.",
+    "18:6":  "6-hour eating window (e.g. 13:00–19:00). Two meals max within the window.",
+    "20:4":  "4-hour eating window (e.g. 16:00–20:00). One main meal plus a small meal within the window.",
+    "5:2":   "5 normal days, 2 restricted days (~500 kcal each). Mark restricted days with very low-calorie meals.",
+  };
+  const fastingInstruction = fastingProtocol && fastingProtocol !== "none"
+    ? `FASTING: User practices ${fastingProtocol} intermittent fasting. ${fastingWindows[fastingProtocol] ?? ""} Do NOT schedule breakfast outside the eating window.`
+    : null;
+
   const personContext = `Person:
 - Name: ${name}
 - Goal: ${profile.goalType.replace(/_/g, " ")}
 - Goal pace: ${goalPace} — ${paceGuidance[goalPace] ?? paceGuidance.moderate}
 - Diet type: ${profile.dietType.replace(/_/g, " ")}
+- Fasting protocol: ${fastingProtocol ?? "none"}
 - Allergies: ${allergies.join(", ") || "none"}
 - Disliked foods: ${dislikedFoods.join(", ") || "none"}
 - Current weight: ${profile.weightKg}kg${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
-- Age: ${profile.age}, Sex: ${profile.sex}`;
+- Age: ${profile.age}, Sex: ${profile.sex}${fastingInstruction ? `\n\n${fastingInstruction}` : ""}`;
 
   const langInstruction = lang === "en"
     ? "LANGUAGE REQUIRED: All content must be in English (UK). Meal names, ingredient names, notes — everything in English."

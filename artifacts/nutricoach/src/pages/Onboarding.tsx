@@ -86,6 +86,8 @@ export default function Onboarding() {
   // selectedSupplements: id -> timingIndex
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
   const [goalPace, setGoalPace] = useState("moderate");
+  const [fastingEnabled, setFastingEnabled] = useState(false);
+  const [fastingProtocol, setFastingProtocol] = useState("16:8");
 
   // ── Prefill in edit mode ──────────────────────────────────────────────────
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function Onboarding() {
         supabase
           .from("profiles")
           .select(
-            "full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, goal_pace, diet_type, training_level, training_location, training_days_per_week",
+            "full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, goal_pace, fasting_protocol, diet_type, training_level, training_location, training_days_per_week",
           )
           .maybeSingle(),
         supabase
@@ -147,6 +149,13 @@ export default function Onboarding() {
         const savedPace = (profile as any)?.goal_pace as string | null;
         if (savedPace) setGoalPace(savedPace);
 
+        // Restore fasting protocol
+        const savedFasting = (profile as any)?.fasting_protocol as string | null;
+        if (savedFasting) {
+          setFastingEnabled(true);
+          setFastingProtocol(savedFasting);
+        }
+
         // Restore supplement selections
         const savedSupplements = (prefs as any)?.supplements as
           | { id: string; timingIndex: number }[]
@@ -192,7 +201,7 @@ export default function Onboarding() {
         id,
         timingIndex,
       }));
-      await submitOnboarding({ ...formData, supplements, goalPace });
+      await submitOnboarding({ ...formData, supplements, goalPace, fastingProtocol: fastingEnabled ? fastingProtocol : null });
 
       if (isEditMode) {
         const orig = originalDataRef.current;
@@ -440,6 +449,86 @@ export default function Onboarding() {
                   </div>
                 );
               })}
+            </div>
+          </Section>
+
+          {/* ── Section 2b: Ayuno intermitente ──────────────────────────── */}
+          <Section emoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
+            <div className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+              fastingEnabled ? "border-[#AAFF45]/40 bg-[#AAFF45]/5" : "border-[#2A2A2A] bg-[#111111]"
+            }`}>
+              {/* Toggle header */}
+              <button
+                type="button"
+                onClick={() => setFastingEnabled(v => !v)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+              >
+                <span className="text-2xl shrink-0">🕐</span>
+                <div className="flex-1">
+                  <p className={`text-sm font-semibold ${fastingEnabled ? "text-[#AAFF45]" : "text-white"}`}>
+                    {isES ? "Practico ayuno intermitente" : "I practice intermittent fasting"}
+                  </p>
+                  <p className="text-xs text-[#555] mt-0.5">
+                    {isES ? "La IA adaptará los horarios de tus comidas" : "The AI will adapt your meal timing"}
+                  </p>
+                </div>
+                {/* Toggle switch */}
+                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${fastingEnabled ? "bg-[#AAFF45]" : "bg-[#2A2A2A]"}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${fastingEnabled ? "left-6" : "left-1"}`} />
+                </div>
+              </button>
+
+              {/* Protocol picker */}
+              {fastingEnabled && (
+                <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                  <p className="text-xs font-semibold text-[#A0A0A0] mt-3 mb-2">
+                    {isES ? "Elige tu protocolo" : "Choose your protocol"}
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {([
+                      { id: "12:12", label: "12:12", badge: isES ? "Para empezar" : "Beginner",    badgeColor: "#7B8CDE", desc: isES ? "El más suave. 12h de ayuno, ideal para principiantes. Generalmente de 20:00 a 08:00." : "The gentlest. 12h fast, ideal for beginners. Typically 8pm to 8am." },
+                      { id: "16:8", label: "16:8",  badge: isES ? "Más popular"  : "Most popular", badgeColor: "#88ee22", desc: isES ? "Ayunas 16h y comes en 8h. Ej: comes de 12:00 a 20:00 y ayunas el resto." : "Fast 16h, eat in 8h window. E.g. eat 12pm–8pm, fast the rest." },
+                      { id: "18:6", label: "18:6",  badge: null,                                    badgeColor: null,     desc: isES ? "Ventana de 6 horas. Más restrictivo, mayor flexibilidad metabólica. Ej: comes de 13:00 a 19:00." : "6-hour eating window. More restrictive, greater metabolic flexibility." },
+                      { id: "20:4", label: "20:4",  badge: isES ? "Avanzado"    : "Advanced",      badgeColor: "#FFB800", desc: isES ? "Solo 4 horas para comer. Warrior Diet. Para usuarios con experiencia en ayuno." : "Only 4 hours to eat. Warrior Diet. For experienced fasters." },
+                      { id: "5:2",  label: "5:2",   badge: null,                                    badgeColor: null,     desc: isES ? "Comes normal 5 días y restricción de 500-600 kcal los otros 2 días no consecutivos." : "Eat normally 5 days, restrict to 500-600 kcal on 2 non-consecutive days." },
+                    ] as const).map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setFastingProtocol(p.id)}
+                        className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                          fastingProtocol === p.id
+                            ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
+                            : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className={`text-sm font-bold ${fastingProtocol === p.id ? "text-[#AAFF45]" : "text-white"}`}>
+                            {p.label}
+                          </span>
+                          {p.badge && p.badgeColor && (
+                            <span
+                              className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                              style={{ background: `${p.badgeColor}20`, color: p.badgeColor }}
+                            >
+                              {p.badge}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-[#555] leading-snug">{p.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 bg-[#1A1A1A] rounded-lg px-3 py-2.5">
+                    <span className="text-xs shrink-0">💡</span>
+                    <p className="text-[10px] text-[#777] leading-snug">
+                      {isES
+                        ? "Tu plan de comidas respetará tu ventana de alimentación. Las comidas se distribuirán dentro de las horas que puedes comer según el protocolo elegido."
+                        : "Your meal plan will respect your eating window. Meals will be distributed within the hours you can eat according to your chosen protocol."}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </Section>
 

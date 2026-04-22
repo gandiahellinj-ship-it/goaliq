@@ -19,6 +19,7 @@ export interface OnboardingFormData {
   trainingDaysPerWeek: number;
   supplements?: { id: string; timingIndex: number }[];
   goalPace?: string;
+  fastingProtocol?: string | null;
 }
 
 // ─── Week Helpers ─────────────────────────────────────────────────────────────
@@ -397,6 +398,7 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
       target_weight_kg: data.targetWeightKg ?? null,
       goal: data.goalType,
       goal_pace: data.goalPace ?? "moderate",
+      fasting_protocol: data.fastingProtocol ?? null,
       diet_type: data.dietType,
       training_level: data.trainingLevel,
       training_location: data.trainingLocation,
