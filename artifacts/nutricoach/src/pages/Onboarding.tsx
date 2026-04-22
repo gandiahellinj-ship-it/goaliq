@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, ArrowLeft, Loader2, CheckCircle, AlertCircle, Pencil } from "lucide-react";
+import { Loader2, AlertCircle, Pencil, Check } from "lucide-react";
 import { submitOnboarding, type OnboardingFormData } from "@/lib/onboarding-service";
+import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
-import { useT } from "@/lib/language";
+import { useT, useLanguage } from "@/lib/language";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM: OnboardingFormData = {
   displayName: "",
@@ -21,36 +23,51 @@ const EMPTY_FORM: OnboardingFormData = {
   trainingLocation: "home",
   trainingDaysPerWeek: 3,
   targetWeightKg: null,
+  supplements: [],
 };
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
   const [, setLocation] = useLocation();
   const t = useT();
+  const { lang } = useLanguage();
 
-  const isEditMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("edit") === "true";
+  const isEditMode =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("edit") === "true";
 
-  const steps = [
-    { emoji: "👤", title: t("onboarding_step_about"), subtitle: t("onboarding_subtitle_about") },
-    { emoji: "🥗", title: t("onboarding_step_diet"),  subtitle: t("onboarding_subtitle_diet") },
-    { emoji: "💪", title: t("onboarding_step_fitness"), subtitle: t("onboarding_subtitle_fitness") },
-  ];
-
-  const [step, setStep] = useState(isEditMode ? 2 : 1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefilling, setPrefilling] = useState(isEditMode);
   const originalDataRef = useRef<OnboardingFormData | null>(null);
 
   const [formData, setFormData] = useState<OnboardingFormData>(EMPTY_FORM);
+  // selectedSupplements: id -> timingIndex
+  const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
 
+  // ── Prefill in edit mode ──────────────────────────────────────────────────
   useEffect(() => {
     if (!isEditMode) return;
     (async () => {
       setPrefilling(true);
       const [{ data: profile }, { data: prefs }, { data: onboarding }] = await Promise.all([
-        supabase.from("profiles").select("full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, diet_type, training_level, training_location, training_days_per_week").maybeSingle(),
-        supabase.from("food_preferences").select("allergies, disliked_foods, liked_foods").maybeSingle(),
-        supabase.from("onboarding_profiles").select("age, sex, height_cm, weight_kg, target_weight_kg, goal_type, diet_type, allergies, disliked_foods, liked_foods, training_level, training_location, training_days_per_week").maybeSingle(),
+        supabase
+          .from("profiles")
+          .select(
+            "full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, diet_type, training_level, training_location, training_days_per_week",
+          )
+          .maybeSingle(),
+        supabase
+          .from("food_preferences")
+          .select("allergies, disliked_foods, liked_foods, supplements")
+          .maybeSingle(),
+        supabase
+          .from("onboarding_profiles")
+          .select(
+            "age, sex, height_cm, weight_kg, target_weight_kg, goal_type, diet_type, allergies, disliked_foods, liked_foods, training_level, training_location, training_days_per_week",
+          )
+          .maybeSingle(),
       ]);
 
       const src = onboarding ?? profile;
@@ -64,15 +81,36 @@ export default function Onboarding() {
           targetWeightKg: src.target_weight_kg ?? null,
           goalType: (src as any).goal_type ?? (src as any).goal ?? EMPTY_FORM.goalType,
           dietType: src.diet_type ?? EMPTY_FORM.dietType,
-          allergies: (prefs?.allergies as string[]) ?? ((src as any).allergies as string[]) ?? [],
-          dislikedFoods: (prefs?.disliked_foods as string[]) ?? ((src as any).disliked_foods as string[]) ?? [],
-          likedFoods: (prefs?.liked_foods as string[]) ?? ((src as any).liked_foods as string[]) ?? [],
+          allergies:
+            (prefs?.allergies as string[]) ??
+            ((src as any).allergies as string[]) ??
+            [],
+          dislikedFoods:
+            (prefs?.disliked_foods as string[]) ??
+            ((src as any).disliked_foods as string[]) ??
+            [],
+          likedFoods:
+            (prefs?.liked_foods as string[]) ??
+            ((src as any).liked_foods as string[]) ??
+            [],
           trainingLevel: (src as any).training_level ?? EMPTY_FORM.trainingLevel,
           trainingLocation: (src as any).training_location ?? EMPTY_FORM.trainingLocation,
-          trainingDaysPerWeek: (src as any).training_days_per_week ?? EMPTY_FORM.trainingDaysPerWeek,
+          trainingDaysPerWeek:
+            (src as any).training_days_per_week ?? EMPTY_FORM.trainingDaysPerWeek,
+          supplements: [],
         };
         setFormData(loaded);
         originalDataRef.current = loaded;
+
+        // Restore supplement selections
+        const savedSupplements = (prefs as any)?.supplements as
+          | { id: string; timingIndex: number }[]
+          | null;
+        if (savedSupplements?.length) {
+          const map: Record<string, number> = {};
+          savedSupplements.forEach(s => { map[s.id] = s.timingIndex; });
+          setSelectedSupplements(map);
+        }
       }
       setPrefilling(false);
     })();
@@ -81,18 +119,45 @@ export default function Onboarding() {
   const update = (patch: Partial<OnboardingFormData>) =>
     setFormData(prev => ({ ...prev, ...patch }));
 
+  function toggleSupplement(id: string) {
+    setSelectedSupplements(prev => {
+      const next = { ...prev };
+      if (id in next) {
+        delete next[id];
+      } else {
+        next[id] = 0;
+      }
+      return next;
+    });
+  }
+
+  function setTiming(id: string, idx: number) {
+    setSelectedSupplements(prev => ({ ...prev, [id]: idx }));
+  }
+
   const handleSubmit = async () => {
+    if (!formData.displayName.trim()) {
+      setError(lang === "en" ? "Please enter your name." : "Por favor, introduce tu nombre.");
+      return;
+    }
     setIsSubmitting(true);
     setError(null);
     try {
-      await submitOnboarding(formData);
+      const supplements = Object.entries(selectedSupplements).map(([id, timingIndex]) => ({
+        id,
+        timingIndex,
+      }));
+      await submitOnboarding({ ...formData, supplements });
+
       if (isEditMode) {
         const orig = originalDataRef.current;
-        const workoutChanged = !orig ||
+        const workoutChanged =
+          !orig ||
           formData.trainingLocation !== orig.trainingLocation ||
           formData.trainingDaysPerWeek !== orig.trainingDaysPerWeek ||
           formData.trainingLevel !== orig.trainingLevel;
-        const mealChanged = !orig ||
+        const mealChanged =
+          !orig ||
           formData.goalType !== orig.goalType ||
           formData.dietType !== orig.dietType ||
           JSON.stringify(formData.allergies) !== JSON.stringify(orig.allergies) ||
@@ -105,28 +170,23 @@ export default function Onboarding() {
           setLocation("/meals?regenerate=true");
         }
       } else {
-        // First-time onboarding: go to Meals with regenerate flag so AI
-        // generates the plan in the user's chosen language immediately,
-        // replacing the English template plan created by submitOnboarding.
         setLocation("/meals?regenerate=true");
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      const msg =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
       setError(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // ── Loading state ─────────────────────────────────────────────────────────
   if (prefilling) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4 font-sans">
-        <div className="flex items-center gap-2 mb-8">
-          <span className="font-display font-black italic text-2xl leading-none">
-            <span className="text-white">Goal</span><span className="text-[#AAFF45]">IQ</span>
-          </span>
-        </div>
-        <div className="flex flex-col items-center gap-3">
+      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4">
+        <Logo />
+        <div className="flex flex-col items-center gap-3 mt-8">
           <div className="w-7 h-7 border-2 border-[#AAFF45] border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-[#555555] font-medium">{t("loading_preferences")}</p>
         </div>
@@ -134,343 +194,477 @@ export default function Onboarding() {
     );
   }
 
+  const isES = lang !== "en";
+
   return (
-    <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-[#0A0A0A] py-10 px-4 font-sans">
+      <div className="max-w-xl mx-auto">
 
-      {/* Logo */}
-      <div className="flex items-center gap-2 mb-8">
-        <span className="font-display font-black italic text-2xl leading-none">
-          <span className="text-white">Goal</span><span className="text-[#AAFF45]">IQ</span>
-        </span>
-      </div>
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <Logo />
+        </div>
 
-      {/* Edit mode banner */}
-      {isEditMode && (
-        <div className="w-full max-w-lg mb-4 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
-          <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
-          <p className="text-sm text-[#AAFF45]/80 font-medium">
-            {t("updating_both_plans")}
+        {/* Edit mode banner */}
+        {isEditMode && (
+          <div className="mb-6 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
+            <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
+            <p className="text-sm text-[#AAFF45]/80 font-medium">
+              {t("updating_both_plans")}
+            </p>
+          </div>
+        )}
+
+        {/* Page title */}
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-display font-black uppercase text-white">
+            {isEditMode
+              ? (isES ? "Actualiza tu perfil" : "Update your profile")
+              : (isES ? "Crea tu plan" : "Create your plan")}
+          </h1>
+          <p className="text-sm text-[#555555] mt-1">
+            {isES
+              ? "Completa todos los campos para personalizar tu plan"
+              : "Fill in all fields to personalise your plan"}
           </p>
         </div>
-      )}
 
-      <div className="w-full max-w-lg">
-        {/* Step Dots */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          {steps.map((s, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => isEditMode && setStep(i + 1)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 ${
-                  step === i + 1
-                    ? "bg-[#AAFF45] text-[#0A0A0A]"
-                    : step > i + 1
-                    ? "bg-[#AAFF45]/20 text-[#AAFF45]"
-                    : "bg-[#2A2A2A] text-[#555555]"
-                } ${isEditMode ? "cursor-pointer" : "cursor-default"}`}
-              >
-                {step > i + 1 ? <CheckCircle className="w-3 h-3" /> : <span>{s.emoji}</span>}
-                <span className="hidden sm:block">{s.title}</span>
-              </button>
-              {i < steps.length - 1 && (
-                <div className={`w-6 h-0.5 rounded-full transition-colors duration-300 ${step > i + 1 ? "bg-[#AAFF45]/50" : "bg-[#2A2A2A]"}`} />
-              )}
+        <div className="space-y-10">
+
+          {/* ── Section 1: Sobre ti ─────────────────────────────────────── */}
+          <Section emoji="👤" title={isES ? "Sobre ti" : "About you"}>
+            <Field label={t("what_call_you")} hint={t("personalise_hint")}>
+              <input
+                type="text"
+                value={formData.displayName}
+                placeholder={t("name_placeholder")}
+                autoComplete="given-name"
+                onChange={e => update({ displayName: e.target.value })}
+                className={inputClass}
+              />
+            </Field>
+
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={t("how_old")}>
+                <input
+                  type="number"
+                  min={10}
+                  max={110}
+                  value={formData.age}
+                  onChange={e => update({ age: Number(e.target.value) })}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label={t("bio_sex")}>
+                <select
+                  value={formData.sex}
+                  onChange={e => update({ sex: e.target.value })}
+                  className={inputClass}
+                >
+                  <option value="male">{t("sex_male")}</option>
+                  <option value="female">{t("sex_female")}</option>
+                  <option value="other">{t("sex_other")}</option>
+                </select>
+              </Field>
             </div>
-          ))}
-        </div>
 
-        {/* Card */}
-        <div className="bg-[#1A1A1A] rounded-xl border border-[#2A2A2A] p-7 sm:p-10">
-          <div className="mb-8">
-            <div className="text-4xl mb-3">{steps[step - 1].emoji}</div>
-            <h1 className="text-2xl font-display font-bold uppercase text-white">
-              {isEditMode ? `${t("update_prefix")} ${steps[step - 1].title}` : steps[step - 1].title}
-            </h1>
-            <p className="text-[#555555] mt-1 text-sm">{steps[step - 1].subtitle}</p>
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={t("height_cm")}>
+                <input
+                  type="number"
+                  min={100}
+                  max={250}
+                  value={formData.heightCm}
+                  onChange={e => update({ heightCm: Number(e.target.value) })}
+                  className={inputClass}
+                />
+              </Field>
+              <Field label={t("current_weight_kg")}>
+                <input
+                  type="number"
+                  min={30}
+                  max={300}
+                  value={formData.weightKg}
+                  onChange={e => update({ weightKg: Number(e.target.value) })}
+                  className={inputClass}
+                />
+              </Field>
+            </div>
 
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              transition={{ duration: 0.2 }}
-            >
-              {/* STEP 1: Personal */}
-              {step === 1 && (
-                <div className="space-y-5">
-                  <Field label={t("what_call_you")} hint={t("personalise_hint")}>
-                    <input
-                      type="text"
-                      value={formData.displayName}
-                      placeholder={t("name_placeholder")}
-                      autoComplete="given-name"
-                      onChange={e => update({ displayName: e.target.value })}
-                      className={inputClass}
-                    />
-                  </Field>
+            <Field label={t("target_weight_kg")} hint={isES ? "Opcional" : "Optional"}>
+              <input
+                type="number"
+                min={30}
+                max={300}
+                value={formData.targetWeightKg ?? ""}
+                placeholder={t("target_weight_placeholder")}
+                onChange={e =>
+                  update({ targetWeightKg: e.target.value ? Number(e.target.value) : null })
+                }
+                className={inputClass}
+              />
+            </Field>
+          </Section>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label={t("how_old")}>
-                      <input
-                        type="number"
-                        value={formData.age}
-                        onChange={e => update({ age: Number(e.target.value) })}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label={t("bio_sex")}>
-                      <select
-                        value={formData.sex}
-                        onChange={e => update({ sex: e.target.value })}
-                        className={inputClass}
-                      >
-                        <option value="male">{t("sex_male")}</option>
-                        <option value="female">{t("sex_female")}</option>
-                        <option value="other">{t("sex_other")}</option>
-                      </select>
-                    </Field>
-                  </div>
+          {/* ── Section 2: Tu objetivo ──────────────────────────────────── */}
+          <Section emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"    : "Lose weight" },
+                { id: "gain_muscle",   emoji: "💪", label: isES ? "Ganar músculo"  : "Build muscle" },
+                { id: "maintain",      emoji: "⚖️", label: isES ? "Mantenerme"     : "Stay fit" },
+                { id: "recomposition", emoji: "🔄", label: isES ? "Recomposición"  : "Recomposition" },
+              ].map(g => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => update({ goalType: g.id })}
+                  className={goalCardClass(formData.goalType === g.id)}
+                >
+                  <span className="text-2xl mb-1.5">{g.emoji}</span>
+                  <span className="text-sm font-bold">{g.label}</span>
+                </button>
+              ))}
+            </div>
+          </Section>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Field label={t("height_cm")}>
-                      <input
-                        type="number"
-                        value={formData.heightCm}
-                        onChange={e => update({ heightCm: Number(e.target.value) })}
-                        className={inputClass}
-                      />
-                    </Field>
-                    <Field label={t("current_weight_kg")}>
-                      <input
-                        type="number"
-                        value={formData.weightKg}
-                        onChange={e => update({ weightKg: Number(e.target.value) })}
-                        className={inputClass}
-                      />
-                    </Field>
-                  </div>
-
-                  <Field label={t("main_goal")}>
-                    <div className="grid grid-cols-3 gap-3 mt-1">
-                      {[
-                        { id: "lose_fat",     label: t("goal_lose_fat"),     emoji: "🔥" },
-                        { id: "maintain",     label: t("goal_stay_fit"),     emoji: "⚖️" },
-                        { id: "gain_muscle",  label: t("goal_build_muscle"), emoji: "💪" },
-                      ].map(g => (
-                        <button
-                          key={g.id}
-                          type="button"
-                          onClick={() => update({ goalType: g.id })}
-                          className={choiceClass(formData.goalType === g.id)}
-                        >
-                          <span className="text-xl mb-1">{g.emoji}</span>
-                          <span className="text-xs font-semibold">{g.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  {formData.goalType !== "maintain" && (
-                    <Field label={t("target_weight_kg")}>
-                      <input
-                        type="number"
-                        value={formData.targetWeightKg ?? ""}
-                        placeholder={t("target_weight_placeholder")}
-                        onChange={e => update({ targetWeightKg: e.target.value ? Number(e.target.value) : null })}
-                        className={inputClass}
-                      />
-                    </Field>
-                  )}
-                </div>
-              )}
-
-              {/* STEP 2: Diet */}
-              {step === 2 && (
-                <div className="space-y-5">
-                  <Field label={t("diet_type_question")}>
-                    <div className="grid grid-cols-2 gap-3 mt-1">
-                      {[
-                        { id: "balanced",     label: t("diet_balanced"),     emoji: "🍽️" },
-                        { id: "high_protein", label: t("diet_high_protein"), emoji: "🥩" },
-                        { id: "keto",         label: t("diet_keto"),         emoji: "🥑" },
-                        { id: "vegetarian",   label: t("diet_vegetarian"),   emoji: "🌿" },
-                        { id: "vegan",        label: t("diet_vegan"),        emoji: "🌱" },
-                      ].map(d => (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => update({ dietType: d.id })}
-                          className={choiceClass(formData.dietType === d.id)}
-                        >
-                          <span className="text-xl mb-1">{d.emoji}</span>
-                          <span className="text-xs font-semibold">{d.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("food_allergies")} hint={t("leave_blank")}>
-                    <input
-                      type="text"
-                      placeholder={t("allergies_placeholder")}
-                      value={formData.allergies.join(", ")}
-                      onChange={e => update({ allergies: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  <Field label={t("foods_avoid")} hint={t("leave_blank")}>
-                    <input
-                      type="text"
-                      placeholder={t("foods_avoid_placeholder")}
-                      value={formData.dislikedFoods.join(", ")}
-                      onChange={e => update({ dislikedFoods: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                      className={inputClass}
-                    />
-                  </Field>
-
-                  <Field label={t("foods_love")} hint={t("foods_love_hint")}>
-                    <input
-                      type="text"
-                      placeholder={t("foods_love_placeholder")}
-                      value={formData.likedFoods.join(", ")}
-                      onChange={e => update({ likedFoods: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
-                      className={inputClass}
-                    />
-                  </Field>
-                </div>
-              )}
-
-              {/* STEP 3: Training */}
-              {step === 3 && (
-                <div className="space-y-5">
-                  <Field label={t("fitness_level")}>
-                    <div className="grid grid-cols-3 gap-3 mt-1">
-                      {[
-                        { id: "beginner",     label: t("fitness_beginner"),     emoji: "🌱" },
-                        { id: "intermediate", label: t("fitness_intermediate"), emoji: "⚡" },
-                        { id: "advanced",     label: t("fitness_advanced"),     emoji: "🏆" },
-                      ].map(l => (
-                        <button
-                          key={l.id}
-                          type="button"
-                          onClick={() => update({ trainingLevel: l.id })}
-                          className={choiceClass(formData.trainingLevel === l.id)}
-                        >
-                          <span className="text-xl mb-1">{l.emoji}</span>
-                          <span className="text-xs font-semibold">{l.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("where_workout")}>
-                    <div className="grid grid-cols-3 gap-3 mt-1">
-                      {[
-                        { id: "gym",     label: t("gym"),     emoji: "🏋️" },
-                        { id: "home",    label: t("home"),    emoji: "🏠" },
-                        { id: "outdoor", label: t("outdoor"), emoji: "🌳" },
-                      ].map(l => (
-                        <button
-                          key={l.id}
-                          type="button"
-                          onClick={() => update({ trainingLocation: l.id })}
-                          className={choiceClass(formData.trainingLocation === l.id)}
-                        >
-                          <span className="text-xl mb-1">{l.emoji}</span>
-                          <span className="text-xs font-semibold">{l.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </Field>
-
-                  <Field label={t("training_days_slider", { n: formData.trainingDaysPerWeek })}>
-                    <input
-                      type="range"
-                      min="1"
-                      max="7"
-                      value={formData.trainingDaysPerWeek}
-                      onChange={e => update({ trainingDaysPerWeek: Number(e.target.value) })}
-                      className="w-full accent-[#AAFF45] h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer mt-2"
-                    />
-                    <div className="flex justify-between text-xs text-[#555555] mt-1 px-0.5">
-                      <span>{t("one_day")}</span>
-                      <span>{t("seven_days")}</span>
-                    </div>
-                  </Field>
-                </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* Error Banner */}
-          {error && (
-            <div className="mt-5 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
-              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-              <div>
-                <p className="font-semibold">{isEditMode ? t("couldnt_save_prefs") : t("couldnt_create_plan")}</p>
-                <p className="text-[#FF4444]/80 mt-0.5">{error}</p>
+          {/* ── Section 3: Tu dieta ─────────────────────────────────────── */}
+          <Section emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+            <Field label={t("diet_type_question")}>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {[
+                  { id: "balanced",     label: isES ? "Equilibrada"        : "Balanced" },
+                  { id: "mediterranean",label: isES ? "Mediterránea"       : "Mediterranean" },
+                  { id: "high_protein", label: isES ? "Alta en proteína"   : "High Protein" },
+                  { id: "keto",         label: isES ? "Keto"               : "Keto" },
+                  { id: "vegetarian",   label: isES ? "Vegetariana"        : "Vegetarian" },
+                  { id: "vegan",        label: isES ? "Vegana"             : "Vegan" },
+                  { id: "gluten_free",  label: isES ? "Sin gluten"         : "Gluten Free" },
+                  { id: "lactose_free", label: isES ? "Sin lactosa"        : "Lactose Free" },
+                ].map(d => (
+                  <button
+                    key={d.id}
+                    type="button"
+                    onClick={() => update({ dietType: d.id })}
+                    className={pillClass(formData.dietType === d.id)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
               </div>
-            </div>
-          )}
+            </Field>
 
-          {/* Actions */}
-          <div className="mt-6 flex gap-3">
-            {step > 1 && !isSubmitting && (
-              <button
-                type="button"
-                onClick={() => setStep(s => s - 1)}
-                className="px-5 py-3.5 rounded-lg font-semibold bg-[#2A2A2A] text-[#A0A0A0] hover:bg-[#3A3A3A] transition-colors flex items-center gap-1"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                {t("back")}
-              </button>
+            <Field label={t("food_allergies")} hint={t("leave_blank")}>
+              <input
+                type="text"
+                placeholder={t("allergies_placeholder")}
+                value={formData.allergies.join(", ")}
+                onChange={e =>
+                  update({
+                    allergies: e.target.value
+                      .split(",")
+                      .map(s => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label={t("foods_avoid")} hint={t("leave_blank")}>
+              <input
+                type="text"
+                placeholder={t("foods_avoid_placeholder")}
+                value={formData.dislikedFoods.join(", ")}
+                onChange={e =>
+                  update({
+                    dislikedFoods: e.target.value
+                      .split(",")
+                      .map(s => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label={t("foods_love")} hint={t("foods_love_hint")}>
+              <input
+                type="text"
+                placeholder={t("foods_love_placeholder")}
+                value={formData.likedFoods.join(", ")}
+                onChange={e =>
+                  update({
+                    likedFoods: e.target.value
+                      .split(",")
+                      .map(s => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+                className={inputClass}
+              />
+            </Field>
+          </Section>
+
+          {/* ── Section 4: Entrenamiento ────────────────────────────────── */}
+          <Section emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+            <Field label={t("fitness_level")}>
+              <div className="grid grid-cols-3 gap-3 mt-1">
+                {[
+                  { id: "beginner",     emoji: "🌱", label: isES ? "Principiante" : "Beginner" },
+                  { id: "intermediate", emoji: "⚡", label: isES ? "Intermedio"   : "Intermediate" },
+                  { id: "advanced",     emoji: "🏆", label: isES ? "Avanzado"     : "Advanced" },
+                ].map(l => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => update({ trainingLevel: l.id })}
+                    className={choiceCardClass(formData.trainingLevel === l.id)}
+                  >
+                    <span className="text-xl mb-1">{l.emoji}</span>
+                    <span className="text-xs font-semibold">{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label={t("where_workout")}>
+              <div className="grid grid-cols-3 gap-3 mt-1">
+                {[
+                  { id: "gym",     emoji: "🏋️", label: isES ? "Gimnasio" : "Gym" },
+                  { id: "home",    emoji: "🏠", label: isES ? "Casa"     : "Home" },
+                  { id: "outdoor", emoji: "🌳", label: isES ? "Exterior" : "Outdoor" },
+                ].map(l => (
+                  <button
+                    key={l.id}
+                    type="button"
+                    onClick={() => update({ trainingLocation: l.id })}
+                    className={choiceCardClass(formData.trainingLocation === l.id)}
+                  >
+                    <span className="text-xl mb-1">{l.emoji}</span>
+                    <span className="text-xs font-semibold">{l.label}</span>
+                  </button>
+                ))}
+              </div>
+            </Field>
+
+            <Field label={t("training_days_slider", { n: formData.trainingDaysPerWeek })}>
+              <input
+                type="range"
+                min="1"
+                max="7"
+                value={formData.trainingDaysPerWeek}
+                onChange={e => update({ trainingDaysPerWeek: Number(e.target.value) })}
+                className="w-full accent-[#AAFF45] h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer mt-2"
+              />
+              <div className="flex justify-between text-xs text-[#555555] mt-1 px-0.5">
+                <span>{t("one_day")}</span>
+                <span>{t("seven_days")}</span>
+              </div>
+            </Field>
+          </Section>
+
+          {/* ── Section 5: Suplementos ──────────────────────────────────── */}
+          <Section
+            emoji="💊"
+            title={isES ? "Suplementos" : "Supplements"}
+            badge={isES ? "opcional" : "optional"}
+          >
+            <p className="text-xs text-[#555555] -mt-1 mb-2">
+              {isES
+                ? "Selecciona los que tomas y elige el mejor momento para tomarlos"
+                : "Select the ones you take and choose the best time"}
+            </p>
+            <div className="space-y-2">
+              {SUPPLEMENTS.map(supp => {
+                const isSelected = supp.id in selectedSupplements;
+                const timing = SUPPLEMENT_TIMING[supp.id];
+                const selectedTimingIdx = selectedSupplements[supp.id] ?? 0;
+
+                return (
+                  <div
+                    key={supp.id}
+                    className={`rounded-xl border transition-all duration-200 overflow-hidden ${
+                      isSelected
+                        ? "border-[#AAFF45]/40 bg-[#AAFF45]/5"
+                        : "border-[#2A2A2A] bg-[#111111] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    {/* Card header — always visible */}
+                    <button
+                      type="button"
+                      onClick={() => toggleSupplement(supp.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                    >
+                      <span className="text-xl shrink-0">{supp.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={`text-sm font-semibold leading-tight ${
+                            isSelected ? "text-[#AAFF45]" : "text-white"
+                          }`}
+                        >
+                          {supp.name}
+                        </p>
+                        <p className="text-xs text-[#555555] mt-0.5 leading-tight">
+                          {supp.shortDesc}
+                        </p>
+                      </div>
+                      <div
+                        className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                          isSelected
+                            ? "border-[#AAFF45] bg-[#AAFF45]"
+                            : "border-[#3A3A3A]"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3 h-3 text-[#0A0A0A]" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded timing picker */}
+                    {isSelected && timing && (
+                      <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                        <p className="text-xs font-semibold text-[#A0A0A0] mt-3 mb-2">
+                          {isES ? "¿Cuándo lo tomas?" : "When do you take it?"}
+                        </p>
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {timing.options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => setTiming(supp.id, idx)}
+                              className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                                selectedTimingIdx === idx
+                                  ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
+                                  : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
+                              }`}
+                            >
+                              <span
+                                className={`text-xs font-bold ${
+                                  selectedTimingIdx === idx ? "text-[#AAFF45]" : "text-white"
+                                }`}
+                              >
+                                {opt.time}
+                              </span>
+                              <span className="text-[10px] text-[#555555] leading-snug">
+                                {opt.desc}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Science tip */}
+                        <div className="mt-3 flex items-start gap-2 bg-[#1A1A1A] rounded-lg px-3 py-2.5">
+                          <span className="text-xs shrink-0">💡</span>
+                          <p className="text-[10px] text-[#777777] leading-snug">{timing.tip}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Section>
+
+          {/* ── Section 6: CTA ──────────────────────────────────────────── */}
+          <div className="pt-2 pb-8">
+            {/* Error banner */}
+            {error && (
+              <div className="mb-5 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    {isEditMode ? t("couldnt_save_prefs") : t("couldnt_create_plan")}
+                  </p>
+                  <p className="text-[#FF4444]/80 mt-0.5">{error}</p>
+                </div>
+              </div>
             )}
-            {step < 3 ? (
-              <button
-                type="button"
-                onClick={() => setStep(s => s + 1)}
-                className="flex-1 px-6 py-3.5 rounded-lg font-bold bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
-              >
-                {t("continue_btn")}
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="flex-1 px-6 py-3.5 rounded-lg font-bold bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {isEditMode ? t("saving_regenerating") : t("creating_plan")}
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    {isEditMode ? t("save_regenerate") : t("lets_go")}
-                  </>
-                )}
-              </button>
-            )}
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="w-full py-4 rounded-xl font-bold text-base bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-[#AAFF45]/10"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isEditMode ? t("saving_regenerating") : t("creating_plan")}
+                </>
+              ) : (
+                <>
+                  🚀{" "}
+                  {isEditMode
+                    ? t("save_regenerate")
+                    : (isES ? "Crear mi plan personalizado" : "Create my personalised plan")}
+                </>
+              )}
+            </button>
+
+            <p className="text-center text-xs text-[#444444] mt-3">
+              {isES
+                ? "Tu plan de comidas y entrenamientos estará listo en ~30 segundos"
+                : "Your meal and workout plan will be ready in ~30 seconds"}
+            </p>
           </div>
         </div>
-
-        <p className="text-center text-xs text-[#555555] mt-5">
-          {t("step_n_of_m", { n: step, m: steps.length })}
-          {isEditMode ? ` — ${t("new_both_plans_30s")}` : ` — ${t("can_update_later")}`}
-        </p>
       </div>
     </div>
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function Logo() {
+  return (
+    <span className="font-display font-black italic text-2xl leading-none">
+      <span className="text-white">Goal</span>
+      <span className="text-[#AAFF45]">IQ</span>
+    </span>
+  );
+}
+
+function Section({
+  emoji,
+  title,
+  badge,
+  children,
+}: {
+  emoji: string;
+  title: string;
+  badge?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      {/* Section header */}
+      <div className="flex items-center gap-2 mb-5">
+        <span className="text-xl">{emoji}</span>
+        <h2 className="text-base font-display font-black uppercase text-white tracking-wide">
+          {title}
+        </h2>
+        {badge && (
+          <span className="text-[10px] font-semibold text-[#555555] bg-[#1A1A1A] border border-[#2A2A2A] rounded-full px-2 py-0.5 ml-1">
+            {badge}
+          </span>
+        )}
+        <div className="flex-1 h-px bg-[#1E1E1E] ml-1" />
+      </div>
+
+      <div className="space-y-5">{children}</div>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <label className="text-sm font-semibold text-[#A0A0A0]">{label}</label>
@@ -480,13 +674,31 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+// ─── Style helpers ────────────────────────────────────────────────────────────
+
 const inputClass =
   "w-full px-4 py-3 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A] text-white placeholder:text-[#3A3A3A] focus:border-[#AAFF45]/50 focus:ring-2 focus:ring-[#AAFF45]/10 outline-none transition-all text-sm";
 
-function choiceClass(active: boolean) {
-  return `flex flex-col items-center justify-center py-3 px-2 rounded-lg border-2 font-medium transition-all text-sm ${
+function pillClass(active: boolean) {
+  return `px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+    active
+      ? "bg-[#AAFF45]/15 border-[#AAFF45]/50 text-[#AAFF45]"
+      : "bg-[#111111] border-[#2A2A2A] text-[#555555] hover:border-[#3A3A3A] hover:text-[#888]"
+  }`;
+}
+
+function choiceCardClass(active: boolean) {
+  return `flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 font-medium transition-all text-sm ${
     active
       ? "border-[#AAFF45] bg-[#AAFF45]/10 text-[#AAFF45]"
-      : "border-[#2A2A2A] bg-[#0A0A0A] text-[#555555] hover:border-[#3A3A3A]"
+      : "border-[#2A2A2A] bg-[#111111] text-[#555555] hover:border-[#3A3A3A]"
+  }`;
+}
+
+function goalCardClass(active: boolean) {
+  return `flex flex-col items-center justify-center py-5 px-3 rounded-xl border-2 font-medium transition-all ${
+    active
+      ? "border-[#AAFF45] bg-[#AAFF45]/10 text-[#AAFF45]"
+      : "border-[#2A2A2A] bg-[#111111] text-[#555555] hover:border-[#3A3A3A]"
   }`;
 }

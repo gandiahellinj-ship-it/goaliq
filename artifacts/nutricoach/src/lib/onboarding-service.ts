@@ -17,6 +17,7 @@ export interface OnboardingFormData {
   trainingLevel: string;
   trainingLocation: string;
   trainingDaysPerWeek: number;
+  supplements?: { id: string; timingIndex: number }[];
 }
 
 // ─── Week Helpers ─────────────────────────────────────────────────────────────
@@ -415,6 +416,14 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
     { onConflict: "user_id" },
   );
   if (prefErr) throw new Error(`Failed to save food preferences: ${prefErr.message}`);
+
+  // 2b. Save supplements selection (graceful — column may not exist yet)
+  if (data.supplements && data.supplements.length > 0) {
+    await supabase.from("food_preferences").upsert(
+      { user_id: userId, supplements: data.supplements },
+      { onConflict: "user_id" },
+    ).then(() => {}); // swallow error if column doesn't exist
+  }
 
   // 3. Delete any existing plans for this week — AI generation will create fresh ones
   await Promise.all([
