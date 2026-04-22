@@ -399,19 +399,28 @@ ${dayNameRule}
 - ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;
 
+  // 16:8, 18:6 and 20:4 protocols skip breakfast — 2 meals/day instead of 3.
+  // Using 3 for none/12:12/5:2 which include all three meal slots.
+  const mealsPerDay = ["16:8", "18:6", "20:4"].includes(fastingProtocol ?? "") ? 2 : 3;
+
   const MEAL_SYSTEM = getMealSystem(lang);
 
   // Split into 3 chunks of ≤9 meals each — Haiku reliably generates 9 meals per call
   // but fails when asked for 12 (logs showed array[9]/array[11] for 12-meal prompts).
   // All 3 run in parallel; wall-clock time is the slowest chunk (~8-12s total).
-  const prompt1 = `Create meals for ${dayNames.chunk1} (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY ${dayNames.chunk1}.\n${schemaInstructions}`;
-  const prompt2 = `Create meals for ${dayNames.chunk2} (3 days × 3 meals = 9 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 9 objects covering ONLY ${dayNames.chunk2}.\n${schemaInstructions}`;
-  const prompt3 = `Create meals for ${dayNames.chunk3} (1 day × 3 meals = 3 objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly 3 objects covering ONLY ${dayNames.chunk3}.\n${schemaInstructions}`;
+  const chunk1Total = 3 * mealsPerDay;
+  const chunk3Total = 1 * mealsPerDay;
+  const prompt1 = `Create meals for ${dayNames.chunk1} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk1}.\n${schemaInstructions}`;
+  const prompt2 = `Create meals for ${dayNames.chunk2} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk2}.\n${schemaInstructions}`;
+  const prompt3 = `Create meals for ${dayNames.chunk3} (1 day × ${mealsPerDay} meals = ${chunk3Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk3Total} objects covering ONLY ${dayNames.chunk3}.\n${schemaInstructions}`;
+
+  const makeChunkValidator = (min: number) => (val: unknown): val is any[] =>
+    Array.isArray(val) && val.length >= min;
 
   const [chunk1, chunk2, chunk3] = await Promise.all([
-    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 4000, isFlatMealChunk9, "claude-haiku-4-5-20251001"),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, isFlatMealChunk9, "claude-haiku-4-5-20251001"),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt3, 1500, isFlatMealChunk3, "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 4000, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt3, 1500, makeChunkValidator(chunk3Total), "claude-haiku-4-5-20251001"),
   ]);
 
   return flatMealsToNestedDays([...chunk1, ...chunk2, ...chunk3]);
