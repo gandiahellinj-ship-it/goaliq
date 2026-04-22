@@ -105,7 +105,10 @@ export default function Onboarding() {
           setLocation("/meals?regenerate=true");
         }
       } else {
-        setLocation("/dashboard");
+        // First-time onboarding: go to Meals with regenerate flag so AI
+        // generates the plan in the user's chosen language immediately,
+        // replacing the English template plan created by submitOnboarding.
+        setLocation("/meals?regenerate=true");
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
