@@ -26,6 +26,46 @@ const EMPTY_FORM: OnboardingFormData = {
   supplements: [],
 };
 
+// ─── Goal detail data ─────────────────────────────────────────────────────────
+
+const GOAL_DETAILS: Record<string, {
+  description: string;
+  descriptionEN: string;
+  paces?: { id: string; emoji: string; label: string; labelEN: string; desc: string; descEN: string; recommended?: boolean }[];
+}> = {
+  lose_fat: {
+    description: "Reduciremos las calorías de forma controlada para quemar grasa preservando el máximo músculo posible.",
+    descriptionEN: "We'll reduce calories in a controlled way to burn fat while preserving as much muscle as possible.",
+    paces: [
+      { id: "gentle",     emoji: "🐢", label: "Suave",    labelEN: "Gentle",     desc: "-0.25kg/sem · Preserva más músculo, ideal para atletas",  descEN: "-0.25kg/wk · Preserves more muscle, ideal for athletes" },
+      { id: "moderate",   emoji: "🚶", label: "Moderado", labelEN: "Moderate",   desc: "-0.5kg/sem · El ritmo más sostenible a largo plazo",       descEN: "-0.5kg/wk · The most sustainable pace long term",       recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Agresivo", labelEN: "Aggressive", desc: "-1kg/sem · Pérdida rápida, requiere mayor disciplina",      descEN: "-1kg/wk · Fast loss, requires more discipline" },
+    ],
+  },
+  gain_muscle: {
+    description: "Aumentaremos las calorías estratégicamente para maximizar la ganancia muscular con mínima grasa.",
+    descriptionEN: "We'll increase calories strategically to maximise muscle gain with minimal fat.",
+    paces: [
+      { id: "gentle",     emoji: "🐢", label: "Volumen limpio",    labelEN: "Clean bulk",     desc: "+0.25kg/sem · Mínima grasa, máxima calidad muscular",        descEN: "+0.25kg/wk · Minimal fat, maximum muscle quality" },
+      { id: "moderate",   emoji: "🚶", label: "Volumen moderado",  labelEN: "Moderate bulk",  desc: "+0.5kg/sem · Equilibrio entre músculo y grasa",              descEN: "+0.5kg/wk · Balance between muscle and fat",              recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Volumen agresivo",  labelEN: "Aggressive bulk",desc: "+1kg/sem · Máximo crecimiento, algo más de grasa",           descEN: "+1kg/wk · Maximum growth, some extra fat" },
+    ],
+  },
+  maintain: {
+    description: "Mantendremos tu peso actual optimizando la composición corporal — más músculo, menos grasa al mismo peso.",
+    descriptionEN: "We'll maintain your current weight while optimising body composition — more muscle, less fat at the same weight.",
+  },
+  recomposition: {
+    description: "Perderás grasa y ganarás músculo simultáneamente. Requiere paciencia pero los resultados son los más duraderos.",
+    descriptionEN: "You'll lose fat and gain muscle simultaneously. Requires patience but the results are the most lasting.",
+    paces: [
+      { id: "gentle",     emoji: "🐢", label: "Conservador", labelEN: "Conservative", desc: "Cambios lentos pero muy sostenibles a largo plazo",         descEN: "Slow changes but very sustainable long term" },
+      { id: "moderate",   emoji: "🚶", label: "Estándar",    labelEN: "Standard",     desc: "Balance óptimo entre perder grasa y ganar músculo",         descEN: "Optimal balance between losing fat and gaining muscle",   recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Intensivo",   labelEN: "Intensive",    desc: "Máxima transformación, requiere consistencia total",        descEN: "Maximum transformation, requires total consistency" },
+    ],
+  },
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
@@ -45,6 +85,7 @@ export default function Onboarding() {
   const [formData, setFormData] = useState<OnboardingFormData>(EMPTY_FORM);
   // selectedSupplements: id -> timingIndex
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
+  const [goalPace, setGoalPace] = useState("moderate");
 
   // ── Prefill in edit mode ──────────────────────────────────────────────────
   useEffect(() => {
@@ -55,7 +96,7 @@ export default function Onboarding() {
         supabase
           .from("profiles")
           .select(
-            "full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, diet_type, training_level, training_location, training_days_per_week",
+            "full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, goal_pace, diet_type, training_level, training_location, training_days_per_week",
           )
           .maybeSingle(),
         supabase
@@ -102,6 +143,10 @@ export default function Onboarding() {
         setFormData(loaded);
         originalDataRef.current = loaded;
 
+        // Restore goal pace
+        const savedPace = (profile as any)?.goal_pace as string | null;
+        if (savedPace) setGoalPace(savedPace);
+
         // Restore supplement selections
         const savedSupplements = (prefs as any)?.supplements as
           | { id: string; timingIndex: number }[]
@@ -147,7 +192,7 @@ export default function Onboarding() {
         id,
         timingIndex,
       }));
-      await submitOnboarding({ ...formData, supplements });
+      await submitOnboarding({ ...formData, supplements, goalPace });
 
       if (isEditMode) {
         const orig = originalDataRef.current;
@@ -308,23 +353,93 @@ export default function Onboarding() {
 
           {/* ── Section 2: Tu objetivo ──────────────────────────────────── */}
           <Section emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-3">
               {[
-                { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"    : "Lose weight" },
-                { id: "gain_muscle",   emoji: "💪", label: isES ? "Ganar músculo"  : "Build muscle" },
-                { id: "maintain",      emoji: "⚖️", label: isES ? "Mantenerme"     : "Stay fit" },
-                { id: "recomposition", emoji: "🔄", label: isES ? "Recomposición"  : "Recomposition" },
-              ].map(g => (
-                <button
-                  key={g.id}
-                  type="button"
-                  onClick={() => update({ goalType: g.id })}
-                  className={goalCardClass(formData.goalType === g.id)}
-                >
-                  <span className="text-2xl mb-1.5">{g.emoji}</span>
-                  <span className="text-sm font-bold">{g.label}</span>
-                </button>
-              ))}
+                { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"   : "Lose weight" },
+                { id: "gain_muscle",   emoji: "💪", label: isES ? "Ganar músculo" : "Build muscle" },
+                { id: "maintain",      emoji: "⚖️", label: isES ? "Mantenerme"    : "Stay fit" },
+                { id: "recomposition", emoji: "🔄", label: isES ? "Recomposición" : "Recomposition" },
+              ].map(g => {
+                const isSelected = formData.goalType === g.id;
+                const detail = GOAL_DETAILS[g.id];
+                return (
+                  <div
+                    key={g.id}
+                    className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
+                      isSelected
+                        ? "border-[#AAFF45] bg-[#AAFF45]/5"
+                        : "border-[#2A2A2A] bg-[#111111] hover:border-[#3A3A3A]"
+                    }`}
+                  >
+                    {/* Goal header */}
+                    <button
+                      type="button"
+                      onClick={() => update({ goalType: g.id })}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                    >
+                      <span className="text-2xl shrink-0">{g.emoji}</span>
+                      <span className={`text-sm font-bold flex-1 ${isSelected ? "text-[#AAFF45]" : "text-white"}`}>
+                        {g.label}
+                      </span>
+                      <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+                        isSelected ? "border-[#AAFF45] bg-[#AAFF45]" : "border-[#3A3A3A]"
+                      }`}>
+                        {isSelected && <Check className="w-3 h-3 text-[#0A0A0A]" />}
+                      </div>
+                    </button>
+
+                    {/* Expanded detail */}
+                    {isSelected && detail && (
+                      <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                        {/* Coach description */}
+                        <p className="text-xs text-[#888] mt-3 mb-3 leading-relaxed">
+                          💬 {isES ? detail.description : detail.descriptionEN}
+                        </p>
+
+                        {/* Pace options */}
+                        {detail.paces && (
+                          <>
+                            <p className="text-xs font-semibold text-[#A0A0A0] mb-2">
+                              {isES ? "¿A qué ritmo?" : "At what pace?"}
+                            </p>
+                            <div className="flex flex-col gap-2">
+                              {detail.paces.map(pace => (
+                                <button
+                                  key={pace.id}
+                                  type="button"
+                                  onClick={() => setGoalPace(pace.id)}
+                                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                                    goalPace === pace.id
+                                      ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
+                                      : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
+                                  }`}
+                                >
+                                  <span className="text-base shrink-0">{pace.emoji}</span>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`text-xs font-bold ${goalPace === pace.id ? "text-[#AAFF45]" : "text-white"}`}>
+                                        {isES ? pace.label : pace.labelEN}
+                                      </span>
+                                      {pace.recommended && (
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#AAFF45]/20 text-[#AAFF45]">
+                                          {isES ? "Recomendado" : "Recommended"}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <p className="text-[10px] text-[#555] mt-0.5 leading-snug">
+                                      {isES ? pace.desc : pace.descEN}
+                                    </p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </Section>
 

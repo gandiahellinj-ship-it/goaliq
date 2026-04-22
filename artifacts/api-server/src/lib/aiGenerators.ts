@@ -330,9 +330,17 @@ export async function generateMealPlanForUser(profile: {
   const dislikedFoods = (profile.dislikedFoods as string[]).filter(Boolean);
   const name = typeof (profile as any).fullName === "string" ? (profile as any).fullName : "the user";
 
+  const goalPace = (profile as any).goalPace ?? "moderate";
+  const paceGuidance: Record<string, string> = {
+    gentle:     "Use a small caloric adjustment (±250 kcal/day). Prioritise sustainability and muscle preservation over speed.",
+    moderate:   "Use a moderate caloric adjustment (±500 kcal/day). Balance progress with long-term adherence.",
+    aggressive: "Use a larger caloric adjustment (±750-1000 kcal/day). Maximise rate of change while maintaining nutritional adequacy.",
+  };
+
   const personContext = `Person:
 - Name: ${name}
 - Goal: ${profile.goalType.replace(/_/g, " ")}
+- Goal pace: ${goalPace} — ${paceGuidance[goalPace] ?? paceGuidance.moderate}
 - Diet type: ${profile.dietType.replace(/_/g, " ")}
 - Allergies: ${allergies.join(", ") || "none"}
 - Disliked foods: ${dislikedFoods.join(", ") || "none"}
@@ -462,6 +470,7 @@ export async function generateWorkoutPlanForUser(profile: {
 
 USER:
 - Goal: ${goalKey.replace(/_/g, " ")} — ${goalGuidance}
+- Goal pace: ${(profile as any).goalPace ?? "moderate"} (gentle = lower volume/intensity, moderate = standard, aggressive = higher volume/intensity)
 - Level: ${level}
 - Location: ${location}
 - Days/week: ${trainingDays}
