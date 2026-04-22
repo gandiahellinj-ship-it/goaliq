@@ -876,7 +876,8 @@ export function useGenerateMealPlan() {
   const weekStart = getWeekStart();
 
   return useMutation({
-    mutationFn: async ({ token, lang = "es" }: { token: string; lang?: "es" | "en" }) => {
+    mutationFn: async ({ token: providedToken, lang = "es" }: { token?: string; lang?: "es" | "en" } = {}) => {
+      const token = providedToken ?? await getAccessToken();
       // ── Step 1: verify auth ────────────────────────────────────────────────
       console.log("[generateMealPlan] Step 1: checking auth");
       const { data: { user } } = await supabase.auth.getUser();

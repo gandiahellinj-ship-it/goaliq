@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
+import { useWorkoutPlan, useGenerateWorkoutPlan, useGenerateMealPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell, RefreshCw } from "lucide-react";
+import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell, RefreshCw, CheckCircle } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { ExerciseAnimation } from "@/components/ExerciseAnimation";
 import { useT, useLanguage, translateDay } from "@/lib/language";
@@ -164,16 +164,42 @@ export default function Workouts() {
 function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
+  const mealGenerateMutation = useGenerateMealPlan();
   const hasTriggeredRegen = useRef(false);
+  const [regenFromPrefs, setRegenFromPrefs] = useState(false);
+  const [genSuccess, setGenSuccess] = useState(false);
   const t = useT();
   const { lang } = useLanguage();
 
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Auto-regenerate: no plan in DB yet, or plan has exercises without exercise_id
+  // Auto-regenerate: no plan, missing exercise_ids, or forced from preferences edit
   useEffect(() => {
-    if (isLoading || hasTriggeredRegen.current || generateMutation.isPending) return;
+    if (hasTriggeredRegen.current || generateMutation.isPending) return;
+
+    // Check for forced regen from preferences edit (?regenerate=true)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("regenerate") === "true") {
+      const alsoMeal = params.get("meal") === "true";
+      window.history.replaceState({}, "", window.location.pathname);
+      hasTriggeredRegen.current = true;
+      setRegenFromPrefs(true);
+      generateMutation.mutate({ lang }, {
+        onSuccess: () => {
+          setRegenFromPrefs(false);
+          setGenSuccess(true);
+          setTimeout(() => setGenSuccess(false), 3500);
+        },
+        onError: () => setRegenFromPrefs(false),
+      });
+      if (alsoMeal) {
+        mealGenerateMutation.mutate({ lang });
+      }
+      return;
+    }
+
+    if (isLoading) return;
 
     const needsRegen = !workoutPlan || (workoutPlan.days ?? []).some(day =>
       day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
@@ -249,6 +275,44 @@ function WorkoutsContent() {
           <span>{generateMutation.isPending ? t("regenerating") : t("regenerate_plan")}</span>
         </button>
       </div>
+
+      {/* Generating banner (from preferences edit) */}
+      <AnimatePresence>
+        {regenFromPrefs && generateMutation.isPending && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mb-5 flex items-center gap-3 rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
+            }}
+          >
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "var(--giq-accent)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--giq-accent)" }}>
+              {t("generating_workout_plan")}
+            </p>
+          </motion.div>
+        )}
+        {genSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mb-5 flex items-center gap-3 rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
+              border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
+            }}
+          >
+            <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "var(--giq-accent)" }} />
+            <p className="text-sm font-medium" style={{ color: "var(--giq-accent)" }}>
+              {t("workout_plan_updated")}
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Day Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 sm:mx-0 sm:px-0 mb-6 scrollbar-hide">

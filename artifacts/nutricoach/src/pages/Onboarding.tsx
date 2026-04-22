@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle, AlertCircle, Pencil } from "lucide-react";
@@ -39,6 +39,7 @@ export default function Onboarding() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prefilling, setPrefilling] = useState(isEditMode);
+  const originalDataRef = useRef<OnboardingFormData | null>(null);
 
   const [formData, setFormData] = useState<OnboardingFormData>(EMPTY_FORM);
 
@@ -54,7 +55,7 @@ export default function Onboarding() {
 
       const src = onboarding ?? profile;
       if (src) {
-        setFormData({
+        const loaded: OnboardingFormData = {
           displayName: (profile as any)?.full_name ?? EMPTY_FORM.displayName,
           age: src.age ?? EMPTY_FORM.age,
           sex: (src as any).sex ?? EMPTY_FORM.sex,
@@ -69,7 +70,9 @@ export default function Onboarding() {
           trainingLevel: (src as any).training_level ?? EMPTY_FORM.trainingLevel,
           trainingLocation: (src as any).training_location ?? EMPTY_FORM.trainingLocation,
           trainingDaysPerWeek: (src as any).training_days_per_week ?? EMPTY_FORM.trainingDaysPerWeek,
-        });
+        };
+        setFormData(loaded);
+        originalDataRef.current = loaded;
       }
       setPrefilling(false);
     })();
@@ -84,7 +87,23 @@ export default function Onboarding() {
     try {
       await submitOnboarding(formData);
       if (isEditMode) {
-        setLocation("/meals?regenerate=true");
+        const orig = originalDataRef.current;
+        const workoutChanged = !orig ||
+          formData.trainingLocation !== orig.trainingLocation ||
+          formData.trainingDaysPerWeek !== orig.trainingDaysPerWeek ||
+          formData.trainingLevel !== orig.trainingLevel;
+        const mealChanged = !orig ||
+          formData.goalType !== orig.goalType ||
+          formData.dietType !== orig.dietType ||
+          JSON.stringify(formData.allergies) !== JSON.stringify(orig.allergies) ||
+          JSON.stringify(formData.likedFoods) !== JSON.stringify(orig.likedFoods) ||
+          JSON.stringify(formData.dislikedFoods) !== JSON.stringify(orig.dislikedFoods);
+
+        if (workoutChanged) {
+          setLocation(mealChanged ? "/workouts?regenerate=true&meal=true" : "/workouts?regenerate=true");
+        } else {
+          setLocation("/meals?regenerate=true");
+        }
       } else {
         setLocation("/dashboard");
       }
@@ -127,7 +146,7 @@ export default function Onboarding() {
         <div className="w-full max-w-lg mb-4 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
           <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
           <p className="text-sm text-[#AAFF45]/80 font-medium">
-            {t("updating_preferences_msg")}
+            {t("updating_both_plans")}
           </p>
         </div>
       )}
@@ -441,7 +460,7 @@ export default function Onboarding() {
 
         <p className="text-center text-xs text-[#555555] mt-5">
           {t("step_n_of_m", { n: step, m: steps.length })}
-          {isEditMode ? ` — ${t("new_plan_30s")}` : ` — ${t("can_update_later")}`}
+          {isEditMode ? ` — ${t("new_both_plans_30s")}` : ` — ${t("can_update_later")}`}
         </p>
       </div>
     </div>

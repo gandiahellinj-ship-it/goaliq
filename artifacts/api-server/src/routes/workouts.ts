@@ -32,6 +32,26 @@ function getDateForDay(weekStart: string, dayOfWeek: string) {
 // workout_plans schema: (id, user_id, week_start DATE, days JSONB, generated_at TIMESTAMP)
 // "days" is a JSONB array of workout day objects — same pattern as meal_plans
 
+// DELETE /api/workouts — remove the current week's plan so it can be regenerated fresh
+router.delete("/workouts", async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const pool = getPool();
+  const weekStart = getCurrentWeekStart();
+  try {
+    await pool.query(
+      `DELETE FROM public.workout_plans WHERE user_id = $1 AND week_start = $2`,
+      [req.user.id, weekStart],
+    );
+    res.json({ deleted: true, weekStart });
+  } catch (err) {
+    req.log.error({ err }, "[workouts] DELETE failed");
+    res.status(500).json({ error: "Failed to delete workout plan" });
+  }
+});
+
 router.get("/workouts", async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
