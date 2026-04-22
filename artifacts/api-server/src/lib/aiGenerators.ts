@@ -412,7 +412,7 @@ function isWorkoutArray(val: unknown, expectedDays?: number): val is any[] {
   }
   return val.every((day: any) =>
     Array.isArray(day.exercises) &&
-    day.exercises.length >= 4 &&
+    day.exercises.length >= 3 &&
     day.exercises.every((ex: any) => typeof ex.name === "string" && ex.name.length > 0),
   );
 }
@@ -432,12 +432,19 @@ export async function generateWorkoutPlanForUser(profile: {
   const pool = await getExercisePool(location, level);
   console.log(`[aiGenerators] WorkoutX pool: ${pool.length} exercises for location="${location}" level="${level}"`);
 
-  // Build reconciliation maps for safety net
+  // Build reconciliation maps from the full pool (before trimming)
   const wxMap = new Map(pool.map(e => [e.name.toLowerCase(), e.id]));
   const wxNameMap = new Map(pool.map(e => [e.id, e.name]));
 
-  // Format pool for the prompt
-  const poolLines = pool.map(e => `${e.id}:${e.name} [${e.target}, ${e.equipment}]`).join("\n");
+  // Trim pool size to keep the prompt within token budget
+  const maxPoolSize = trainingDays >= 6 ? 60 : trainingDays >= 4 ? 80 : 100;
+  const trimmedPool = pool.slice(0, maxPoolSize);
+  console.log(`[aiGenerators] Trimmed pool to ${trimmedPool.length} exercises (maxPoolSize=${maxPoolSize} for trainingDays=${trainingDays})`);
+
+  // Compact format for large plans to save tokens
+  const poolLines = trainingDays >= 6
+    ? trimmedPool.map(e => `${e.id}:${e.name}`).join("\n")
+    : trimmedPool.map(e => `${e.id}:${e.name} [${e.target}, ${e.equipment}]`).join("\n");
 
   // ── Step 2: AI structures the plan using the pre-selected pool ───────────────
   const WORKOUT_SYSTEM = lang === "en"
@@ -463,6 +470,7 @@ export async function generateWorkoutPlanForUser(profile: {
     4: "Upper Body / Lower Body / Push Day / Pull Day",
     5: "Push / Pull / Legs / Upper Body / Cardio+Core",
     6: "Push / Pull / Legs / Push (different) / Pull (different) / Legs (different)",
+    7: "Push / Pull / Legs / Upper Body / Lower Body / Full Body / Active Recovery (light cardio + core)",
   };
   const structure = sessionStructure[trainingDays] ?? sessionStructure[3];
 
@@ -516,8 +524,10 @@ Each object:
 
 Return ONLY the JSON array, nothing else.`;
 
-  const maxTokens = trainingDays >= 5 ? 6000 : 4000;
-  const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, maxTokens, (val) => isWorkoutArray(val, trainingDays), "claude-haiku-4-5-20251001");
+  const maxTokens = trainingDays >= 6 ? 8000 : trainingDays >= 5 ? 6000 : 4000;
+  const model = trainingDays >= 6 ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
+  console.log(`[aiGenerators] Workout: trainingDays=${trainingDays}, maxTokens=${maxTokens}, model=${model}`);
+  const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, maxTokens, (val) => isWorkoutArray(val, trainingDays), model);
   const processedDays = (workoutData as any[]).map((day: any) => ({
     ...day,
     exercises: (day.exercises ?? []).map((ex: any) => ({
