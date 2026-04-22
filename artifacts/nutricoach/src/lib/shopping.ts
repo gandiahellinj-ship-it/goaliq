@@ -132,6 +132,13 @@ const WEIGHT_TO_G: Record<string, number> = {
 // Units treated as countable (round up to integers)
 const COUNT_UNITS = new Set(["piece", "slice", "can", "scoop", "clove", "handful", "sprig", "stalk", "leaf", "strip"]);
 
+// Foods that are always counted as whole units regardless of how the AI writes the amount
+const COUNTABLE_FOODS = new Set([
+  "aguacate", "limon", "naranja", "manzana", "platano", "tomate",
+  "cebolla", "ajo", "huevo", "huevos", "pimiento", "zanahoria",
+  "patata", "boniato", "pepino", "lima", "mango",
+]);
+
 function isVolumeUnit(u: string): boolean { return u in VOLUME_TO_ML; }
 function isWeightUnit(u: string): boolean { return u in WEIGHT_TO_G; }
 function isCountUnit(u: string): boolean { return COUNT_UNITS.has(u); }
@@ -200,15 +207,48 @@ function formatNum(n: number): string {
   return n % 1 === 0 ? String(n) : String(Math.round(n * 10) / 10);
 }
 
+function formatCount(n: number): string {
+  return n === 1 ? "1 unidad" : `${n} unidades`;
+}
+
+function normalizeOneAmount(raw: string): string {
+  const p = parseAmount(raw);
+  if (!p) return raw;
+  if (isWeightUnit(p.unit)) {
+    const g = p.num * (WEIGHT_TO_G[p.unit] ?? 1);
+    if (g >= 1000) return `${formatNum(g / 1000)} kg`;
+    return `${formatNum(Math.round(g))} g`;
+  }
+  if (isVolumeUnit(p.unit)) {
+    const ml = p.num * (VOLUME_TO_ML[p.unit] ?? 1);
+    if (ml >= 1000) return `${formatNum(ml / 1000)} l`;
+    return `${formatNum(Math.round(ml))} ml`;
+  }
+  if (isCountUnit(p.unit) || p.unit === "") {
+    return formatCount(Math.ceil(p.num));
+  }
+  return raw;
+}
+
 function mergeAmounts(amounts: string[], ingredientKey = ""): string {
   if (amounts.length === 0) return "";
 
   // 1. Any "al gusto" signal → always show "al gusto"
   if (amounts.some(isGustoAmount)) return "al gusto";
-  // 1b. Single unchanged amount
-  if (amounts.length === 1) return amounts[0];
 
-  // 2. Parse all amounts
+  // 2. Countable foods — sum all numeric values, round up, show as "X unidades"
+  if (COUNTABLE_FOODS.has(ingredientKey)) {
+    const total = amounts.reduce((sum, raw) => {
+      const p = parseAmount(raw);
+      return sum + (p ? p.num : 1);
+    }, 0);
+    return formatCount(Math.ceil(total));
+  }
+
+  // 3. Single amount — normalize unit spelling (gramos→g, cucharadas→tbsp→ml, etc.)
+  if (amounts.length === 1) return normalizeOneAmount(amounts[0]);
+
+  // 4. Parse all amounts
   const parsed: Array<{ num: number; unit: string }> = [];
   const unparseable: string[] = [];
   for (const raw of amounts) {
@@ -216,10 +256,10 @@ function mergeAmounts(amounts: string[], ingredientKey = ""): string {
     if (p) parsed.push(p); else unparseable.push(raw);
   }
 
-  // 3. If nothing parsed, fall back
+  // 5. If nothing parsed, fall back
   if (parsed.length === 0) return amounts[0];
 
-  // 4. Detect dominant measurement family
+  // 6. Detect dominant measurement family
   const totalVolumeMl = parsed
     .filter(p => isVolumeUnit(p.unit))
     .reduce((s, p) => s + p.num * (VOLUME_TO_ML[p.unit] ?? 1), 0);
@@ -235,36 +275,28 @@ function mergeAmounts(amounts: string[], ingredientKey = ""): string {
   const hasVolume = parsed.some(p => isVolumeUnit(p.unit));
   const hasWeight = parsed.some(p => isWeightUnit(p.unit));
 
-  // 5. If all or mostly volume → unify to ml / l
+  // 7. Volume → unify to ml / l
   if (hasVolume && !hasWeight) {
     const total = Math.round(totalVolumeMl);
     if (total === 0) return amounts[0];
-    if (total >= 1000) {
-      const liters = Math.round(total / 100) / 10;
-      return `~${liters} l`;
-    }
+    if (total >= 1000) return `~${Math.round(total / 100) / 10} l`;
     return `~${total} ml`;
   }
 
-  // 6. If all or mostly weight → unify to g / kg
+  // 8. Weight → unify to g / kg
   if (hasWeight && !hasVolume) {
     const total = Math.round(totalWeightG);
     if (total === 0) return amounts[0];
-    if (total >= 1000) {
-      const kg = Math.round(total / 100) / 10;
-      return `~${kg} kg`;
-    }
+    if (total >= 1000) return `~${Math.round(total / 100) / 10} kg`;
     return `~${total} g`;
   }
 
-  // 7. Countable items (pieces, slices, cans…) — round up fractions
+  // 9. Countable items (pieces, slices, cans…) — round up fractions
   if (!hasVolume && !hasWeight && totalCount > 0) {
-    const count = Math.ceil(totalCount);
-    const unit = parsed.find(p => isCountUnit(p.unit))?.unit ?? parsed[0]?.unit ?? "";
-    return unit ? `${count} ${unit}` : String(count);
+    return formatCount(Math.ceil(totalCount));
   }
 
-  // 8. Mixed families — group by canonical family and show cleanly
+  // 10. Mixed families — group by canonical family and show cleanly
   const byUnit = new Map<string, number>();
   for (const p of parsed) {
     byUnit.set(p.unit, (byUnit.get(p.unit) ?? 0) + p.num);
