@@ -416,46 +416,9 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
   );
   if (prefErr) throw new Error(`Failed to save food preferences: ${prefErr.message}`);
 
-  // 3. Delete any existing plans for this week
+  // 3. Delete any existing plans for this week — AI generation will create fresh ones
   await Promise.all([
     supabase.from("meal_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
     supabase.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
   ]);
-
-  // 4. Generate and insert meal plans (7 days × 3 meals = 21 rows)
-  const menu = getMenuForDiet(data.dietType);
-  const mealRows = DAYS.flatMap((dayName, dayIndex) =>
-    (["breakfast", "lunch", "dinner"] as const).map(mealType => {
-      const meal = getSafeMeal(menu, mealType, dayIndex, data.dislikedFoods, data.allergies);
-      return {
-        user_id: userId,
-        week_start: weekStart,
-        day_name: dayName,
-        meal_type: mealType,
-        meal_name: meal.meal_name,
-        ingredients: meal.ingredients,
-        plate_distribution: meal.plate_distribution,
-      };
-    }),
-  );
-
-  const { error: mealErr } = await supabase.from("meal_plans").insert(mealRows);
-  if (mealErr) throw new Error(`Failed to save meal plan: ${mealErr.message}`);
-
-  // 5. Generate and insert workout plans (only training days)
-  const trainingDayIdxs = TRAINING_DAY_INDICES[Math.min(Math.max(data.trainingDaysPerWeek, 1), 7)] ?? [0];
-  const workoutRows = trainingDayIdxs.map((dayIdx, trainingOrder) => {
-    const workout = getWorkoutForDay(data.goalType, data.trainingLevel, data.trainingLocation, trainingOrder);
-    return {
-      user_id: userId,
-      week_start: weekStart,
-      day_name: DAYS[dayIdx],
-      workout_type: workout.workout_type,
-      exercises: workout.exercises,
-      notes: workout.notes,
-    };
-  });
-
-  const { error: workoutErr } = await supabase.from("workout_plans").insert(workoutRows);
-  if (workoutErr) throw new Error(`Failed to save workout plan: ${workoutErr.message}`);
 }

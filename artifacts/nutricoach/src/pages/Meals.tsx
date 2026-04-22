@@ -134,6 +134,20 @@ function MealsContent() {
     );
   }
 
+  function handleRetry() {
+    if (!session?.access_token) return;
+    generateMutation.reset();
+    generateMutation.mutate(
+      { token: session.access_token, lang },
+      {
+        onSuccess: () => {
+          setGenSuccess(true);
+          setTimeout(() => setGenSuccess(false), 3500);
+        },
+      },
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
@@ -143,6 +157,51 @@ function MealsContent() {
   }
 
   const isProfileComplete = !!(profile?.full_name && profile?.goal && profile?.diet_type);
+
+  // Generating with no existing plan yet (first-time onboarding flow)
+  if (!mealPlan && generateMutation.isPending) {
+    return (
+      <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
+        <div className="w-16 h-16 mb-5 rounded-full flex items-center justify-center"
+          style={{ backgroundColor: "color-mix(in srgb, var(--giq-accent) 15%, transparent)" }}>
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: "var(--giq-accent)" }} />
+        </div>
+        <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>
+          {lang === "en" ? "Creating your plan..." : "Creando tu plan..."}
+        </h2>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
+          {lang === "en" ? "⏱ ~30 seconds" : "⏱ ~30 segundos"}
+        </p>
+      </div>
+    );
+  }
+
+  // Generation failed with no existing plan — show clean error + retry
+  if (!mealPlan && generateMutation.isError) {
+    return (
+      <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
+        <div className="w-16 h-16 mb-5 rounded-full flex items-center justify-center bg-red-500/10">
+          <AlertCircle className="w-8 h-8 text-red-400" />
+        </div>
+        <h2 className="text-xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>
+          {lang === "en" ? "Generation failed" : "Error al generar"}
+        </h2>
+        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--giq-text-secondary)" }}>
+          {lang === "en"
+            ? "Could not create your meal plan. Please try again."
+            : "No se pudo crear tu plan de comidas. Inténtalo de nuevo."}
+        </p>
+        <button
+          onClick={handleRetry}
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-lg font-bold text-sm transition-colors"
+          style={{ backgroundColor: "var(--giq-accent)", color: "#0A0A0A" }}
+        >
+          <RefreshCw className="w-4 h-4" />
+          {lang === "en" ? "Try again" : "Intentar de nuevo"}
+        </button>
+      </div>
+    );
+  }
 
   if (!mealPlan && !isProfileComplete) {
     return (
