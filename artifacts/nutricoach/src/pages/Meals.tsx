@@ -103,6 +103,8 @@ function MealsContent() {
   useEffect(() => {
     if (autoGenTriggered.current) return;
     if (!session?.access_token) return;
+    // Wait until language is resolved (avoids generating with stale lang)
+    if (!lang) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("regenerate") !== "true") return;
     autoGenTriggered.current = true;
@@ -116,7 +118,7 @@ function MealsContent() {
         },
       },
     );
-  }, [session?.access_token]);
+  }, [session?.access_token, lang]);
 
   function handleGenerate() {
     if (!session?.access_token) return;
@@ -382,6 +384,7 @@ function MealsContent() {
                 dislikedFoods={foodPrefs?.disliked_foods ?? []}
                 allergies={foodPrefs?.allergies ?? []}
                 canSwap={true}
+                lang={lang}
               />
             ))
           )}
@@ -403,6 +406,7 @@ function MealCard({
   dislikedFoods,
   allergies,
   canSwap,
+  lang,
 }: {
   meal: MealRow;
   dietType: string | null;
@@ -410,6 +414,7 @@ function MealCard({
   dislikedFoods: string[];
   allergies: string[];
   canSwap: boolean;
+  lang: "es" | "en";
 }) {
   const [expanded, setExpanded] = useState(false);
   const [loadingOptionsIndex, setLoadingOptionsIndex] = useState<number | null>(null);
@@ -439,6 +444,7 @@ function MealCard({
         goalType,
         dislikedFoods,
         allergies,
+        lang,
       );
       if (options.length === 0) {
         setErrorMsg("No se encontraron alternativas para este ingrediente.");

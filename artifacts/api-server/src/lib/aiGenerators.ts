@@ -527,6 +527,7 @@ export async function replaceIngredientInMeal(
   dietType: string,
   allergies: string[],
   dislikedFoods: string[] = [],
+  lang: "es" | "en" = "es",
 ): Promise<{ name: string; amount: string; category: string }> {
   const allForbidden = [...allergies, ...dislikedFoods].filter(Boolean);
   const forbiddenNote =
@@ -545,10 +546,15 @@ export async function replaceIngredientInMeal(
   const dietKey = dietType.toLowerCase().replace("-", "_");
   const dietInstruction = dietRules[dietKey] ?? `The replacement must fit a ${dietType} diet.`;
 
+  const langInstruction = lang === "en"
+    ? "LANGUAGE: Respond in English. Use English food names."
+    : "IDIOMA: Responde en español. Usa nombres de alimentos en español.";
+
   const prompt = `Replace the ingredient "${ingredientName}" (category: ${category}) in a meal.
 
 DIET: ${dietType}. ${dietInstruction}
 ${forbiddenNote}
+${langInstruction}
 
 Provide ONE suitable alternative from the same food category (${category}). Return only this JSON object:
 {
@@ -557,7 +563,8 @@ Provide ONE suitable alternative from the same food category (${category}). Retu
   "category": "${category}"
 }`;
 
-  const text = await callClaude(MEAL_SYSTEM, prompt, 200);
+  const systemPrompt = getMealSystem(lang);
+  const text = await callClaude(systemPrompt, prompt, 200);
   const parsed = parseJsonSafely(text);
   return sanitizeIngredient(parsed) ?? { name: ingredientName, amount: "—", category };
 }

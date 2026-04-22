@@ -681,6 +681,132 @@ const INGREDIENT_POOLS: Record<string, Record<string, SwapOption[]>> = {
   },
 };
 
+// ─── Spanish food name translations for swap options ──────────────────────────
+
+const FOOD_NAMES_ES: Record<string, string> = {
+  // protein
+  "chicken breast": "Pechuga de pollo",
+  "turkey breast": "Pechuga de pavo",
+  "tuna (canned)": "Atún (lata)",
+  "salmon fillet": "Filete de salmón",
+  "lean beef strips": "Tiras de ternera magra",
+  "shrimp": "Gambas",
+  "eggs": "Huevos",
+  "sardines": "Sardinas",
+  "edamame": "Edamame",
+  "cottage cheese": "Queso cottage",
+  "firm tofu": "Tofu firme",
+  "tempeh": "Tempeh",
+  "chickpeas": "Garbanzos",
+  "black beans": "Alubias negras",
+  "red lentils": "Lentejas rojas",
+  "seitan": "Seitán",
+  "pea protein powder": "Proteína de guisante",
+  "white beans": "Alubias blancas",
+  "hemp seeds": "Semillas de cáñamo",
+  "greek yogurt": "Yogur griego",
+  "paneer": "Queso paneer",
+  "mozzarella": "Mozzarella",
+  "ribeye steak": "Entrecot de ternera",
+  "chicken thighs": "Muslos de pollo",
+  "bacon": "Bacón",
+  "ground beef": "Carne picada de ternera",
+  "smoked salmon": "Salmón ahumado",
+  "lamb chops": "Chuletas de cordero",
+  "tuna steak": "Filete de atún",
+  "cod fillet": "Filete de bacalao",
+  "mackerel": "Caballa",
+  // carbs
+  "brown rice": "Arroz integral",
+  "sweet potato": "Boniato",
+  "oats": "Avena",
+  "quinoa": "Quinoa",
+  "whole wheat pasta": "Pasta integral",
+  "whole grain bread": "Pan integral",
+  "couscous": "Cuscús",
+  "buckwheat": "Trigo sarraceno",
+  "barley": "Cebada",
+  "baby potatoes": "Patatitas",
+  "cauliflower rice": "Arroz de coliflor",
+  "zucchini noodles": "Fideos de calabacín",
+  "shirataki noodles": "Fideos shirataki",
+  "rice noodles": "Fideos de arroz",
+  // vegetables
+  "broccoli": "Brócoli",
+  "spinach": "Espinacas",
+  "kale": "Col rizada",
+  "asparagus": "Espárragos",
+  "bell peppers": "Pimientos",
+  "zucchini": "Calabacín",
+  "green beans": "Judías verdes",
+  "cauliflower": "Coliflor",
+  "mushrooms": "Champiñones",
+  "bok choy": "Col china",
+  "cucumber": "Pepino",
+  "cherry tomatoes": "Tomates cherry",
+  "mixed greens": "Mezcla de lechugas",
+  "carrots": "Zanahorias",
+  "sugar snap peas": "Tirabeques",
+  "beetroot": "Remolacha",
+  "cabbage": "Col",
+  // fats
+  "avocado": "Aguacate",
+  "olive oil": "Aceite de oliva",
+  "almonds": "Almendras",
+  "walnuts": "Nueces",
+  "pumpkin seeds": "Pipas de calabaza",
+  "sunflower seeds": "Pipas de girasol",
+  "tahini": "Tahini",
+  "peanut butter": "Mantequilla de cacahuete",
+  "almond butter": "Mantequilla de almendras",
+  "cashews": "Anacardos",
+  "butter": "Mantequilla",
+  "coconut oil": "Aceite de coco",
+  "heavy cream": "Nata para montar",
+  "macadamia nuts": "Nueces de macadamia",
+  "cream cheese": "Queso crema",
+  "mct oil": "Aceite MCT",
+  "flaxseeds": "Semillas de lino",
+  "chia seeds": "Semillas de chía",
+  // fruit
+  "mixed berries": "Frutos del bosque",
+  "blueberries": "Arándanos",
+  "strawberries": "Fresas",
+  "raspberries": "Frambuesas",
+  "apple": "Manzana",
+  "banana": "Plátano",
+  "mango chunks": "Trozos de mango",
+  "orange": "Naranja",
+  "peach": "Melocotón",
+  "kiwi": "Kiwi",
+  "pineapple chunks": "Trozos de piña",
+  // dairy
+  "low-fat milk": "Leche semidesnatada",
+  "feta cheese": "Queso feta",
+  "parmesan": "Parmesano",
+  "ricotta": "Ricotta",
+  "oat milk": "Leche de avena",
+  "soy milk": "Leche de soja",
+  "almond milk": "Leche de almendras",
+  "coconut yogurt": "Yogur de coco",
+  "cashew cream": "Crema de anacardos",
+  "brie cheese": "Queso brie",
+  "cheddar cheese": "Queso cheddar",
+  // other
+  "fresh herbs": "Hierbas frescas",
+  "lemon juice": "Zumo de limón",
+  "nutritional yeast": "Levadura nutricional",
+  "low-sodium soy sauce": "Salsa de soja baja en sodio",
+  "apple cider vinegar": "Vinagre de manzana",
+  "mixed spices": "Especias mixtas",
+  "balsamic vinegar": "Vinagre balsámico",
+};
+
+function translateFoodName(name: string, lang: "es" | "en"): string {
+  if (lang !== "es") return name;
+  return FOOD_NAMES_ES[name.toLowerCase()] ?? name;
+}
+
 // ─── Smart swap option builder ─────────────────────────────────────────────────
 
 function rankByGoal(candidates: SwapOption[], goalType: string | null): SwapOption[] {
@@ -698,6 +824,7 @@ export async function getSwapOptions(
   goalType: string | null,
   dislikedFoods: string[],
   allergies: string[],
+  lang: "es" | "en" = "es",
 ): Promise<SwapOption[]> {
   const normalise = (s: string) => s.toLowerCase().trim();
   const excluded = new Set([currentName, ...dislikedFoods, ...allergies].map(normalise));
@@ -735,8 +862,10 @@ export async function getSwapOptions(
     addIfSafe(opt);
   }
 
-  // Rank goal-aligned options first, return top 4
-  return rankByGoal(candidates, goalType).slice(0, 4);
+  // Rank goal-aligned options first, translate names if needed, return top 4
+  return rankByGoal(candidates, goalType)
+    .slice(0, 4)
+    .map(opt => ({ ...opt, name: translateFoodName(opt.name, lang) }));
 }
 
 // ─── Swap Ingredient Mutation ─────────────────────────────────────────────────
@@ -876,8 +1005,9 @@ export function useGenerateMealPlan() {
   const weekStart = getWeekStart();
 
   return useMutation({
-    mutationFn: async ({ token: providedToken, lang = "es" }: { token?: string; lang?: "es" | "en" } = {}) => {
+    mutationFn: async ({ token: providedToken, lang: providedLang }: { token?: string; lang?: "es" | "en" } = {}) => {
       const token = providedToken ?? await getAccessToken();
+      const lang: "es" | "en" = providedLang ?? (localStorage.getItem("goaliq_lang") as "es" | "en") ?? "es";
       // ── Step 1: verify auth ────────────────────────────────────────────────
       console.log("[generateMealPlan] Step 1: checking auth");
       const { data: { user } } = await supabase.auth.getUser();

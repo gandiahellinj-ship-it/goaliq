@@ -195,11 +195,13 @@ router.post("/meals/replace-ingredient", async (req, res) => {
     db.from("food_preferences").select("allergies, disliked_foods").eq("user_id", req.user.id).maybeSingle(),
   ]);
 
+  const lang: "es" | "en" = req.body?.lang === "en" ? "en" : "es";
   const replacement = await replaceIngredientInMeal(
     ingredient.name, ingredient.category,
     profileData?.diet_type || "balanced",
     (prefsData?.allergies as string[]) || [],
     (prefsData?.disliked_foods as string[]) || [],
+    lang,
   );
 
   const idx = meal.ingredients.indexOf(ingredient);
