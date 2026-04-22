@@ -251,7 +251,7 @@ export default function Onboarding() {
   const isES = lang !== "en";
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] py-10 px-4 font-sans">
+    <div className="min-h-screen py-10 px-4 font-sans" style={{ background: "#0a0a0a" }}>
       <div className="max-w-xl mx-auto">
 
         {/* Logo */}
@@ -283,10 +283,10 @@ export default function Onboarding() {
           </p>
         </div>
 
-        <div className="space-y-10">
+        <div className="space-y-3">
 
           {/* ── Section 1: Sobre ti ─────────────────────────────────────── */}
-          <Section emoji="👤" title={isES ? "Sobre ti" : "About you"}>
+          <SectionCardemoji="👤" title={isES ? "Sobre ti" : "About you"}>
             <Field label={t("what_call_you")} hint={t("personalise_hint")}>
               <input
                 type="text"
@@ -358,10 +358,10 @@ export default function Onboarding() {
                 className={inputClass}
               />
             </Field>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 2: Tu objetivo ──────────────────────────────────── */}
-          <Section emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
+          <SectionCardemoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
             <div className="flex flex-col gap-3">
               {[
                 { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"   : "Lose weight" },
@@ -450,10 +450,10 @@ export default function Onboarding() {
                 );
               })}
             </div>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 2b: Ayuno intermitente ──────────────────────────── */}
-          <Section emoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
+          <SectionCardemoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
             <div className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
               fastingEnabled ? "border-[#AAFF45]/40 bg-[#AAFF45]/5" : "border-[#2A2A2A] bg-[#111111]"
             }`}>
@@ -530,10 +530,10 @@ export default function Onboarding() {
                 </div>
               )}
             </div>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 3: Tu dieta ─────────────────────────────────────── */}
-          <Section emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+          <SectionCardemoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
             <Field label={t("diet_type_question")}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {[
@@ -584,10 +584,10 @@ export default function Onboarding() {
                 accentColor="orange"
               />
             </Field>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 4: Entrenamiento ────────────────────────────────── */}
-          <Section emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+          <SectionCardemoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
             <Field label={t("fitness_level")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
@@ -642,7 +642,7 @@ export default function Onboarding() {
                 <span>{t("seven_days")}</span>
               </div>
             </Field>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 5: Suplementos ──────────────────────────────────── */}
           <Section
@@ -743,10 +743,10 @@ export default function Onboarding() {
                 );
               })}
             </div>
-          </Section>
+          </SectionCard>
 
           {/* ── Section 6: CTA ──────────────────────────────────────────── */}
-          <div className="pt-2 pb-8">
+          <div className="rounded-2xl border p-5 pb-6" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
             {/* Error banner */}
             {error && (
               <div className="mb-5 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
@@ -884,7 +884,7 @@ function Logo() {
   );
 }
 
-function Section({
+function SectionCard({
   emoji,
   title,
   badge,
@@ -896,21 +896,28 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div
+      className="rounded-2xl border p-5"
+      style={{ background: "#141414", borderColor: "#1f1f1f" }}
+    >
       {/* Section header */}
-      <div className="flex items-center gap-2 mb-5">
-        <span className="text-xl">{emoji}</span>
-        <h2 className="text-base font-display font-black uppercase text-white tracking-wide">
+      <div
+        className="flex items-center gap-2 mb-5 pb-3"
+        style={{ borderBottom: "1px solid #1f1f1f" }}
+      >
+        <span className="text-lg">{emoji}</span>
+        <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "#888" }}>
           {title}
         </h2>
         {badge && (
-          <span className="text-[10px] font-semibold text-[#555555] bg-[#1A1A1A] border border-[#2A2A2A] rounded-full px-2 py-0.5 ml-1">
+          <span
+            className="text-[9px] font-semibold rounded-full px-2 py-0.5 ml-1"
+            style={{ color: "#555", background: "#1a1a1a", border: "1px solid #2a2a2a" }}
+          >
             {badge}
           </span>
         )}
-        <div className="flex-1 h-px bg-[#1E1E1E] ml-1" />
       </div>
-
       <div className="space-y-5">{children}</div>
     </div>
   );
