@@ -286,7 +286,7 @@ export default function Onboarding() {
         <div className="space-y-3">
 
           {/* ── Section 1: Sobre ti ─────────────────────────────────────── */}
-          <SectionCardemoji="👤" title={isES ? "Sobre ti" : "About you"}>
+          <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
             <Field label={t("what_call_you")} hint={t("personalise_hint")}>
               <input
                 type="text"
@@ -361,7 +361,7 @@ export default function Onboarding() {
           </SectionCard>
 
           {/* ── Section 2: Tu objetivo ──────────────────────────────────── */}
-          <SectionCardemoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
+          <SectionCard emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
             <div className="flex flex-col gap-3">
               {[
                 { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"   : "Lose weight" },
@@ -453,7 +453,7 @@ export default function Onboarding() {
           </SectionCard>
 
           {/* ── Section 2b: Ayuno intermitente ──────────────────────────── */}
-          <SectionCardemoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
+          <SectionCard emoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
             <div className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
               fastingEnabled ? "border-[#AAFF45]/40 bg-[#AAFF45]/5" : "border-[#2A2A2A] bg-[#111111]"
             }`}>
@@ -533,7 +533,7 @@ export default function Onboarding() {
           </SectionCard>
 
           {/* ── Section 3: Tu dieta ─────────────────────────────────────── */}
-          <SectionCardemoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+          <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
             <Field label={t("diet_type_question")}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {[
@@ -587,7 +587,7 @@ export default function Onboarding() {
           </SectionCard>
 
           {/* ── Section 4: Entrenamiento ────────────────────────────────── */}
-          <SectionCardemoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+          <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
             <Field label={t("fitness_level")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
@@ -645,7 +645,7 @@ export default function Onboarding() {
           </SectionCard>
 
           {/* ── Section 5: Suplementos ──────────────────────────────────── */}
-          <Section
+          <SectionCard
             emoji="💊"
             title={isES ? "Suplementos" : "Supplements"}
             badge={isES ? "opcional" : "optional"}
