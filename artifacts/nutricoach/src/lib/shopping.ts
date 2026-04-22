@@ -61,25 +61,55 @@ const CATEGORY_META: Record<string, {
 
 // ─── Unit normalization ───────────────────────────────────────────────────────
 
+// ─── Spice / condiment keywords — always show "al gusto" ─────────────────────
+
+const SPICE_KEYS = new Set([
+  "sal", "pimienta", "sal y pimienta", "oregano", "azafran", "comino",
+  "curry", "pimenton", "paprika", "canela", "nuez moscada", "cilantro",
+  "perejil", "tomillo", "romero", "laurel", "albahaca", "jengibre",
+  "curcuma", "cayena", "cardamomo", "anis", "hinojo", "mostaza en polvo",
+  "hierbas provenzales", "mezcla de especias", "especias mixtas",
+  "pimienta negra", "pimienta blanca", "pimienta roja",
+]);
+
+function isSpice(normalizedKey: string): boolean {
+  return SPICE_KEYS.has(normalizedKey);
+}
+
+// ─── "al gusto" detection ─────────────────────────────────────────────────────
+
+const GUSTO_TERMS = ["al gusto", "to taste", "a taste", "una pizca", "a pinch",
+  "pizca", "pinch", "gusto", "taste", "según gusto", "cantidad necesaria", "c/n"];
+
+function isGustoAmount(amount: string): boolean {
+  const lower = amount.toLowerCase().trim();
+  return GUSTO_TERMS.some(t => lower.includes(t));
+}
+
+// ─── Unit normalization ───────────────────────────────────────────────────────
+
 const UNIT_ALIASES: Record<string, string> = {
-  gram: "g", grams: "g",
-  kilogram: "kg", kilograms: "kg",
+  gram: "g", grams: "g", gramo: "g", gramos: "g",
+  kilogram: "kg", kilograms: "kg", kilogramo: "kg", kilogramos: "kg",
   ml: "ml", milliliter: "ml", milliliters: "ml", millilitre: "ml", millilitres: "ml",
-  liter: "l", liters: "l", litre: "l", litres: "l",
+  liter: "l", liters: "l", litre: "l", litres: "l", litro: "l", litros: "l",
   tablespoon: "tbsp", tablespoons: "tbsp", tbsp: "tbsp",
+  cucharada: "tbsp", cucharadas: "tbsp",
   teaspoon: "tsp", teaspoons: "tsp", tsp: "tsp",
-  cup: "cup", cups: "cup",
+  cucharadita: "tsp", cucharaditas: "tsp",
+  cup: "cup", cups: "cup", taza: "cup", tazas: "cup",
   ounce: "oz", ounces: "oz", oz: "oz",
   pound: "lb", pounds: "lb", lb: "lb",
-  piece: "piece", pieces: "piece",
-  slice: "slice", slices: "slice",
+  piece: "piece", pieces: "piece", pieza: "piece", piezas: "piece",
+  unidad: "piece", unidades: "piece", unit: "piece", units: "piece",
+  slice: "slice", slices: "slice", rebanada: "slice", rebanadas: "slice",
   strip: "strip", strips: "strip",
-  clove: "clove", cloves: "clove",
-  handful: "handful", handfuls: "handful",
-  sprig: "sprig", sprigs: "sprig",
+  clove: "clove", cloves: "clove", diente: "clove", dientes: "clove",
+  handful: "handful", handfuls: "handful", punado: "handful",
+  sprig: "sprig", sprigs: "sprig", ramita: "sprig", ramitas: "sprig",
   stalk: "stalk", stalks: "stalk",
-  leaf: "leaf", leaves: "leaf",
-  can: "can", cans: "can",
+  leaf: "leaf", leaves: "leaf", hoja: "leaf", hojas: "leaf",
+  can: "can", cans: "can", lata: "can", latas: "can",
   scoop: "scoop", scoops: "scoop",
 };
 
@@ -87,6 +117,24 @@ function normalizeUnit(unit: string): string {
   const lower = unit.toLowerCase().trim();
   return UNIT_ALIASES[lower] ?? lower;
 }
+
+// ml equivalents for volume units — used to unify liquid measurements
+const VOLUME_TO_ML: Record<string, number> = {
+  ml: 1, l: 1000,
+  tbsp: 15, tsp: 5, cup: 240,
+};
+
+// g equivalents for weight units
+const WEIGHT_TO_G: Record<string, number> = {
+  g: 1, kg: 1000, oz: 28.35, lb: 453.6,
+};
+
+// Units treated as countable (round up to integers)
+const COUNT_UNITS = new Set(["piece", "slice", "can", "scoop", "clove", "handful", "sprig", "stalk", "leaf", "strip"]);
+
+function isVolumeUnit(u: string): boolean { return u in VOLUME_TO_ML; }
+function isWeightUnit(u: string): boolean { return u in WEIGHT_TO_G; }
+function isCountUnit(u: string): boolean { return COUNT_UNITS.has(u); }
 
 function normalizeKey(name: string): string {
   let s = name
@@ -152,19 +200,78 @@ function formatNum(n: number): string {
   return n % 1 === 0 ? String(n) : String(Math.round(n * 10) / 10);
 }
 
-function mergeAmounts(amounts: string[]): string {
+function mergeAmounts(amounts: string[], ingredientKey = ""): string {
+  if (amounts.length === 0) return "";
+
+  // 1. Any "al gusto" signal → always show "al gusto"
+  if (amounts.some(isGustoAmount)) return "al gusto";
+  // 1b. Single unchanged amount
   if (amounts.length === 1) return amounts[0];
-  const byUnit = new Map<string, number>();
+
+  // 2. Parse all amounts
+  const parsed: Array<{ num: number; unit: string }> = [];
   const unparseable: string[] = [];
   for (const raw of amounts) {
-    const parsed = parseAmount(raw);
-    if (!parsed) { unparseable.push(raw); continue; }
-    byUnit.set(parsed.unit, (byUnit.get(parsed.unit) ?? 0) + parsed.num);
+    const p = parseAmount(raw);
+    if (p) parsed.push(p); else unparseable.push(raw);
+  }
+
+  // 3. If nothing parsed, fall back
+  if (parsed.length === 0) return amounts[0];
+
+  // 4. Detect dominant measurement family
+  const totalVolumeMl = parsed
+    .filter(p => isVolumeUnit(p.unit))
+    .reduce((s, p) => s + p.num * (VOLUME_TO_ML[p.unit] ?? 1), 0);
+
+  const totalWeightG = parsed
+    .filter(p => isWeightUnit(p.unit))
+    .reduce((s, p) => s + p.num * (WEIGHT_TO_G[p.unit] ?? 1), 0);
+
+  const totalCount = parsed
+    .filter(p => isCountUnit(p.unit) || p.unit === "")
+    .reduce((s, p) => s + p.num, 0);
+
+  const hasVolume = parsed.some(p => isVolumeUnit(p.unit));
+  const hasWeight = parsed.some(p => isWeightUnit(p.unit));
+
+  // 5. If all or mostly volume → unify to ml / l
+  if (hasVolume && !hasWeight) {
+    const total = Math.round(totalVolumeMl);
+    if (total === 0) return amounts[0];
+    if (total >= 1000) {
+      const liters = Math.round(total / 100) / 10;
+      return `~${liters} l`;
+    }
+    return `~${total} ml`;
+  }
+
+  // 6. If all or mostly weight → unify to g / kg
+  if (hasWeight && !hasVolume) {
+    const total = Math.round(totalWeightG);
+    if (total === 0) return amounts[0];
+    if (total >= 1000) {
+      const kg = Math.round(total / 100) / 10;
+      return `~${kg} kg`;
+    }
+    return `~${total} g`;
+  }
+
+  // 7. Countable items (pieces, slices, cans…) — round up fractions
+  if (!hasVolume && !hasWeight && totalCount > 0) {
+    const count = Math.ceil(totalCount);
+    const unit = parsed.find(p => isCountUnit(p.unit))?.unit ?? parsed[0]?.unit ?? "";
+    return unit ? `${count} ${unit}` : String(count);
+  }
+
+  // 8. Mixed families — group by canonical family and show cleanly
+  const byUnit = new Map<string, number>();
+  for (const p of parsed) {
+    byUnit.set(p.unit, (byUnit.get(p.unit) ?? 0) + p.num);
   }
   const parts: string[] = [];
   for (const [unit, total] of byUnit) {
-    const numStr = formatNum(total);
-    parts.push(unit ? `${numStr} ${unit}` : numStr);
+    parts.push(unit ? `${formatNum(total)} ${unit}` : formatNum(total));
   }
   for (const u of unparseable) parts.push(u);
   return parts.join(" + ");
@@ -207,10 +314,12 @@ export function buildShoppingCategories(mealPlan: MealPlan): ShoppingCategory[] 
   const groups = new Map<string, ShoppingItem[]>();
   for (const [key, { name, amounts, rawCount, category, sources }] of byKey) {
     if (!groups.has(category)) groups.set(category, []);
+    // Spices/condiments always show "al gusto" regardless of amounts
+    const amount = isSpice(key) ? "al gusto" : mergeAmounts(amounts, key);
     groups.get(category)!.push({
       key,
       name,
-      amount: mergeAmounts(amounts),
+      amount,
       category,
       mealCount: rawCount,
       sources,
