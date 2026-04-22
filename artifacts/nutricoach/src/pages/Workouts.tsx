@@ -42,6 +42,56 @@ function useExerciseImages(name: string, lang: string = "en", exerciseId?: strin
   });
 }
 
+// ── Muscle name translation ────────────────────────────────────────────────────
+
+const MUSCLE_TRANSLATIONS: Record<string, string> = {
+  "quads": "Cuádriceps",
+  "quadriceps": "Cuádriceps",
+  "glutes": "Glúteos",
+  "glute": "Glúteos",
+  "hamstrings": "Isquiotibiales",
+  "calves": "Gemelos",
+  "calf": "Gemelos",
+  "pectorals": "Pectoral",
+  "pectoral": "Pectoral",
+  "chest": "Pecho",
+  "lats": "Dorsales",
+  "upper back": "Espalda alta",
+  "lower back": "Lumbares",
+  "traps": "Trapecios",
+  "trapezius": "Trapecios",
+  "delts": "Deltoides",
+  "delt": "Deltoides",
+  "deltoids": "Deltoides",
+  "shoulders": "Hombros",
+  "biceps": "Bíceps",
+  "triceps": "Tríceps",
+  "abs": "Abdominales",
+  "obliques": "Oblicuos",
+  "forearms": "Antebrazos",
+  "adductors": "Aductores",
+  "abductors": "Abductores",
+  "quad": "Cuádriceps",
+  "hip flexors": "Flexores de cadera",
+  "serratus anterior": "Serrato anterior",
+  "rhomboids": "Romboides",
+  "spine": "Columna",
+  "neck": "Cuello",
+};
+
+function translateMuscle(muscle: string, lang: string): string {
+  if (lang !== "es") return muscle;
+  return MUSCLE_TRANSLATIONS[muscle.toLowerCase().trim()] ?? muscle;
+}
+
+function translateMuscles(muscles: string, lang: string): string {
+  if (!muscles) return muscles;
+  return muscles
+    .split(/[,·]/)
+    .map(m => translateMuscle(m.trim(), lang))
+    .join(" · ");
+}
+
 function equipmentTKey(equipment: string): string {
   const map: Record<string, string> = {
     "barbell": "eq_barbell",
@@ -582,7 +632,11 @@ function NumericInput({
 
 function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
   const t = useT();
-  const muscleGroup = exercise.muscles?.split(/[,·]/)[0].trim() ?? "general";
+  const { lang } = useLanguage();
+  const muscleGroup = translateMuscle(
+    exercise.muscles?.split(/[,·]/)[0].trim() ?? "general",
+    lang,
+  );
   const { data: logs = [] } = useStrengthLogs(muscleGroup);
   const saveLog = useSaveStrengthLog();
 
@@ -901,7 +955,7 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
                     padding: "2px 8px",
                   }}
                 >
-                  {exercise.muscles.replace(/,\s*/g, " · ")}
+                  {translateMuscles(exercise.muscles, lang)}
                 </span>
               )}
               {equipment && (
