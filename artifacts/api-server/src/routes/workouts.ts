@@ -93,7 +93,7 @@ router.post("/workouts", async (req, res) => {
 
   const { data: profileData } = await db
     .from("profiles")
-    .select("goal, training_level, training_location, training_days_per_week")
+    .select("goal, goal_pace, fasting_protocol, training_level, training_location, training_days_per_week")
     .eq("id", req.user.id)
     .maybeSingle();
 
@@ -115,6 +115,8 @@ router.post("/workouts", async (req, res) => {
   try {
     workoutDays = await generateWorkoutPlanForUser({
       goalType: profileData.goal,
+      goalPace: profileData.goal_pace ?? "moderate",
+      fastingProtocol: profileData.fasting_protocol ?? null,
       trainingLevel: profileData.training_level,
       trainingDaysPerWeek: profileData.training_days_per_week ?? 3,
       trainingLocation: profileData.training_location ?? "home",

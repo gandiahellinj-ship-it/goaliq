@@ -69,7 +69,7 @@ router.post("/meals", async (req, res) => {
   // Query both tables in parallel — data lives in profiles + food_preferences
   const [{ data: profileData }, { data: prefsData }] = await Promise.all([
     db.from("profiles")
-      .select("id, full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, diet_type, training_level, training_location, training_days_per_week")
+      .select("id, full_name, age, sex, height_cm, weight_kg, target_weight_kg, goal, goal_pace, fasting_protocol, diet_type, training_level, training_location, training_days_per_week")
       .eq("id", req.user.id)
       .maybeSingle(),
     db.from("food_preferences")
@@ -109,6 +109,8 @@ router.post("/meals", async (req, res) => {
     heightCm: profileData.height_cm ?? 170,
     weightKg: profileData.weight_kg ?? 70,
     targetWeightKg: profileData.target_weight_kg ?? null,
+    goalPace: profileData.goal_pace ?? "moderate",
+    fastingProtocol: profileData.fasting_protocol ?? null,
     trainingLevel: profileData.training_level ?? "beginner",
     trainingLocation: profileData.training_location ?? "home",
     trainingDaysPerWeek: profileData.training_days_per_week ?? 3,

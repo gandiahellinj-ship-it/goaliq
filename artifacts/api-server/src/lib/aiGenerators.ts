@@ -328,6 +328,7 @@ export async function generateMealPlanForUser(profile: {
 }, lang: "es" | "en" = "es") {
   const allergies = (profile.allergies as string[]).filter(Boolean);
   const dislikedFoods = (profile.dislikedFoods as string[]).filter(Boolean);
+  const likedFoods = (profile.likedFoods as string[]).filter(Boolean);
   const name = typeof (profile as any).fullName === "string" ? (profile as any).fullName : "the user";
 
   const goalPace = (profile as any).goalPace ?? "moderate";
@@ -357,6 +358,7 @@ export async function generateMealPlanForUser(profile: {
 - Fasting protocol: ${fastingProtocol ?? "none"}
 - Allergies: ${allergies.join(", ") || "none"}
 - Disliked foods: ${dislikedFoods.join(", ") || "none"}
+- Liked foods (include when possible): ${likedFoods.join(", ") || "none"}
 - Current weight: ${profile.weightKg}kg${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
 - Age: ${profile.age}, Sex: ${profile.sex}${fastingInstruction ? `\n\n${fastingInstruction}` : ""}`;
 
