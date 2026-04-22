@@ -396,8 +396,12 @@ ${dayNameRule}
 
 // ─── Workout plan ─────────────────────────────────────────────────────────────
 
-function isWorkoutArray(val: unknown): val is any[] {
+function isWorkoutArray(val: unknown, expectedDays?: number): val is any[] {
   if (!Array.isArray(val) || val.length === 0) return false;
+  if (expectedDays && val.length !== expectedDays) {
+    console.warn(`[workout] Expected ${expectedDays} days, got ${val.length} — retrying`);
+    return false;
+  }
   return val.every((day: any) =>
     Array.isArray(day.exercises) &&
     day.exercises.length >= 4 &&
@@ -477,7 +481,9 @@ RULES:
 
 ${langNoteInstruction}
 
-Return a JSON array with exactly ${trainingDays} objects. Each object:
+CRITICAL: Return a JSON array with EXACTLY ${trainingDays} objects — one per training day. Count them before responding. If you return ${trainingDays - 1} or ${trainingDays + 1} objects the response will be rejected and you must retry. No more, no less than ${trainingDays}.
+
+Each object:
 {
   "day_name": string — MUST be a weekday name: monday, tuesday, wednesday, thursday, friday, saturday, or sunday. Never use "day 1", "day 2" etc. Example values: "monday", "tuesday", "wednesday".
   "workout_type": string (descriptive session name),
@@ -501,7 +507,8 @@ Return a JSON array with exactly ${trainingDays} objects. Each object:
 
 Return ONLY the JSON array, nothing else.`;
 
-  const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, 4000, isWorkoutArray, "claude-haiku-4-5-20251001");
+  const maxTokens = trainingDays >= 5 ? 6000 : 4000;
+  const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, maxTokens, (val) => isWorkoutArray(val, trainingDays), "claude-haiku-4-5-20251001");
   const processedDays = (workoutData as any[]).map((day: any) => ({
     ...day,
     exercises: (day.exercises ?? []).map((ex: any) => ({

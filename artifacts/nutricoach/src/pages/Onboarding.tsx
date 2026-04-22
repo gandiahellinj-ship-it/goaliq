@@ -354,54 +354,30 @@ export default function Onboarding() {
               </div>
             </Field>
 
-            <Field label={t("food_allergies")} hint={t("leave_blank")}>
-              <input
-                type="text"
+            <Field label={t("food_allergies")}>
+              <TagInput
+                tags={formData.allergies}
+                onChange={v => update({ allergies: v })}
                 placeholder={t("allergies_placeholder")}
-                value={formData.allergies.join(", ")}
-                onChange={e =>
-                  update({
-                    allergies: e.target.value
-                      .split(",")
-                      .map(s => s.trim())
-                      .filter(Boolean),
-                  })
-                }
-                className={inputClass}
+                accentColor="green"
               />
             </Field>
 
-            <Field label={t("foods_avoid")} hint={t("leave_blank")}>
-              <input
-                type="text"
+            <Field label={t("foods_avoid")}>
+              <TagInput
+                tags={formData.dislikedFoods}
+                onChange={v => update({ dislikedFoods: v })}
                 placeholder={t("foods_avoid_placeholder")}
-                value={formData.dislikedFoods.join(", ")}
-                onChange={e =>
-                  update({
-                    dislikedFoods: e.target.value
-                      .split(",")
-                      .map(s => s.trim())
-                      .filter(Boolean),
-                  })
-                }
-                className={inputClass}
+                accentColor="red"
               />
             </Field>
 
             <Field label={t("foods_love")} hint={t("foods_love_hint")}>
-              <input
-                type="text"
+              <TagInput
+                tags={formData.likedFoods}
+                onChange={v => update({ likedFoods: v })}
                 placeholder={t("foods_love_placeholder")}
-                value={formData.likedFoods.join(", ")}
-                onChange={e =>
-                  update({
-                    likedFoods: e.target.value
-                      .split(",")
-                      .map(s => s.trim())
-                      .filter(Boolean),
-                  })
-                }
-                className={inputClass}
+                accentColor="orange"
               />
             </Field>
           </Section>
@@ -614,6 +590,86 @@ export default function Onboarding() {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+function TagInput({
+  tags,
+  onChange,
+  placeholder,
+  accentColor = "green",
+}: {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  placeholder: string;
+  accentColor?: "green" | "orange" | "red";
+}) {
+  const [input, setInput] = useState("");
+
+  const tagStyles = {
+    green:  "bg-[#AAFF45]/15 border-[#AAFF45]/30 text-[#AAFF45]",
+    orange: "bg-[#FFB800]/15 border-[#FFB800]/30 text-[#FFB800]",
+    red:    "bg-[#FF6B6B]/15 border-[#FF6B6B]/30 text-[#FF6B6B]",
+  };
+
+  function addTag(value: string) {
+    const trimmed = value.trim();
+    if (!trimmed || tags.map(t => t.toLowerCase()).includes(trimmed.toLowerCase())) return;
+    onChange([...tags, trimmed]);
+  }
+
+  function removeTag(tag: string) {
+    onChange(tags.filter(t => t !== tag));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag(input);
+      setInput("");
+    }
+    if (e.key === "Backspace" && input === "" && tags.length > 0) {
+      onChange(tags.slice(0, -1));
+    }
+  }
+
+  return (
+    <div>
+      <div
+        className="min-h-[48px] w-full px-3 py-2 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A] focus-within:border-[#AAFF45]/50 focus-within:ring-2 focus-within:ring-[#AAFF45]/10 transition-all flex flex-wrap gap-2 items-center cursor-text"
+        onClick={e => (e.currentTarget.querySelector("input") as HTMLInputElement)?.focus()}
+      >
+        {tags.map(tag => (
+          <span
+            key={tag}
+            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${tagStyles[accentColor]}`}
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              className="hover:text-white transition-colors leading-none text-sm"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          type="text"
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={() => {
+            if (input.trim()) { addTag(input); setInput(""); }
+          }}
+          placeholder={tags.length === 0 ? placeholder : ""}
+          className="flex-1 min-w-[120px] bg-transparent text-white placeholder:text-[#3A3A3A] text-sm outline-none"
+        />
+      </div>
+      <p className="text-[10px] text-[#444] mt-1.5">
+        Escribe y pulsa Enter · Backspace para borrar
+      </p>
+    </div>
+  );
+}
 
 function Logo() {
   return (
