@@ -252,7 +252,7 @@ function WorkoutsContent() {
 
       {/* Generation overlay — shown when regenerating an existing plan */}
       {generateMutation.isPending && workoutPlan && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="rounded-2xl border p-8 flex flex-col items-center gap-4 max-w-xs mx-4 text-center" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
             <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--giq-accent)" }} />
             <div>

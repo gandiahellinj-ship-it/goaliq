@@ -204,25 +204,8 @@ export default function Onboarding() {
       await submitOnboarding({ ...formData, supplements, goalPace, fastingProtocol: fastingEnabled ? fastingProtocol : null });
 
       if (isEditMode) {
-        const orig = originalDataRef.current;
-        const workoutChanged =
-          !orig ||
-          formData.trainingLocation !== orig.trainingLocation ||
-          formData.trainingDaysPerWeek !== orig.trainingDaysPerWeek ||
-          formData.trainingLevel !== orig.trainingLevel;
-        const mealChanged =
-          !orig ||
-          formData.goalType !== orig.goalType ||
-          formData.dietType !== orig.dietType ||
-          JSON.stringify(formData.allergies) !== JSON.stringify(orig.allergies) ||
-          JSON.stringify(formData.likedFoods) !== JSON.stringify(orig.likedFoods) ||
-          JSON.stringify(formData.dislikedFoods) !== JSON.stringify(orig.dislikedFoods);
-
-        if (workoutChanged) {
-          setLocation(mealChanged ? "/workouts?regenerate=true&meal=true" : "/workouts?regenerate=true");
-        } else {
-          setLocation("/meals?regenerate=true");
-        }
+        // Always regenerate both plans on any preference change
+        setLocation("/workouts?regenerate=true&meal=true");
       } else {
         setLocation("/meals?regenerate=true");
       }
