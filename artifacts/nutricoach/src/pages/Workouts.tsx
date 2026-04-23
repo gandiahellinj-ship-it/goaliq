@@ -166,6 +166,7 @@ function WorkoutsContent() {
   const generateMutation = useGenerateWorkoutPlan();
   const mealGenerateMutation = useGenerateMealPlan();
   const hasTriggeredRegen = useRef(false);
+  const hasProcessedUrlParam = useRef(false);
   const [regenFromPrefs, setRegenFromPrefs] = useState(false);
   const [genSuccess, setGenSuccess] = useState(false);
   const t = useT();
@@ -174,11 +175,15 @@ function WorkoutsContent() {
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Effect 1: handle ?regenerate=true URL param — fires once on mount, doesn't wait for workoutPlan
+  // Effect 1: handle ?regenerate=true URL param — waits for lang to resolve, fires only once
   useEffect(() => {
+    if (hasProcessedUrlParam.current) return;
+
     const params = new URLSearchParams(window.location.search);
     if (params.get("regenerate") !== "true") return;
 
+    console.log("[Workouts] ?regenerate param found, lang:", lang);
+    hasProcessedUrlParam.current = true;
     window.history.replaceState({}, "", window.location.pathname);
     hasTriggeredRegen.current = true;
     setRegenFromPrefs(true);
@@ -186,16 +191,20 @@ function WorkoutsContent() {
     const alsoMeal = params.get("meal") === "true";
     generateMutation.mutate({ lang }, {
       onSuccess: () => {
+        console.log("[Workouts] Generation complete");
         setRegenFromPrefs(false);
         setGenSuccess(true);
         setTimeout(() => setGenSuccess(false), 3500);
       },
-      onError: () => setRegenFromPrefs(false),
+      onError: (err) => {
+        console.log("[Workouts] Generation failed:", err);
+        setRegenFromPrefs(false);
+      },
     });
     if (alsoMeal) {
       mealGenerateMutation.mutate({ lang });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang]); // depends on lang so it fires once lang is resolved
 
   // Effect 2: auto-regen when no plan or missing exercise_ids
   useEffect(() => {

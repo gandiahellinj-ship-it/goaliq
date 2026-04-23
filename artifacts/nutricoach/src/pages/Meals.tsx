@@ -108,6 +108,7 @@ function MealsContent() {
     if (!lang) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("regenerate") !== "true") return;
+    console.log("[Meals] ?regenerate param found, lang:", lang);
     autoGenTriggered.current = true;
     setRegenFromUrl(true);
     window.history.replaceState({}, "", window.location.pathname);
@@ -115,11 +116,15 @@ function MealsContent() {
       { token: session.access_token, lang },
       {
         onSuccess: () => {
+          console.log("[Meals] Generation complete");
           setRegenFromUrl(false);
           setGenSuccess(true);
           setTimeout(() => setGenSuccess(false), 3500);
         },
-        onError: () => setRegenFromUrl(false),
+        onError: (err) => {
+          console.log("[Meals] Generation failed:", err);
+          setRegenFromUrl(false);
+        },
       },
     );
   }, [session?.access_token, lang]);
