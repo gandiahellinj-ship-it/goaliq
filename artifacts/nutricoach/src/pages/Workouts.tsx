@@ -337,7 +337,7 @@ function WorkoutsContent() {
       </AnimatePresence>
 
       {/* Day Tabs — 7-column grid, fits all screen sizes */}
-      <div className="grid grid-cols-7 gap-1 mb-6">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-4 sm:mb-6">
         {DAYS.map(day => {
           const isToday = day.id === todayName;
           const isActive = day.id === activeDay;
@@ -350,7 +350,7 @@ function WorkoutsContent() {
             <button
               key={day.id}
               onClick={() => setActiveDay(day.id)}
-              className="flex flex-col items-center px-1 py-2 sm:px-3 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all relative"
+              className="flex flex-col items-center px-0 py-1.5 sm:px-3 sm:py-2 rounded-lg font-semibold transition-all relative"
               style={
                 isActive
                   ? { backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }
@@ -367,16 +367,24 @@ function WorkoutsContent() {
                     }
               }
             >
-              <span className="truncate w-full text-center">{translateDay(day.id, t)}</span>
+              <span className="w-full text-center text-[10px] sm:text-xs leading-none">
+                {translateDay(day.id, t).substring(0, 2)}
+              </span>
+              {/* Training/rest dot indicator on mobile */}
+              <span
+                className="block sm:hidden w-1.5 h-1.5 rounded-full mt-0.5"
+                style={{ backgroundColor: isTraining ? "var(--giq-accent)" : "transparent" }}
+              />
+              {/* Duration / rest label on sm+ */}
               {isTraining && duration ? (
                 <span
-                  className="font-bold leading-none mt-0.5 text-[9px] sm:text-xs"
+                  className="hidden sm:block font-bold leading-none mt-0.5 text-[9px] sm:text-xs"
                   style={{ color: isActive ? "color-mix(in srgb, var(--giq-accent-text) 60%, transparent)" : "var(--giq-accent)" }}
                 >
                   {duration}'
                 </span>
               ) : !isTraining ? (
-                <span className="leading-none mt-0.5 text-[9px] sm:text-xs" style={{ color: "var(--giq-text-muted)" }}>
+                <span className="hidden sm:block leading-none mt-0.5 text-[9px] sm:text-xs" style={{ color: "var(--giq-text-muted)" }}>
                   {t("rest_short")}
                 </span>
               ) : null}
