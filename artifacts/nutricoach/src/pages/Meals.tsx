@@ -97,6 +97,7 @@ function MealsContent() {
   const [activeDay, setActiveDay] = useState(defaultDay);
   const [showConfirm, setShowConfirm] = useState(false);
   const [genSuccess, setGenSuccess] = useState(false);
+  const [regenFromUrl, setRegenFromUrl] = useState(false);
 
   const isLoading = mealLoading || profileLoading;
 
@@ -108,14 +109,17 @@ function MealsContent() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("regenerate") !== "true") return;
     autoGenTriggered.current = true;
+    setRegenFromUrl(true);
     window.history.replaceState({}, "", window.location.pathname);
     generateMutation.mutate(
       { token: session.access_token, lang },
       {
         onSuccess: () => {
+          setRegenFromUrl(false);
           setGenSuccess(true);
           setTimeout(() => setGenSuccess(false), 3500);
         },
+        onError: () => setRegenFromUrl(false),
       },
     );
   }, [session?.access_token, lang]);
@@ -244,7 +248,7 @@ function MealsContent() {
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
-      {generateMutation.isPending && mealPlan && (
+      {generateMutation.isPending && (regenFromUrl || mealPlan) && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="rounded-2xl border p-8 flex flex-col items-center gap-4 max-w-xs mx-4 text-center" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
             <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--giq-accent)" }} />

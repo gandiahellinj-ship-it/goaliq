@@ -174,32 +174,32 @@ function WorkoutsContent() {
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Auto-regenerate: no plan, missing exercise_ids, or forced from preferences edit
+  // Effect 1: handle ?regenerate=true URL param — fires once on mount, doesn't wait for workoutPlan
   useEffect(() => {
-    if (hasTriggeredRegen.current || generateMutation.isPending) return;
-
-    // Check for forced regen from preferences edit (?regenerate=true)
     const params = new URLSearchParams(window.location.search);
-    if (params.get("regenerate") === "true") {
-      const alsoMeal = params.get("meal") === "true";
-      window.history.replaceState({}, "", window.location.pathname);
-      hasTriggeredRegen.current = true;
-      setRegenFromPrefs(true);
-      generateMutation.mutate({ lang }, {
-        onSuccess: () => {
-          setRegenFromPrefs(false);
-          setGenSuccess(true);
-          setTimeout(() => setGenSuccess(false), 3500);
-        },
-        onError: () => setRegenFromPrefs(false),
-      });
-      if (alsoMeal) {
-        mealGenerateMutation.mutate({ lang });
-      }
-      return;
-    }
+    if (params.get("regenerate") !== "true") return;
 
-    if (isLoading) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    hasTriggeredRegen.current = true;
+    setRegenFromPrefs(true);
+
+    const alsoMeal = params.get("meal") === "true";
+    generateMutation.mutate({ lang }, {
+      onSuccess: () => {
+        setRegenFromPrefs(false);
+        setGenSuccess(true);
+        setTimeout(() => setGenSuccess(false), 3500);
+      },
+      onError: () => setRegenFromPrefs(false),
+    });
+    if (alsoMeal) {
+      mealGenerateMutation.mutate({ lang });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Effect 2: auto-regen when no plan or missing exercise_ids
+  useEffect(() => {
+    if (isLoading || hasTriggeredRegen.current || generateMutation.isPending) return;
 
     const needsRegen = !workoutPlan || (workoutPlan.days ?? []).some(day =>
       day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
@@ -251,7 +251,7 @@ function WorkoutsContent() {
     <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
-      {generateMutation.isPending && workoutPlan && (
+      {generateMutation.isPending && (regenFromPrefs || workoutPlan) && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="rounded-2xl border p-8 flex flex-col items-center gap-4 max-w-xs mx-4 text-center" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
             <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--giq-accent)" }} />
