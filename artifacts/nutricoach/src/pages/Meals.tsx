@@ -624,7 +624,7 @@ function MealCard({
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 border-t border-[#222222]">
-              <div className="flex flex-row gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
 
                 {/* Ingredients */}
                 <div className="flex-1">
@@ -661,11 +661,11 @@ function MealCard({
 
                 {/* Plate distribution chart — visible on all sizes */}
                 {plateData.length > 0 && (
-                  <div className="flex flex-col items-center w-[80px] sm:w-[120px] shrink-0">
+                  <div className="flex flex-col items-center sm:shrink-0 sm:w-[120px] w-full">
                     <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-2 self-center">
                       {t("distribution")}
                     </h4>
-                    <div className="w-[72px] h-[72px] sm:w-[100px] sm:h-[100px]">
+                    <div className="w-[100px] h-[100px] sm:w-[100px] sm:h-[100px] mx-auto">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -695,7 +695,7 @@ function MealCard({
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="hidden sm:block space-y-1 mt-1 w-full">
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center sm:flex-col sm:flex-nowrap sm:gap-y-1 sm:justify-start w-full">
                       {plateData.map(item => (
                         <div key={item.name} className="flex items-center gap-1.5 text-xs">
                           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
@@ -755,7 +755,7 @@ function IngredientRow({
         }`}
       >
         {/* Ingredient name */}
-        <span className="text-sm font-medium flex-1 min-w-0 truncate">
+        <span className="text-sm font-medium flex-1 min-w-0 sm:truncate break-words">
           {isApplying ? (
             <span className="flex items-center gap-1.5 text-[#555555]">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -806,7 +806,7 @@ function IngredientRow({
             ) : (
               <RefreshCw className="w-3 h-3" />
             )}
-            <span>{isLoadingOptions ? "…" : "Cambiar"}</span>
+            <span className="hidden sm:inline">{isLoadingOptions ? "…" : "Cambiar"}</span>
           </button>
         )}
       </div>
