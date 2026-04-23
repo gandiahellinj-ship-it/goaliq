@@ -83,7 +83,7 @@ function ShoppingListContent() {
 
   if (categories.length === 0 && customItems.length === 0) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] p-4 sm:p-6 lg:p-8">
+      <div className="min-h-screen bg-[#0A0A0A] px-3 py-4 sm:p-6 lg:p-8 overflow-x-hidden">
         <div className="max-w-xl mx-auto bg-white rounded-xl p-6">
           <PageHeader weekLabel={weekLabel} />
           <div className="mt-20 text-center">
@@ -108,7 +108,7 @@ function ShoppingListContent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#0A0A0A] px-3 py-4 sm:p-6 lg:p-8 overflow-x-hidden">
       <div className="max-w-xl mx-auto bg-white rounded-xl p-6 pb-8">
 
         {/* Header */}

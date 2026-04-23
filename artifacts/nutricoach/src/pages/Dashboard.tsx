@@ -574,7 +574,7 @@ export default function Dashboard() {
   const todayQuote = quotes[dayOfYear % quotes.length];
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto space-y-4">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto space-y-4 overflow-x-hidden">
 
       <WeeklyCheckin />
 

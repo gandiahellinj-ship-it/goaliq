@@ -58,7 +58,7 @@ function ProgressContent() {
       : null;
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28 overflow-x-hidden">
 
       <div className="flex items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-display font-black uppercase text-white">📈 {t("nav_progress")}</h1>

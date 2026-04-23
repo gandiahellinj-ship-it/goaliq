@@ -419,10 +419,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Link
         key={item.href}
         href={item.href}
-        className="flex flex-col items-center justify-center w-16 py-1.5 relative"
+        className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 relative"
       >
         <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 relative"
+          className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 relative"
           style={{
             backgroundColor: isActive
               ? "color-mix(in srgb, var(--giq-accent) 15%, transparent)"
@@ -457,7 +457,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div
-      className="min-h-screen flex flex-col md:flex-row font-sans"
+      className="min-h-screen flex flex-col md:flex-row font-sans overflow-x-hidden"
       style={{ backgroundColor: "var(--giq-bg-primary)", color: "var(--giq-text-primary)" }}
     >
       {/* Desktop Sidebar */}
@@ -787,7 +787,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile Bottom Nav */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-1 pt-2 pb-safe"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 px-0 pt-2 pb-safe"
         style={{
           backgroundColor: "var(--giq-bg-secondary)",
           borderTop: "1px solid var(--giq-border)",

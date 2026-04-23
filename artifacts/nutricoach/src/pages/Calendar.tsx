@@ -361,7 +361,7 @@ function CalendarContent() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28 overflow-x-hidden">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">

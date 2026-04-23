@@ -257,7 +257,7 @@ function WorkoutsContent() {
   const isTrainingDay = !activeDayData?.isRestDay;
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
       {generateMutation.isPending && (regenFromPrefs || workoutPlan) && (
@@ -367,7 +367,7 @@ function WorkoutsContent() {
                     }
               }
             >
-              {translateDay(day.id, t)}
+              <span className="truncate w-full text-center">{translateDay(day.id, t)}</span>
               {isTraining && duration ? (
                 <span
                   className="font-bold leading-none mt-0.5 text-[9px] sm:text-xs"

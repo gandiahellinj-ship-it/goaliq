@@ -250,7 +250,7 @@ function MealsContent() {
   const goalLabel = profile?.goal ? (GOAL_LABELS[profile.goal] ?? profile.goal) : null;
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32 overflow-x-hidden">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
       {generateMutation.isPending && (regenFromUrl || mealPlan) && (
@@ -592,7 +592,7 @@ function MealCard({
               {mealLabel}
             </p>
             {/* Meal name */}
-            <p className="text-[22px] font-bold text-white leading-tight">
+            <p className="text-[22px] font-bold text-white leading-tight truncate">
               {meal.meal_name}
             </p>
           </div>
