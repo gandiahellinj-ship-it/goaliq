@@ -250,7 +250,7 @@ function MealsContent() {
   const goalLabel = profile?.goal ? (GOAL_LABELS[profile.goal] ?? profile.goal) : null;
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
+    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
       {generateMutation.isPending && (regenFromUrl || mealPlan) && (
@@ -659,37 +659,22 @@ function MealCard({
                   </div>
                 </div>
 
-                {/* Donut chart — hidden on mobile, visible on sm+ */}
+                {/* Plate distribution chart — visible on all sizes */}
                 {plateData.length > 0 && (
                   <div className="shrink-0">
-                    {/* Mobile: compact inline pills */}
-                    <div className="flex flex-wrap gap-1.5 sm:hidden">
-                      {plateData.map(item => (
-                        <span
-                          key={item.name}
-                          className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full font-semibold"
-                          style={{ backgroundColor: `${item.color}18`, color: item.color }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          {t(item.name.toLowerCase())} {item.value}%
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Desktop: full chart + legend */}
-                    <div className="hidden sm:flex flex-col items-center w-[130px]">
+                    <div className="flex flex-col items-center w-[110px] sm:w-[130px]">
                       <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-2 self-center">
                         {t("distribution")}
                       </h4>
-                      <div className="w-[110px] h-[110px]">
+                      <div className="w-[90px] h-[90px] sm:w-[110px] sm:h-[110px]">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
                               data={plateData}
                               cx="50%"
                               cy="50%"
-                              innerRadius={28}
-                              outerRadius={48}
+                              innerRadius="52%"
+                              outerRadius="82%"
                               dataKey="value"
                               stroke="none"
                             >

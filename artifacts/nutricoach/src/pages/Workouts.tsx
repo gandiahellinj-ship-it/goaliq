@@ -257,7 +257,7 @@ function WorkoutsContent() {
   const isTrainingDay = !activeDayData?.isRestDay;
 
   return (
-    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28">
+    <div className="p-5 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
 
       {/* Generation overlay — shown when regenerating an existing plan */}
       {generateMutation.isPending && (regenFromPrefs || workoutPlan) && (
