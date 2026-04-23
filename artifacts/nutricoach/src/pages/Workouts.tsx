@@ -336,8 +336,8 @@ function WorkoutsContent() {
         )}
       </AnimatePresence>
 
-      {/* Day Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 -mx-5 px-5 sm:mx-0 sm:px-0 mb-6 scrollbar-hide">
+      {/* Day Tabs — 7-column grid, fits all screen sizes */}
+      <div className="grid grid-cols-7 gap-1 mb-6">
         {DAYS.map(day => {
           const isToday = day.id === todayName;
           const isActive = day.id === activeDay;
@@ -350,7 +350,7 @@ function WorkoutsContent() {
             <button
               key={day.id}
               onClick={() => setActiveDay(day.id)}
-              className="flex-shrink-0 flex flex-col items-center px-4 py-2 rounded-lg font-semibold text-sm transition-all relative"
+              className="flex flex-col items-center px-1 py-2 sm:px-3 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all relative"
               style={
                 isActive
                   ? { backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }
@@ -370,19 +370,19 @@ function WorkoutsContent() {
               {translateDay(day.id, t)}
               {isTraining && duration ? (
                 <span
-                  className="font-bold leading-none mt-0.5"
-                  style={{ fontSize: 10, color: isActive ? "color-mix(in srgb, var(--giq-accent-text) 60%, transparent)" : "var(--giq-accent)" }}
+                  className="font-bold leading-none mt-0.5 text-[9px] sm:text-xs"
+                  style={{ color: isActive ? "color-mix(in srgb, var(--giq-accent-text) 60%, transparent)" : "var(--giq-accent)" }}
                 >
                   {duration}'
                 </span>
               ) : !isTraining ? (
-                <span className="leading-none mt-0.5" style={{ fontSize: 10, color: "var(--giq-text-muted)" }}>
+                <span className="leading-none mt-0.5 text-[9px] sm:text-xs" style={{ color: "var(--giq-text-muted)" }}>
                   {t("rest_short")}
                 </span>
               ) : null}
               {isToday && (
                 <span
-                  className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
+                  className="absolute -top-1 -right-1 w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full"
                   style={{
                     backgroundColor: isActive ? "color-mix(in srgb, var(--giq-accent-text) 30%, transparent)" : "var(--giq-accent)",
                     border: "2px solid var(--giq-bg-primary)",

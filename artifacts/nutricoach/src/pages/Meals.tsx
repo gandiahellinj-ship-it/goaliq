@@ -624,7 +624,7 @@ function MealCard({
             className="overflow-hidden"
           >
             <div className="px-5 pb-5 border-t border-[#222222]">
-              <div className="flex flex-col sm:flex-row gap-5 pt-4">
+              <div className="flex flex-row gap-3 pt-4">
 
                 {/* Ingredients */}
                 <div className="flex-1">
@@ -661,50 +661,48 @@ function MealCard({
 
                 {/* Plate distribution chart — visible on all sizes */}
                 {plateData.length > 0 && (
-                  <div className="shrink-0">
-                    <div className="flex flex-col items-center w-[110px] sm:w-[130px]">
-                      <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-2 self-center">
-                        {t("distribution")}
-                      </h4>
-                      <div className="w-[90px] h-[90px] sm:w-[110px] sm:h-[110px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={plateData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius="52%"
-                              outerRadius="82%"
-                              dataKey="value"
-                              stroke="none"
-                            >
-                              {plateData.map((entry, i) => (
-                                <Cell key={i} fill={entry.color} />
-                              ))}
-                            </Pie>
-                            <Tooltip
-                              formatter={(v) => [`${v}%`]}
-                              contentStyle={{
-                                borderRadius: 8,
-                                border: "1px solid #2A2A2A",
-                                backgroundColor: "#1A1A1A",
-                                fontSize: 12,
-                                padding: "6px 10px",
-                                color: "#FFFFFF",
-                              }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="space-y-1 mt-1 w-full">
-                        {plateData.map(item => (
-                          <div key={item.name} className="flex items-center gap-1.5 text-xs">
-                            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                            <span className="text-[#555555] flex-1 truncate">{t(item.name.toLowerCase())}</span>
-                            <span className="font-bold text-white">{item.value}%</span>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="flex flex-col items-center w-[80px] sm:w-[120px] shrink-0">
+                    <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-2 self-center">
+                      {t("distribution")}
+                    </h4>
+                    <div className="w-[72px] h-[72px] sm:w-[100px] sm:h-[100px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={plateData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius="52%"
+                            outerRadius="82%"
+                            dataKey="value"
+                            stroke="none"
+                          >
+                            {plateData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(v) => [`${v}%`]}
+                            contentStyle={{
+                              borderRadius: 8,
+                              border: "1px solid #2A2A2A",
+                              backgroundColor: "#1A1A1A",
+                              fontSize: 12,
+                              padding: "6px 10px",
+                              color: "#FFFFFF",
+                            }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="hidden sm:block space-y-1 mt-1 w-full">
+                      {plateData.map(item => (
+                        <div key={item.name} className="flex items-center gap-1.5 text-xs">
+                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="text-[#555555] flex-1 truncate">{t(item.name.toLowerCase())}</span>
+                          <span className="font-bold text-white">{item.value}%</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -776,7 +774,7 @@ function IngredientRow({
         {/* Amount + visual ref */}
         {safeAmount && (
           <div className="flex flex-col items-end shrink-0 gap-0.5">
-            <span className="text-xs text-white font-semibold bg-[#1A1A1A] border border-[#2A2A2A] px-2 py-0.5 rounded-md">
+            <span className="text-[11px] sm:text-xs text-white font-semibold bg-[#1A1A1A] border border-[#2A2A2A] px-1.5 sm:px-2 py-0.5 rounded-md">
               {safeAmount}
             </span>
             {ingredient.visual_ref && (
@@ -800,7 +798,7 @@ function IngredientRow({
                 ? "border-[#AAFF45]/50 text-[#AAFF45] bg-[#AAFF45]/15"
                 : disabled
                 ? "opacity-30 cursor-not-allowed border-[#2A2A2A] text-[#555555]"
-                : "opacity-0 group-hover:opacity-100 focus:opacity-100 border-[#2A2A2A] text-[#555555] hover:border-[#AAFF45]/30 hover:text-[#AAFF45] hover:bg-[#AAFF45]/10 active:scale-95"
+                : "sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 border-[#2A2A2A] text-[#555555] hover:border-[#AAFF45]/30 hover:text-[#AAFF45] hover:bg-[#AAFF45]/10 active:scale-95"
             }`}
           >
             {isLoadingOptions ? (
