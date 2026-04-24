@@ -294,13 +294,17 @@ function flatMealsToNestedDays(flatMeals: any[]): any[] {
       { name: "Sal", amount: "al gusto", visual_ref: "al gusto", category: "other" },
       { name: "Verduras de temporada", amount: "100g", visual_ref: "1 puñado", category: "vegetables" },
     ];
+    const mealType = (meal.meal_type ?? "other").toLowerCase();
+    const isSnackMeal = mealType === "snack_morning" || mealType === "snack_afternoon";
     const paddedIngredients = [...ingredients];
-    for (let pi = 0; paddedIngredients.length < 3; pi++) {
-      paddedIngredients.push(PADDING_INGREDIENTS[pi % PADDING_INGREDIENTS.length]);
+    if (!isSnackMeal) {
+      for (let pi = 0; paddedIngredients.length < 3; pi++) {
+        paddedIngredients.push(PADDING_INGREDIENTS[pi % PADDING_INGREDIENTS.length]);
+      }
     }
 
     byDay[dayName].push({
-      mealType: (meal.meal_type ?? "other").toLowerCase(),
+      mealType,
       name: typeof meal.meal_name === "string" && meal.meal_name.trim() ? meal.meal_name.trim() : "Meal",
       ingredients: paddedIngredients,
       plate_distribution: meal.plate_distribution ?? {},
@@ -381,7 +385,7 @@ export async function generateMealPlanForUser(profile: {
   const schemaInstructions = `Each object must follow this exact schema:
 {
   "day_name": string (day name in lowercase),
-  "meal_type": string (breakfast | lunch | dinner),
+  "meal_type": string — MUST be exactly one of: breakfast, snack_morning, lunch, snack_afternoon, dinner,
   "meal_name": string,
   "ingredients": [{ "name": string, "amount": string, "visual_ref": string, "category": string (protein | carbs | vegetables | fats | dairy | fruit | other) }],
   "plate_distribution": { "protein": number, "carbs": number, "fat": number, "vegetables": number },
@@ -391,7 +395,10 @@ export async function generateMealPlanForUser(profile: {
 }
 Rules:
 ${dayNameRule}
-- CRITICAL: Every meal MUST have at least 3 ingredients. ${paddingNote}
+${hasSnacks
+  ? "- CRITICAL: Include ALL 5 meal types per day in this exact order: breakfast, snack_morning, lunch, snack_afternoon, dinner. snack_morning is a light morning snack between breakfast and lunch (150-200 kcal, 2-4 simple ingredients). snack_afternoon is a light afternoon snack between lunch and dinner (150-200 kcal, 2-4 simple ingredients). For snacks, notes should include a timing tip (e.g. '2h after breakfast')."
+  : "- CRITICAL: Include ALL 3 meal types per day in this exact order: breakfast, lunch, dinner."}
+- CRITICAL: Every main meal (breakfast/lunch/dinner) MUST have at least 3 ingredients. ${paddingNote}
 - CRITICAL: Assign correct category to every ingredient.
 - Strictly respect the diet type and allergies. Never include disliked foods.
 - Vary meals (no repeated meals). Adjust calories to match the goal.
@@ -399,9 +406,10 @@ ${dayNameRule}
 - ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;
 
-  // 16:8, 18:6 and 20:4 protocols skip breakfast — 2 meals/day instead of 3.
-  // Using 3 for none/12:12/5:2 which include all three meal slots.
-  const mealsPerDay = ["16:8", "18:6", "20:4"].includes(fastingProtocol ?? "") ? 2 : 3;
+  // Snacks (morning + afternoon) appear for non-fasting users or 12:12.
+  // 16:8/18:6/20:4 skip breakfast → 2 meals. 5:2 → 3 meals (no snacks). hasSnacks → 5 meals.
+  const hasSnacks = !fastingProtocol || fastingProtocol === "none" || fastingProtocol === "12:12";
+  const mealsPerDay = ["16:8", "18:6", "20:4"].includes(fastingProtocol ?? "") ? 2 : hasSnacks ? 5 : 3;
 
   const MEAL_SYSTEM = getMealSystem(lang);
 
@@ -417,10 +425,12 @@ ${dayNameRule}
   const makeChunkValidator = (min: number) => (val: unknown): val is any[] =>
     Array.isArray(val) && val.length >= min;
 
+  const chunkTokens = hasSnacks ? 6000 : 4000;
+  const chunk3Tokens = hasSnacks ? 2500 : 1500;
   const [chunk1, chunk2, chunk3] = await Promise.all([
-    callClaudeWithRetry(MEAL_SYSTEM, prompt1, 4000, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt2, 4000, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
-    callClaudeWithRetry(MEAL_SYSTEM, prompt3, 1500, makeChunkValidator(chunk3Total), "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt1, chunkTokens, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt2, chunkTokens, makeChunkValidator(chunk1Total), "claude-haiku-4-5-20251001"),
+    callClaudeWithRetry(MEAL_SYSTEM, prompt3, chunk3Tokens, makeChunkValidator(chunk3Total), "claude-haiku-4-5-20251001"),
   ]);
 
   return flatMealsToNestedDays([...chunk1, ...chunk2, ...chunk3]);

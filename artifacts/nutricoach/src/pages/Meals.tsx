@@ -30,33 +30,38 @@ const PLATE_COLORS: Record<string, string> = {
 };
 
 const MEAL_EMOJI: Record<string, string> = {
-  breakfast: "🍳",
-  lunch: "🥙",
-  dinner: "🍽️",
-  snack: "🍎",
+  breakfast: "🌅",
+  snack_morning: "🍎",
+  lunch: "☀️",
+  snack_afternoon: "🥜",
+  dinner: "🌙",
 };
 
 const MEAL_COLOR: Record<string, string> = {
   breakfast: "#AAFF45",
+  snack_morning: "#7B8CDE",
   lunch: "#FFB347",
+  snack_afternoon: "#7B8CDE",
   dinner: "#7B8CDE",
-  snack: "#888888",
 };
-
 
 const PREP_TIME: Record<string, number> = {
   breakfast: 10,
+  snack_morning: 5,
   lunch: 15,
+  snack_afternoon: 5,
   dinner: 25,
-  snack: 5,
 };
 
 const CALORIES_APPROX: Record<string, number> = {
   breakfast: 400,
+  snack_morning: 175,
   lunch: 650,
+  snack_afternoon: 150,
   dinner: 550,
-  snack: 200,
 };
+
+const MEAL_ORDER = ["breakfast", "snack_morning", "lunch", "snack_afternoon", "dinner"];
 
 
 const GOAL_LABELS: Record<string, string> = {
@@ -458,18 +463,24 @@ function MealsContent() {
               <p className="text-[#555555]">{t("no_meals_this_day")}</p>
             </div>
           ) : (
-            activeDayData.meals.map(meal => (
-              <MealCard
-                key={meal.id}
-                meal={meal}
-                dietType={profile?.diet_type ?? null}
-                goalType={profile?.goal ?? null}
-                dislikedFoods={foodPrefs?.disliked_foods ?? []}
-                allergies={foodPrefs?.allergies ?? []}
-                canSwap={true}
-                lang={lang}
-              />
-            ))
+            [...activeDayData.meals]
+              .sort((a, b) => {
+                const ai = MEAL_ORDER.indexOf(a.meal_type);
+                const bi = MEAL_ORDER.indexOf(b.meal_type);
+                return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+              })
+              .map(meal => (
+                <MealCard
+                  key={meal.id}
+                  meal={meal}
+                  dietType={profile?.diet_type ?? null}
+                  goalType={profile?.goal ?? null}
+                  dislikedFoods={foodPrefs?.disliked_foods ?? []}
+                  allergies={foodPrefs?.allergies ?? []}
+                  canSwap={true}
+                  lang={lang}
+                />
+              ))
           )}
         </motion.div>
       </AnimatePresence>
@@ -563,6 +574,99 @@ function MealCard({
     );
   };
 
+  // ── Snack card (compact style) ────────────────────────────────────────────
+  const isSnack = meal.meal_type === "snack_morning" || meal.meal_type === "snack_afternoon";
+
+  if (isSnack) {
+    const snackLabel = meal.meal_type === "snack_morning"
+      ? (lang === "en" ? "Morning snack" : "Snack mañana")
+      : (lang === "en" ? "Afternoon snack" : "Snack tarde");
+    const snackCalories = CALORIES_APPROX[meal.meal_type] ?? 175;
+
+    return (
+      <div
+        className="rounded-xl border overflow-hidden transition-all"
+        style={{ backgroundColor: "#0d0d0d", borderColor: "#181818" }}
+      >
+        <button
+          onClick={() => setExpanded(e => !e)}
+          className="w-full text-left px-4 py-3 transition-colors hover:bg-[#111]"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-2xl shrink-0">{MEAL_EMOJI[meal.meal_type]}</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span
+                  className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(123,140,222,0.15)",
+                    border: "1px solid rgba(123,140,222,0.30)",
+                    color: "#7B8CDE",
+                  }}
+                >
+                  {snackLabel}
+                </span>
+              </div>
+              <p className="text-sm font-semibold text-white leading-tight truncate">{meal.meal_name}</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[10px] text-[#555] bg-[#1a1a1a] px-2 py-0.5 rounded-full whitespace-nowrap">
+                🔥 {snackCalories} kcal
+              </span>
+              <ChevronDown
+                className="w-3.5 h-3.5 text-[#555] transition-transform duration-300"
+                style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+              />
+            </div>
+          </div>
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: "easeInOut" }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-3 border-t border-[#181818]">
+                {errorMsg && (
+                  <div className="mt-3 mb-2 flex items-center gap-2 text-xs text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-3 py-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {errorMsg}
+                  </div>
+                )}
+                <div className="pt-2 space-y-0.5">
+                  {meal.ingredients.map((ing, i) => (
+                    <IngredientRow
+                      key={i}
+                      ingredient={ing}
+                      index={i}
+                      isLoadingOptions={loadingOptionsIndex === i}
+                      isApplying={applyingIndex === i}
+                      isSuccess={successIndex === i}
+                      pickerOptions={picker?.ingredientIndex === i ? picker.options : null}
+                      onRequestSwap={() => handleRequestSwap(ing, i)}
+                      onSelectSwap={(opt) => handleSelectSwap(i, opt)}
+                      onDismissPicker={() => setPicker(null)}
+                      disabled={loadingOptionsIndex !== null || applyingIndex !== null}
+                      canSwap={canSwap}
+                    />
+                  ))}
+                </div>
+                {meal.notes && (
+                  <p className="text-[10px] mt-2 italic" style={{ color: "#7B8CDE" }}>{meal.notes}</p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  // ── Full meal card ─────────────────────────────────────────────────────────
   const plateData = Object.entries(meal.plate_distribution).map(([name, value]) => ({
     name: name.charAt(0).toUpperCase() + name.slice(1),
     value,
