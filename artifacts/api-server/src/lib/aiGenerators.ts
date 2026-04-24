@@ -382,6 +382,11 @@ export async function generateMealPlanForUser(profile: {
     ? "Add olive oil, salt, or seasonal vegetables if needed."
     : "Add aceite de oliva, sal, or vegetables if needed.";
 
+  // Snacks (morning + afternoon) appear for non-fasting users or 12:12.
+  // 16:8/18:6/20:4 skip breakfast → 2 meals. 5:2 → 3 meals (no snacks). hasSnacks → 5 meals.
+  const hasSnacks = !fastingProtocol || fastingProtocol === "none" || fastingProtocol === "12:12";
+  const mealsPerDay = ["16:8", "18:6", "20:4"].includes(fastingProtocol ?? "") ? 2 : hasSnacks ? 5 : 3;
+
   const schemaInstructions = `Each object must follow this exact schema:
 {
   "day_name": string (day name in lowercase),
@@ -405,11 +410,6 @@ ${hasSnacks
 - plate_distribution values must sum to 100.
 - ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;
-
-  // Snacks (morning + afternoon) appear for non-fasting users or 12:12.
-  // 16:8/18:6/20:4 skip breakfast → 2 meals. 5:2 → 3 meals (no snacks). hasSnacks → 5 meals.
-  const hasSnacks = !fastingProtocol || fastingProtocol === "none" || fastingProtocol === "12:12";
-  const mealsPerDay = ["16:8", "18:6", "20:4"].includes(fastingProtocol ?? "") ? 2 : hasSnacks ? 5 : 3;
 
   const MEAL_SYSTEM = getMealSystem(lang);
 
