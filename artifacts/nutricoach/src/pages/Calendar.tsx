@@ -224,6 +224,7 @@ function CalendarContent() {
 
   // ── Streak calculation ────────────────────────────────────────────────────
   const today = startOfDay(new Date());
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
   let currentStreak = 0;
   {
     let checkDate = new Date(today);
@@ -508,27 +509,41 @@ function CalendarContent() {
                   const isFuture = !isPastDay && !isTodayDate;
                   const isInStreak = streakDates.has(dateStr) || (isTodayDate && completed);
                   const isFlexOver = isFlexDay && flexDaysThisMonth > 4;
-                  const canInteract = isWorkoutDay || completed || isFlexDay || isTodayDate || !isFuture;
+                  const isOlderThan30 = isBefore(startOfDay(day), thirtyDaysAgo);
+                  const canInteract = !isOlderThan30 && !isFuture;
                   const hasWeight = weightDates.has(dateStr);
 
                   let bg = "transparent";
                   let textColor = "#333";
                   let borderBottom = "1px solid #1f1f1f";
 
-                  if (isTodayDate && !isSelected) { bg = "var(--giq-accent)"; textColor = "var(--giq-accent-text)"; }
-                  else if (isSelected) { bg = "color-mix(in srgb, var(--giq-accent) 25%, transparent)"; textColor = "var(--giq-accent)"; }
-                  else if (isFlexOver) { bg = "rgba(255,68,68,0.08)"; textColor = "#FF4444"; }
-                  else if (isFlexDay) { bg = "rgba(255,184,0,0.1)"; textColor = "#FFB800"; }
-                  else if (completed) { bg = "rgba(136,238,34,0.1)"; textColor = "var(--giq-accent)"; }
-                  else if (isWorkoutDay && !isFuture) { textColor = "#444"; }
-                  else if (isWorkoutDay && isFuture) { bg = "rgba(136,238,34,0.05)"; textColor = "rgba(136,238,34,0.4)"; }
+                  if (isTodayDate && !isSelected) {
+                    bg = "var(--giq-accent)"; textColor = "var(--giq-accent-text)";
+                  } else if (isSelected) {
+                    bg = "color-mix(in srgb, var(--giq-accent) 25%, transparent)"; textColor = "var(--giq-accent)";
+                  } else if (isOlderThan30) {
+                    // Read-only history — muted colors
+                    if (isFlexDay) { bg = "rgba(255,184,0,0.06)"; textColor = "rgba(255,184,0,0.35)"; }
+                    else if (completed) { bg = "rgba(136,238,34,0.06)"; textColor = "rgba(136,238,34,0.35)"; }
+                    else { bg = "transparent"; textColor = "#222"; }
+                  } else if (isFlexOver) {
+                    bg = "rgba(255,68,68,0.08)"; textColor = "#FF4444";
+                  } else if (isFlexDay) {
+                    bg = "rgba(255,184,0,0.1)"; textColor = "#FFB800";
+                  } else if (completed) {
+                    bg = "rgba(136,238,34,0.1)"; textColor = "var(--giq-accent)";
+                  } else if (isWorkoutDay && !isFuture) {
+                    textColor = "#444";
+                  } else if (isWorkoutDay && isFuture) {
+                    bg = "rgba(136,238,34,0.05)"; textColor = "rgba(136,238,34,0.4)";
+                  }
 
                   if (isInStreak) borderBottom = "2px solid rgba(136,238,34,0.4)";
 
                   return (
                     <div
                       key={dateStr}
-                      className="aspect-square border-r border-[#1f1f1f] flex flex-col items-center justify-center relative cursor-pointer transition-all"
+                      className={`aspect-square border-r border-[#1f1f1f] flex flex-col items-center justify-center relative transition-all ${canInteract ? "cursor-pointer" : "cursor-default"}`}
                       style={{ background: bg, color: textColor, borderBottom, outline: isSelected ? "2px solid rgba(255,255,255,0.3)" : "none", outlineOffset: "-2px" }}
                       onClick={() => canInteract && (setSelectedDate(isSelected ? null : dateStr), setSelectedAction(null))}
                     >
@@ -563,7 +578,7 @@ function CalendarContent() {
           { color: "var(--giq-accent)", label: isES ? "Completado" : "Completed" },
           { color: "#FFB800", label: "Flex Day" },
           { color: "#FF4444", label: isES ? "Flex (+límite)" : "Flex (over limit)" },
-          { color: "#7B8CDE", label: isES ? "Peso registrado" : "Weight logged" },
+          { color: "rgba(136,238,34,0.35)", label: isES ? "Historial (+30 días)" : "History (+30 days)" },
           { isStreak: true, label: isES ? "Racha activa" : "Active streak" },
         ].map(l => (
           <div key={l.label} className="flex items-center gap-1.5">
