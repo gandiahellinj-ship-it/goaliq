@@ -11,7 +11,7 @@ import {
   type Exercise,
 } from "@/lib/supabase-queries";
 import { TrialGate } from "@/components/TrialGate";
-import { useT } from "@/lib/language";
+import { useT, useLanguage } from "@/lib/language";
 import {
   format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval,
   isToday, addMonths, subMonths, getDay, isBefore, startOfDay,
@@ -156,6 +156,8 @@ function CalendarContent() {
   const [historyModalRecord, setHistoryModalRecord] = useState<WorkoutHistoryRecord | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const t = useT();
+  const { lang } = useLanguage();
+  const isES = lang !== "en";
 
   const { data: workoutPlan } = useWorkoutPlan();
   const { data: logs, refetch: refetchLogs } = useProgressLogs(
@@ -363,17 +365,12 @@ function CalendarContent() {
   return (
     <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28 overflow-x-hidden">
 
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      {/* ── Header: month nav ─────────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div>
           <h1 className="text-2xl font-display font-black uppercase text-white">📅 {t("nav_calendar")}</h1>
-          <p className="text-sm text-[#555555] mt-1">
-            {t("workouts_done_of", { done: completedDaysInMonth, total: totalWorkoutDaysInMonth })}
-            {adherence >= 80 ? " 🏆" : adherence >= 50 ? " 💪" : totalWorkoutDaysInMonth > 0 ? ` — ${t("keep_going")}` : ""}
-          </p>
         </div>
-
-        <div className="flex items-center gap-2 bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-1 py-1 self-start sm:self-auto">
+        <div className="flex items-center gap-2 bg-[#141414] border border-[#1f1f1f] rounded-xl px-1 py-1 self-start sm:self-auto">
           <button
             onClick={() => setCurrentDate(subMonths(currentDate, 1))}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition-colors"
@@ -381,7 +378,7 @@ function CalendarContent() {
             <ChevronLeft className="w-4 h-4 text-[#A0A0A0]" />
           </button>
           <span className="font-bold text-white text-sm min-w-[120px] text-center capitalize">
-            {currentDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })}
+            {currentDate.toLocaleDateString(isES ? "es-ES" : "en-US", { month: "long", year: "numeric" })}
           </span>
           <button
             onClick={() => setCurrentDate(addMonths(currentDate, 1))}
@@ -392,96 +389,82 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* Flex Day Monthly Tracker */}
-      <div
-        className="rounded-lg border px-4 py-3 mb-4 flex items-center gap-3"
-        style={{
-          background: flexFeedback?.highlight ? "color-mix(in srgb, var(--giq-accent) 6%, transparent)" : "var(--giq-bg-card)",
-          borderColor: flexDaysThisMonth > 4
-            ? "rgba(226,75,74,0.35)"
-            : flexFeedback?.highlight
-            ? "color-mix(in srgb, var(--giq-accent) 25%, transparent)"
-            : "var(--giq-border)",
-        }}
-      >
-        <span className="text-xl shrink-0">😋</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-[#AAFF45] uppercase tracking-wide mb-0.5">{t("flex_day_tracker")}</p>
-              <p className="text-xs" style={{ color: "var(--giq-text-muted)" }}>{t("flex_day_desc")}</p>
+      {/* ── CHANGE 1: Stats strip ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {/* Workouts done */}
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
+          <div className="tabular-nums font-black text-white leading-none">
+            <span className="text-xl sm:text-2xl">{completedDaysInMonth}</span>
+            <span className="text-sm font-normal text-[#555]">/{totalWorkoutDaysInMonth}</span>
+          </div>
+          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
+            {t("workouts_done_label")}
+          </span>
+        </div>
+
+        {/* Adherence */}
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
+          <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${
+            adherence >= 80 ? "text-[#AAFF45]" : adherence >= 50 ? "text-orange-400" : totalWorkoutDaysInMonth === 0 ? "text-[#555]" : "text-red-400"
+          }`}>
+            {adherence}%
+          </span>
+          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
+            {t("adherence_label")}
+          </span>
+        </div>
+
+        {/* Flex days */}
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
+          <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${
+            flexDaysThisMonth > 4 ? "text-red-400" : flexDaysThisMonth > 0 ? "text-[#FFB800]" : "text-[#555]"
+          }`}>
+            {flexDaysThisMonth}
+          </span>
+          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
+            😋 {t("flex_day")}
+          </span>
+        </div>
+      </div>
+
+      {/* ── CHANGE 2: Progress bar card ───────────────────────────────────────── */}
+      {totalWorkoutDaysInMonth > 0 && (
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-base shrink-0">{adherenceFeedback?.emoji ?? "🎯"}</span>
+              <span className="text-sm font-medium text-white truncate">{adherenceFeedback?.msg ?? ""}</span>
             </div>
-            <div className="text-right shrink-0">
-              <p className="text-sm font-bold tabular-nums" style={{ color: flexDaysThisMonth > 4 ? "#e24b4a" : "var(--giq-accent)" }}>
-                {t("flex_month_count", { n: flexDaysThisMonth })}
-              </p>
-              {flexDaysThisMonth > 4 && (
-                <p className="text-[10px] font-semibold mt-0.5" style={{ color: "#e24b4a" }}>{t("flex_limit_exceeded")}</p>
-              )}
-            </div>
+            <span className={`text-sm font-bold tabular-nums shrink-0 ml-2 ${
+              adherence >= 80 ? "text-[#AAFF45]" : adherence >= 50 ? "text-orange-400" : "text-red-400"
+            }`}>
+              {completedDaysInMonth}/{totalWorkoutDaysInMonth}
+            </span>
+          </div>
+          <div className="h-2 w-full bg-[#2A2A2A] rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${Math.min(adherence, 100)}%`,
+                backgroundColor: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171",
+              }}
+            />
           </div>
           {flexFeedback && (
-            <p className={`text-xs font-medium mt-1.5 ${flexFeedback.highlight ? "text-[#AAFF45]" : "text-[#A0A0A0]"}`}>
-              {flexFeedback.msg}
+            <p className={`text-xs mt-2.5 ${flexFeedback.highlight ? "text-[#AAFF45]" : "text-[#A0A0A0]"}`}>
+              😋 {flexFeedback.msg}
             </p>
           )}
         </div>
-      </div>
-
-      {/* Adherence bar */}
-      {totalWorkoutDaysInMonth > 0 && (
-        <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] p-4 mb-4 flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex justify-between text-xs font-semibold text-[#555555] mb-1.5">
-              <span>{t("monthly_adherence")}</span>
-              <span className={adherence >= 80 ? "text-[#AAFF45]" : "text-[#555555]"}>{adherence}%</span>
-            </div>
-            <div className="h-2 w-full bg-[#2A2A2A] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{
-                  width: `${Math.min(adherence, 100)}%`,
-                  backgroundColor: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171",
-                }}
-              />
-            </div>
-          </div>
-          <div className="text-2xl shrink-0">{adherence >= 80 ? "🏆" : adherence >= 50 ? "💪" : "🎯"}</div>
-        </div>
-      )}
-      {adherenceFeedback && (
-        <div className="bg-[#1A1A1A] border border-[#2A2A2A] rounded-lg px-4 py-3 mb-4 flex items-center gap-3">
-          <span className="text-xl shrink-0">{adherenceFeedback.emoji}</span>
-          <p className={`text-sm font-medium ${adherenceFeedback.color}`}>{adherenceFeedback.msg}</p>
-        </div>
       )}
 
-      {/* Legend */}
-      <div className="flex items-center flex-wrap gap-4 mb-3 text-xs text-[#555555] font-medium">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#AAFF45]" />
-          {t("completed_label")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#AAFF45]/20 border border-[#AAFF45]/40" />
-          {t("planned_workout")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#2A2A2A] border border-[#3A3A3A]" />
-          {t("rest_day")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs leading-none">😋</span>
-          {t("flex_day")}
-        </div>
-      </div>
-
-      {/* Calendar grid */}
-      <div className="bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] overflow-hidden">
-        <div className="grid grid-cols-7 border-b border-[#2A2A2A]">
+      {/* ── CHANGE 3: Calendar grid in #141414 card ───────────────────────────── */}
+      <div className="bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden">
+        {/* Day-of-week headers */}
+        <div className="grid grid-cols-7 border-b border-[#1f1f1f]">
           {DAY_HEADER_KEYS.map(key => (
-            <div key={key} className="text-center py-2.5 text-xs font-bold text-[#555555] uppercase tracking-wide">
-              {t(key)}
+            <div key={key} className="text-center py-2.5 text-[10px] sm:text-xs font-bold text-[#555555] uppercase tracking-wide">
+              {t(key).substring(0, 2)}
             </div>
           ))}
         </div>
@@ -489,7 +472,7 @@ function CalendarContent() {
         <div className="grid grid-cols-7">
           {calendarDays.map((day, i) => {
             if (!day) {
-              return <div key={`empty-${i}`} className="aspect-square border-b border-r border-[#2A2A2A] bg-[#111111]/30" />;
+              return <div key={`empty-${i}`} className="aspect-square border-b border-r border-[#1f1f1f] bg-[#0d0d0d]/40" />;
             }
 
             const dateStr = format(day, "yyyy-MM-dd");
@@ -507,7 +490,7 @@ function CalendarContent() {
             return (
               <div
                 key={dateStr}
-                className={`aspect-square border-b border-r border-[#2A2A2A] flex flex-col items-center justify-center relative transition-all
+                className={`aspect-square border-b border-r border-[#1f1f1f] flex flex-col items-center justify-center relative transition-all
                   ${!isSelected && isTodayDate ? "bg-[#AAFF45]" : ""}
                   ${!isSelected && !isTodayDate && isFlexDay ? "bg-[#AAFF45]/10" : ""}
                   ${!isSelected && !isTodayDate && isWorkoutDay && !completed && !isFlexDay ? "bg-[#AAFF45]/10" : ""}
@@ -596,80 +579,114 @@ function CalendarContent() {
         </div>
       </div>
 
-      {/* ── Action panel ──────────────────────────────────────────────────────── */}
+      {/* ── CHANGE 4: Compact legend below calendar ───────────────────────────── */}
+      <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 mt-3 mb-4 px-1 text-[10px] text-[#555] font-medium">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#AAFF45]" />
+          {t("completed_label")}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#AAFF45]/20 border border-[#AAFF45]/40" />
+          {t("planned_workout")}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-[#2A2A2A] border border-[#3A3A3A]" />
+          {t("rest_day")}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span style={{ fontSize: 10 }}>😋</span>
+          {t("flex_day")}
+        </div>
+      </div>
+
+      {/* ── CHANGE 5: Improved day detail panel ──────────────────────────────── */}
       {selectedDate && (
         <div
           ref={panelRef}
-          className="mt-3 rounded-xl p-4"
-          style={{ background: "var(--giq-bg-secondary)", border: "1px solid var(--giq-border)" }}
+          className="mt-2 bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden"
         >
-          {/* Date label */}
-          <p className="text-xs font-semibold text-center mb-4 capitalize" style={{ color: "var(--giq-text-muted)" }}>
-            {format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })}
-          </p>
+          {/* Panel header */}
+          <div className="px-4 pt-4 pb-3 border-b border-[#1f1f1f]">
+            <p className="text-xs font-bold text-center capitalize text-[#555]">
+              {isES
+                ? format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })
+                : format(parseISO(selectedDate), "EEEE, MMMM d")}
+            </p>
+          </div>
 
-          {/* Option cards */}
-          <div className={`grid gap-2 mb-4 ${showWorkoutOption && showFlexOption ? "grid-cols-2" : "grid-cols-1"}`}>
-
-            {/* Workout / completion option */}
+          {/* Action rows */}
+          <div className="p-3 space-y-2">
+            {/* Workout row */}
             {showWorkoutOption && (
               <button
                 type="button"
-                onClick={() => setSelectedAction("workout")}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                onClick={() => setSelectedAction(selectedAction === "workout" ? null : "workout")}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
                 style={{
                   background: selectedAction === "workout"
                     ? "color-mix(in srgb, var(--giq-accent) 10%, transparent)"
-                    : "var(--giq-bg-card)",
+                    : "var(--giq-bg-secondary)",
                   border: selectedAction === "workout"
                     ? "1.5px solid var(--giq-accent)"
                     : "1.5px solid var(--giq-border)",
                 }}
               >
-                <span className="text-2xl">{selectedDateCompleted ? "↩️" : "✅"}</span>
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-text-primary)" }}
+                <span className="text-xl shrink-0">{selectedDateCompleted ? "↩️" : "✅"}</span>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold" style={{ color: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-text-primary)" }}>
+                    {selectedDateCompleted ? t("cancel") : t("completed_label")}
+                  </p>
+                  <p className="text-[10px] leading-tight mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                    {selectedDateCompleted ? t("mark_as_done") + " ↩" : t("mark_as_done")}
+                  </p>
+                </div>
+                <div
+                  className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                  style={{
+                    borderColor: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-border)",
+                    background: selectedAction === "workout" ? "var(--giq-accent)" : "transparent",
+                  }}
                 >
-                  {selectedDateCompleted ? t("cancel") : t("completed_label")}
-                </span>
-                <span className="text-[10px] text-center leading-tight" style={{ color: "var(--giq-text-muted)" }}>
-                  {selectedDateCompleted ? t("mark_as_done") + " ↩" : t("mark_as_done")}
-                </span>
+                  {selectedAction === "workout" && <CheckCircle2 className="w-3 h-3 text-[#0a0a0a]" />}
+                </div>
               </button>
             )}
 
-            {/* Flex Day option */}
+            {/* Flex Day row */}
             {showFlexOption && (
               <button
                 type="button"
-                onClick={() => setSelectedAction("flex")}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl transition-all"
+                onClick={() => setSelectedAction(selectedAction === "flex" ? null : "flex")}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
                 style={{
-                  background: selectedAction === "flex"
-                    ? "rgba(255,184,0,0.08)"
-                    : "var(--giq-bg-card)",
-                  border: selectedAction === "flex"
-                    ? "1.5px solid #FFB800"
-                    : "1.5px solid var(--giq-border)",
+                  background: selectedAction === "flex" ? "rgba(255,184,0,0.08)" : "var(--giq-bg-secondary)",
+                  border: selectedAction === "flex" ? "1.5px solid #FFB800" : "1.5px solid var(--giq-border)",
                 }}
               >
-                <span className="text-2xl">😋</span>
-                <span
-                  className="text-xs font-semibold"
-                  style={{ color: selectedAction === "flex" ? "#FFB800" : "var(--giq-text-primary)" }}
+                <span className="text-xl shrink-0">😋</span>
+                <div className="flex-1 text-left">
+                  <p className="text-sm font-semibold" style={{ color: selectedAction === "flex" ? "#FFB800" : "var(--giq-text-primary)" }}>
+                    {selectedDateIsFlexDay ? `${t("flex_day")} ↩` : t("flex_day")}
+                  </p>
+                  <p className="text-[10px] leading-tight mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                    {t("flex_day_desc")}
+                  </p>
+                </div>
+                <div
+                  className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
+                  style={{
+                    borderColor: selectedAction === "flex" ? "#FFB800" : "var(--giq-border)",
+                    background: selectedAction === "flex" ? "#FFB800" : "transparent",
+                  }}
                 >
-                  {selectedDateIsFlexDay ? `${t("flex_day")} ↩` : t("flex_day")}
-                </span>
-                <span className="text-[10px] text-center leading-tight" style={{ color: "var(--giq-text-muted)" }}>
-                  {t("flex_day_desc")}
-                </span>
+                  {selectedAction === "flex" && <CheckCircle2 className="w-3 h-3 text-[#0a0a0a]" />}
+                </div>
               </button>
             )}
           </div>
 
           {/* Confirm / Cancel buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 px-3 pb-3">
             <button
               type="button"
               onClick={() => { setSelectedDate(null); setSelectedAction(null); }}
