@@ -17,7 +17,7 @@ import {
   isToday, addMonths, subMonths, getDay, isBefore, startOfDay,
 } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Dumbbell, Eye, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle2, Circle, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import { ShareWorkoutButton, getWorkoutTypeLabel, type WorkoutData } from "@/components/ShareWorkoutCard";
 
@@ -221,7 +221,51 @@ function CalendarContent() {
     : 0;
 
   const flexDaysThisMonth = daysInMonth.filter(d => flexSet.has(format(d, "yyyy-MM-dd"))).length;
-  const isoWeeksInMonth = new Set(daysInMonth.map(d => getISOWeekStart(d))).size;
+
+  // ── Streak calculation ────────────────────────────────────────────────────
+  const today = startOfDay(new Date());
+  let currentStreak = 0;
+  {
+    let checkDate = new Date(today);
+    while (true) {
+      const dateStr = format(checkDate, "yyyy-MM-dd");
+      const dayName = DAY_NAME_MAP[getDay(checkDate) as keyof typeof DAY_NAME_MAP];
+      const isTraining = trainingDays.has(dayName);
+      if (isTraining && logMap[dateStr] === true) {
+        currentStreak++;
+        checkDate = new Date(checkDate.getTime() - 86400000);
+      } else if (!isTraining) {
+        checkDate = new Date(checkDate.getTime() - 86400000);
+        if (checkDate < startOfMonth(currentDate)) break;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // ── Best week calculation ─────────────────────────────────────────────────
+  let bestWeekStart: string | null = null;
+  let bestWeekCount = 0;
+  {
+    const weekMap = new Map<string, number>();
+    daysInMonth.forEach(day => {
+      const dateStr = format(day, "yyyy-MM-dd");
+      const dayName = DAY_NAME_MAP[getDay(day) as keyof typeof DAY_NAME_MAP];
+      if (trainingDays.has(dayName) && logMap[dateStr] === true) {
+        const mon = new Date(day);
+        mon.setDate(mon.getDate() - ((getDay(mon) + 6) % 7));
+        const weekKey = format(mon, "yyyy-MM-dd");
+        weekMap.set(weekKey, (weekMap.get(weekKey) ?? 0) + 1);
+      }
+    });
+    weekMap.forEach((count, weekKey) => {
+      if (count > bestWeekCount) { bestWeekCount = count; bestWeekStart = weekKey; }
+    });
+  }
+
+  // ── Weight dots (days where user registered weight) ───────────────────────
+  // Weight data not yet in this component — skip for now, use empty set
+  const weightDates = new Set<string>();
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -327,332 +371,245 @@ function CalendarContent() {
   // Show flex option for today/future, or to remove an existing flex day
   const showFlexOption = !selectedDateIsPast || selectedDateIsFlexDay;
 
-  // ── Feedback ───────────────────────────────────────────────────────────────
-
-  const adherenceFeedback = (() => {
-    if (totalWorkoutDaysInMonth === 0) return null;
-    if (adherence === 100) return { emoji: "🏆", msg: t("adherence_perfect_month"), color: "text-yellow-400" };
-    if (adherence >= 80) return { emoji: "🔥", msg: t("adherence_crushing"), color: "text-[#AAFF45]" };
-    if (adherence >= 60) return { emoji: "💪", msg: t("adherence_strong_month"), color: "text-[#AAFF45]" };
-    if (adherence >= 40) return { emoji: "🎯", msg: t("adherence_good_effort"), color: "text-orange-400" };
-    if (completedDaysInMonth > 0) return { emoji: "🌱", msg: t("adherence_started"), color: "text-orange-400" };
-    return { emoji: "🌅", msg: t("adherence_fresh_month"), color: "text-[#555555]" };
-  })();
-
-  const flexFeedback = (() => {
-    if (flexDaysThisMonth === 0 && isoWeeksInMonth > 0) {
-      return {
-        msg: t("clean_weeks", { n: isoWeeksInMonth, s: isoWeeksInMonth !== 1 ? "s" : "" }),
-        highlight: true,
-      };
-    }
-    if (flexDaysThisMonth > 0) {
-      return {
-        msg: t("flex_days_across", {
-          n: flexDaysThisMonth,
-          s: flexDaysThisMonth !== 1 ? "s" : "",
-          weeks: isoWeeksInMonth,
-          ws: isoWeeksInMonth !== 1 ? "s" : "",
-        }),
-        highlight: false,
-      };
-    }
-    return null;
-  })();
-
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-28 overflow-x-hidden">
+    <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32 overflow-x-hidden">
 
-      {/* ── Header: month nav ─────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
-        <div>
-          <h1 className="text-2xl font-display font-black uppercase text-white">📅 {t("nav_calendar")}</h1>
-        </div>
+      {/* Month nav */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h1 className="text-2xl font-display font-black uppercase text-white">📅 {t("nav_calendar")}</h1>
         <div className="flex items-center gap-2 bg-[#141414] border border-[#1f1f1f] rounded-xl px-1 py-1 self-start sm:self-auto">
-          <button
-            onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition-colors"
-          >
+          <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition-colors">
             <ChevronLeft className="w-4 h-4 text-[#A0A0A0]" />
           </button>
           <span className="font-bold text-white text-sm min-w-[120px] text-center capitalize">
             {currentDate.toLocaleDateString(isES ? "es-ES" : "en-US", { month: "long", year: "numeric" })}
           </span>
-          <button
-            onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition-colors"
-          >
+          <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-[#2A2A2A] transition-colors">
             <ChevronRight className="w-4 h-4 text-[#A0A0A0]" />
           </button>
         </div>
       </div>
 
-      {/* ── CHANGE 1: Stats strip ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {/* Workouts done */}
-        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
-          <div className="tabular-nums font-black text-white leading-none">
-            <span className="text-xl sm:text-2xl">{completedDaysInMonth}</span>
-            <span className="text-sm font-normal text-[#555]">/{totalWorkoutDaysInMonth}</span>
+      {/* Stats strip — 4 columns */}
+      <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-3">
+        {[
+          { val: completedDaysInMonth, label: isES ? "Entrenos" : "Workouts", color: "var(--giq-accent)" },
+          { val: `${adherence}%`, label: isES ? "Adherencia" : "Adherence", color: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171" },
+          { val: `🔥${currentStreak}`, label: isES ? "Racha" : "Streak", color: "#FF6B35" },
+          { val: flexDaysThisMonth, label: "Flex Days", color: flexDaysThisMonth > 4 ? "#FF4444" : flexDaysThisMonth > 0 ? "#FFB800" : "#555" },
+        ].map(s => (
+          <div key={s.label} className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-2 sm:p-3 flex flex-col items-center">
+            <span className="text-base sm:text-xl font-black leading-none" style={{ color: s.color }}>{s.val}</span>
+            <span className="text-[8px] sm:text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">{s.label}</span>
           </div>
-          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
-            {t("workouts_done_label")}
-          </span>
-        </div>
-
-        {/* Adherence */}
-        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
-          <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${
-            adherence >= 80 ? "text-[#AAFF45]" : adherence >= 50 ? "text-orange-400" : totalWorkoutDaysInMonth === 0 ? "text-[#555]" : "text-red-400"
-          }`}>
-            {adherence}%
-          </span>
-          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
-            {t("adherence_label")}
-          </span>
-        </div>
-
-        {/* Flex days */}
-        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 flex flex-col items-center">
-          <span className={`text-xl sm:text-2xl font-black tabular-nums leading-none ${
-            flexDaysThisMonth > 4 ? "text-red-400" : flexDaysThisMonth > 0 ? "text-[#FFB800]" : "text-[#555]"
-          }`}>
-            {flexDaysThisMonth}
-          </span>
-          <span className="text-[10px] text-[#555] mt-1 uppercase tracking-wide text-center leading-tight">
-            😋 {t("flex_day")}
-          </span>
-        </div>
+        ))}
       </div>
 
-      {/* ── CHANGE 2: Progress bar card ───────────────────────────────────────── */}
+      {/* Progress bar card */}
       {totalWorkoutDaysInMonth > 0 && (
-        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 mb-4">
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-base shrink-0">{adherenceFeedback?.emoji ?? "🎯"}</span>
-              <span className="text-sm font-medium text-white truncate">{adherenceFeedback?.msg ?? ""}</span>
-            </div>
-            <span className={`text-sm font-bold tabular-nums shrink-0 ml-2 ${
-              adherence >= 80 ? "text-[#AAFF45]" : adherence >= 50 ? "text-orange-400" : "text-red-400"
-            }`}>
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-3 sm:p-4 mb-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs sm:text-sm font-medium text-white">
+              {adherence === 100 ? `🏆 ${t("adherence_perfect_month")}`
+                : adherence >= 80 ? `🔥 ${t("adherence_crushing")}`
+                : adherence >= 60 ? `💪 ${t("adherence_strong_month")}`
+                : adherence >= 40 ? `🎯 ${t("adherence_good_effort")}`
+                : completedDaysInMonth > 0 ? `🌱 ${t("adherence_started")}`
+                : `🌅 ${t("adherence_fresh_month")}`}
+            </span>
+            <span className="text-sm font-bold tabular-nums" style={{ color: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171" }}>
               {completedDaysInMonth}/{totalWorkoutDaysInMonth}
             </span>
           </div>
-          <div className="h-2 w-full bg-[#2A2A2A] rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${Math.min(adherence, 100)}%`,
-                backgroundColor: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171",
-              }}
-            />
+          <div className="h-1.5 w-full bg-[#2A2A2A] rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(adherence, 100)}%`, backgroundColor: adherence >= 80 ? "var(--giq-accent)" : adherence >= 50 ? "#fb923c" : "#f87171" }} />
           </div>
-          {flexFeedback && (
-            <p className={`text-xs mt-2.5 ${flexFeedback.highlight ? "text-[#AAFF45]" : "text-[#A0A0A0]"}`}>
-              😋 {flexFeedback.msg}
+          {flexDaysThisMonth > 0 && (
+            <p className="text-[10px] mt-2" style={{ color: flexDaysThisMonth > 4 ? "#FF4444" : "#FFB800" }}>
+              😋 {flexDaysThisMonth} Flex Days
+              {flexDaysThisMonth > 4
+                ? ` — ⚠️ ${isES ? "has superado el límite mensual" : "over monthly limit"}`
+                : ` — ${isES ? `queda${4 - flexDaysThisMonth === 1 ? "" : "n"} ${4 - flexDaysThisMonth} más` : `${4 - flexDaysThisMonth} left`}`}
             </p>
           )}
         </div>
       )}
 
-      {/* ── CHANGE 3: Calendar grid in #141414 card ───────────────────────────── */}
-      <div className="bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden">
-        {/* Day-of-week headers */}
+      {/* Best week banner */}
+      {bestWeekStart && bestWeekCount >= 3 && (
+        <div className="bg-[#88ee2208] border border-[#88ee2220] rounded-xl p-3 mb-3 flex items-center gap-3">
+          <span className="text-lg shrink-0">🏆</span>
+          <div>
+            <p className="text-xs font-bold" style={{ color: "var(--giq-accent)" }}>
+              {isES ? "Mejor semana" : "Best week"}: {format(new Date(bestWeekStart), isES ? "d MMM" : "MMM d", { locale: isES ? es : undefined })} – {format(new Date(new Date(bestWeekStart).getTime() + 6 * 86400000), isES ? "d MMM" : "MMM d", { locale: isES ? es : undefined })}
+            </p>
+            <p className="text-[10px] text-[#555]">{bestWeekCount} {isES ? "entrenos completados" : "workouts completed"}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Calendar grid */}
+      <div className="bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden mb-3">
+        {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-[#1f1f1f]">
           {DAY_HEADER_KEYS.map(key => (
-            <div key={key} className="text-center py-2.5 text-[10px] sm:text-xs font-bold text-[#555555] uppercase tracking-wide">
+            <div key={key} className="text-center py-2 text-[9px] sm:text-[10px] font-bold text-[#555] uppercase tracking-wide">
               {t(key).substring(0, 2)}
             </div>
           ))}
         </div>
 
-        <div className="grid grid-cols-7">
-          {calendarDays.map((day, i) => {
-            if (!day) {
-              return <div key={`empty-${i}`} className="aspect-square border-b border-r border-[#1f1f1f] bg-[#0d0d0d]/40" />;
+        {/* Day cells — grouped by week rows */}
+        {(() => {
+          const weeks: (Date | null)[][] = [];
+          for (let i = 0; i < calendarDays.length; i += 7) {
+            weeks.push(calendarDays.slice(i, i + 7));
+          }
+          return weeks.map((week, wi) => {
+            // Determine if this is the best week
+            const firstReal = week.find(d => d !== null) as Date | undefined;
+            const weekMonday = firstReal ? (() => {
+              const d = new Date(firstReal);
+              d.setDate(d.getDate() - ((getDay(d) + 6) % 7));
+              return format(d, "yyyy-MM-dd");
+            })() : null;
+            const isBestWeek = weekMonday === bestWeekStart && bestWeekCount >= 3;
+
+            // Streak dates set
+            const streakDates = new Set<string>();
+            if (currentStreak > 0) {
+              let d = new Date(today);
+              for (let s = 0; s < currentStreak + 10; s++) {
+                const ds = format(d, "yyyy-MM-dd");
+                const dn = DAY_NAME_MAP[getDay(d) as keyof typeof DAY_NAME_MAP];
+                if (trainingDays.has(dn) && logMap[ds] === true) {
+                  streakDates.add(ds);
+                }
+                d = new Date(d.getTime() - 86400000);
+                if (streakDates.size >= currentStreak) break;
+              }
             }
 
-            const dateStr = format(day, "yyyy-MM-dd");
-            const dayName = DAY_NAME_MAP[getDay(day)];
-            const isWorkoutDay = trainingDays.has(dayName);
-            const isPast = isBefore(startOfDay(day), startOfDay(new Date()));
-            const isTodayDate = isToday(day);
-            const completed = logMap[dateStr] === true;
-            const isFlexDay = flexSet.has(dateStr);
-            const isSelected = dateStr === selectedDate;
-
-            // A day is interactive if it's a training day, completed, flex day, today, or future
-            const canInteract = isWorkoutDay || completed || isFlexDay || isTodayDate || !isPast;
-
             return (
-              <div
-                key={dateStr}
-                className={`aspect-square border-b border-r border-[#1f1f1f] flex flex-col items-center justify-center relative transition-all
-                  ${!isSelected && isTodayDate ? "bg-[#AAFF45]" : ""}
-                  ${!isSelected && !isTodayDate && isFlexDay ? "bg-[#AAFF45]/10" : ""}
-                  ${!isSelected && !isTodayDate && isWorkoutDay && !completed && !isFlexDay ? "bg-[#AAFF45]/10" : ""}
-                  ${!isSelected && !isTodayDate && completed ? "bg-[#AAFF45]/15" : ""}
-                  ${canInteract ? "cursor-pointer" : "cursor-default"}
-                `}
-                style={isSelected ? {
-                  backgroundColor: "color-mix(in srgb, var(--giq-accent) 8%, var(--giq-bg-card))",
-                  outline: "2px solid var(--giq-accent)",
-                  outlineOffset: "-2px",
-                } : {}}
-                onClick={() => {
-                  if (!canInteract) return;
-                  setSelectedDate(dateStr === selectedDate ? null : dateStr);
-                  setSelectedAction(null);
-                }}
-              >
-                {/* Date number */}
-                <span
-                  className={`text-sm font-bold leading-none mb-0.5 ${
-                    isSelected ? "text-[#AAFF45]"
-                    : isTodayDate ? "text-[#0A0A0A]"
-                    : isWorkoutDay ? "text-[#AAFF45]"
-                    : "text-[#555555]"
-                  }`}
-                >
-                  {format(day, "d")}
-                </span>
+              <div key={wi} className="grid grid-cols-7" style={isBestWeek ? { background: "rgba(136,238,34,0.04)" } : {}}>
+                {week.map((day, di) => {
+                  if (!day) return <div key={`e-${wi}-${di}`} className="aspect-square border-r border-b border-[#1f1f1f] bg-[#0d0d0d]" />;
 
-                {/* Workout status icons */}
-                {isWorkoutDay && completed && (
-                  <CheckCircle2 className={`w-3.5 h-3.5 ${isTodayDate && !isSelected ? "text-[#0A0A0A]" : "text-[#AAFF45]"}`} />
-                )}
-                {isWorkoutDay && !completed && isPast && !isTodayDate && (
-                  <Circle className="w-3.5 h-3.5 text-[#2A2A2A]" />
-                )}
-                {isWorkoutDay && !completed && !isPast && !isTodayDate && (
-                  <Dumbbell className="w-3 h-3 text-[#AAFF45]/60" />
-                )}
-                {isTodayDate && isWorkoutDay && !completed && (
-                  <Dumbbell className="w-3 h-3 text-[#0A0A0A]" />
-                )}
-                {isTodayDate && completed && (
-                  <CheckCircle2 className="w-3 h-3 text-[#0A0A0A]" />
-                )}
+                  const dateStr = format(day, "yyyy-MM-dd");
+                  const dayName = DAY_NAME_MAP[getDay(day) as keyof typeof DAY_NAME_MAP];
+                  const isPastDay = isBefore(startOfDay(day), today);
+                  const isTodayDate = isToday(day);
+                  const isWorkoutDay = trainingDays.has(dayName);
+                  const completed = logMap[dateStr] === true;
+                  const isFlexDay = flexSet.has(dateStr);
+                  const isSelected = dateStr === selectedDate;
+                  const isFuture = !isPastDay && !isTodayDate;
+                  const isInStreak = streakDates.has(dateStr) || (isTodayDate && completed);
+                  const isFlexOver = isFlexDay && flexDaysThisMonth > 4;
+                  const canInteract = isWorkoutDay || completed || isFlexDay || isTodayDate || !isFuture;
+                  const hasWeight = weightDates.has(dateStr);
 
-                {/* 😋 Flex Day indicator */}
-                {isFlexDay && (
-                  <span className="leading-none mt-0.5" style={{ fontSize: 9 }}>😋</span>
-                )}
+                  let bg = "transparent";
+                  let textColor = "#333";
+                  let borderBottom = "1px solid #1f1f1f";
 
-                {/* 👁 Eye icon — completed workout days with saved history */}
-                {isWorkoutDay && completed && historyMap[dateStr] && (
-                  <button
-                    type="button"
-                    onClick={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setHistoryModalRecord(historyMap[dateStr]);
-                    }}
-                    className="absolute bottom-0 left-0 flex items-center justify-center"
-                    style={{
-                      width: 22,
-                      height: 22,
-                      background: "transparent",
-                      border: "none",
-                      padding: 0,
-                      cursor: "pointer",
-                      zIndex: 10,
-                    }}
-                    aria-label="Ver detalles del entrenamiento"
-                  >
-                    <Eye
-                      style={{
-                        width: 11,
-                        height: 11,
-                        color: isTodayDate ? "var(--giq-accent-text)" : "var(--giq-accent)",
-                        opacity: 0.85,
-                      }}
-                    />
-                  </button>
-                )}
+                  if (isTodayDate && !isSelected) { bg = "var(--giq-accent)"; textColor = "var(--giq-accent-text)"; }
+                  else if (isSelected) { bg = "color-mix(in srgb, var(--giq-accent) 25%, transparent)"; textColor = "var(--giq-accent)"; }
+                  else if (isFlexOver) { bg = "rgba(255,68,68,0.08)"; textColor = "#FF4444"; }
+                  else if (isFlexDay) { bg = "rgba(255,184,0,0.1)"; textColor = "#FFB800"; }
+                  else if (completed) { bg = "rgba(136,238,34,0.1)"; textColor = "var(--giq-accent)"; }
+                  else if (isWorkoutDay && !isFuture) { textColor = "#444"; }
+                  else if (isWorkoutDay && isFuture) { bg = "rgba(136,238,34,0.05)"; textColor = "rgba(136,238,34,0.4)"; }
+
+                  if (isInStreak) borderBottom = "2px solid rgba(136,238,34,0.4)";
+
+                  return (
+                    <div
+                      key={dateStr}
+                      className="aspect-square border-r border-[#1f1f1f] flex flex-col items-center justify-center relative cursor-pointer transition-all"
+                      style={{ background: bg, color: textColor, borderBottom, outline: isSelected ? "2px solid rgba(255,255,255,0.3)" : "none", outlineOffset: "-2px" }}
+                      onClick={() => canInteract && (setSelectedDate(isSelected ? null : dateStr), setSelectedAction(null))}
+                    >
+                      <span className="text-[11px] sm:text-xs font-semibold leading-none">{format(day, "d")}</span>
+                      {/* Status icon */}
+                      {isWorkoutDay && completed && <CheckCircle2 className="w-2.5 h-2.5 mt-0.5" />}
+                      {isWorkoutDay && !completed && isPastDay && !isFlexDay && <Circle className="w-2 h-2 mt-0.5 opacity-30" />}
+                      {isFlexDay && <span style={{ fontSize: 8, marginTop: 1 }}>😋</span>}
+                      {/* Weight dot */}
+                      {hasWeight && <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#7B8CDE]" />}
+                      {/* Eye button */}
+                      {isWorkoutDay && completed && historyMap[dateStr] && (
+                        <button
+                          className="absolute top-0.5 right-0.5 opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity"
+                          onClick={e => { e.stopPropagation(); setHistoryModalRecord(historyMap[dateStr]); }}
+                        >
+                          <Eye className="w-2.5 h-2.5" style={{ color: "var(--giq-accent)" }} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
-          })}
-        </div>
+          });
+        })()}
       </div>
 
-      {/* ── CHANGE 4: Compact legend below calendar ───────────────────────────── */}
-      <div className="flex items-center flex-wrap gap-x-4 gap-y-1.5 mt-3 mb-4 px-1 text-[10px] text-[#555] font-medium">
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#AAFF45]" />
-          {t("completed_label")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#AAFF45]/20 border border-[#AAFF45]/40" />
-          {t("planned_workout")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#2A2A2A] border border-[#3A3A3A]" />
-          {t("rest_day")}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span style={{ fontSize: 10 }}>😋</span>
-          {t("flex_day")}
-        </div>
+      {/* Legend */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1.5 mb-3 px-1">
+        {[
+          { color: "var(--giq-accent)", label: isES ? "Completado" : "Completed" },
+          { color: "#FFB800", label: "Flex Day" },
+          { color: "#FF4444", label: isES ? "Flex (+límite)" : "Flex (over limit)" },
+          { color: "#7B8CDE", label: isES ? "Peso registrado" : "Weight logged" },
+          { isStreak: true, label: isES ? "Racha activa" : "Active streak" },
+        ].map(l => (
+          <div key={l.label} className="flex items-center gap-1.5">
+            {l.isStreak
+              ? <div className="w-3 h-1 rounded-full bg-[#88ee2250]" />
+              : <div className="w-2 h-2 rounded-full shrink-0" style={{ background: l.color }} />}
+            <span className="text-[9px] sm:text-[10px] text-[#555]">{l.label}</span>
+          </div>
+        ))}
       </div>
 
-      {/* ── CHANGE 5: Improved day detail panel ──────────────────────────────── */}
+      {/* Action panel */}
       {selectedDate && (
-        <div
-          ref={panelRef}
-          className="mt-2 bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden"
-        >
-          {/* Panel header */}
-          <div className="px-4 pt-4 pb-3 border-b border-[#1f1f1f]">
-            <p className="text-xs font-bold text-center capitalize text-[#555]">
+        <div ref={panelRef} className="bg-[#141414] rounded-xl border border-[#1f1f1f] overflow-hidden mb-3">
+          <div className="px-4 pt-3 pb-2 border-b border-[#1f1f1f]">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#555] text-center">
               {isES
                 ? format(parseISO(selectedDate), "EEEE, d 'de' MMMM", { locale: es })
                 : format(parseISO(selectedDate), "EEEE, MMMM d")}
             </p>
           </div>
-
-          {/* Action rows */}
           <div className="p-3 space-y-2">
-            {/* Workout row */}
             {showWorkoutOption && (
               <button
                 type="button"
                 onClick={() => setSelectedAction(selectedAction === "workout" ? null : "workout")}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
                 style={{
-                  background: selectedAction === "workout"
-                    ? "color-mix(in srgb, var(--giq-accent) 10%, transparent)"
-                    : "var(--giq-bg-secondary)",
-                  border: selectedAction === "workout"
-                    ? "1.5px solid var(--giq-accent)"
-                    : "1.5px solid var(--giq-border)",
+                  background: selectedAction === "workout" ? "color-mix(in srgb, var(--giq-accent) 10%, transparent)" : "var(--giq-bg-secondary)",
+                  border: `1.5px solid ${selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-border)"}`,
                 }}
               >
-                <span className="text-xl shrink-0">{selectedDateCompleted ? "↩️" : "✅"}</span>
+                <span className="text-lg shrink-0">{selectedDateCompleted ? "↩️" : "✅"}</span>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold" style={{ color: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-text-primary)" }}>
-                    {selectedDateCompleted ? t("cancel") : t("completed_label")}
+                    {selectedDateCompleted ? (isES ? "Deshacer entreno" : "Undo workout") : (isES ? "Marcar como completado" : "Mark as completed")}
                   </p>
-                  <p className="text-[10px] leading-tight mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
-                    {selectedDateCompleted ? t("mark_as_done") + " ↩" : t("mark_as_done")}
+                  <p className="text-[10px] mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
+                    {selectedDateCompleted ? (isES ? "Quitar el registro de hoy" : "Remove today's log") : (isES ? "Registrar entreno completado" : "Log completed workout")}
                   </p>
                 </div>
-                <div
-                  className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
-                  style={{
-                    borderColor: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-border)",
-                    background: selectedAction === "workout" ? "var(--giq-accent)" : "transparent",
-                  }}
-                >
+                <div className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: selectedAction === "workout" ? "var(--giq-accent)" : "var(--giq-border)", background: selectedAction === "workout" ? "var(--giq-accent)" : "transparent" }}>
                   {selectedAction === "workout" && <CheckCircle2 className="w-3 h-3 text-[#0a0a0a]" />}
                 </div>
               </button>
             )}
-
-            {/* Flex Day row */}
             {showFlexOption && (
               <button
                 type="button"
@@ -660,65 +617,48 @@ function CalendarContent() {
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all"
                 style={{
                   background: selectedAction === "flex" ? "rgba(255,184,0,0.08)" : "var(--giq-bg-secondary)",
-                  border: selectedAction === "flex" ? "1.5px solid #FFB800" : "1.5px solid var(--giq-border)",
+                  border: `1.5px solid ${selectedAction === "flex" ? "#FFB800" : "var(--giq-border)"}`,
                 }}
               >
-                <span className="text-xl shrink-0">😋</span>
+                <span className="text-lg shrink-0">😋</span>
                 <div className="flex-1 text-left">
                   <p className="text-sm font-semibold" style={{ color: selectedAction === "flex" ? "#FFB800" : "var(--giq-text-primary)" }}>
-                    {selectedDateIsFlexDay ? `${t("flex_day")} ↩` : t("flex_day")}
+                    {selectedDateIsFlexDay ? `Flex Day ↩` : "Flex Day"}
                   </p>
-                  <p className="text-[10px] leading-tight mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
-                    {t("flex_day_desc")}
+                  <p className="text-[10px] mt-0.5" style={{ color: flexDaysThisMonth >= 4 && !selectedDateIsFlexDay ? "#FF4444" : "var(--giq-text-muted)" }}>
+                    {flexDaysThisMonth >= 4 && !selectedDateIsFlexDay
+                      ? (isES ? "⚠️ Límite mensual alcanzado" : "⚠️ Monthly limit reached")
+                      : t("flex_day_desc")}
                   </p>
                 </div>
-                <div
-                  className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center"
-                  style={{
-                    borderColor: selectedAction === "flex" ? "#FFB800" : "var(--giq-border)",
-                    background: selectedAction === "flex" ? "#FFB800" : "transparent",
-                  }}
-                >
+                <div className="w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center" style={{ borderColor: selectedAction === "flex" ? "#FFB800" : "var(--giq-border)", background: selectedAction === "flex" ? "#FFB800" : "transparent" }}>
                   {selectedAction === "flex" && <CheckCircle2 className="w-3 h-3 text-[#0a0a0a]" />}
                 </div>
               </button>
             )}
           </div>
-
-          {/* Confirm / Cancel buttons */}
           <div className="flex gap-2 px-3 pb-3">
-            <button
-              type="button"
-              onClick={() => { setSelectedDate(null); setSelectedAction(null); }}
-              className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors"
-              style={{ background: "var(--giq-border)", color: "var(--giq-text-muted)" }}
-            >
+            <button type="button" onClick={() => { setSelectedDate(null); setSelectedAction(null); }} className="flex-1 rounded-xl py-2.5 text-sm font-semibold" style={{ background: "#0a0a0a", border: "1px solid #2a2a2a", color: "#666" }}>
               {t("cancel")}
             </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!selectedAction}
-              className="py-2.5 rounded-xl text-sm font-bold transition-colors"
-              style={{
-                flex: 2,
-                background: selectedAction ? "var(--giq-accent)" : "var(--giq-border)",
-                color: selectedAction ? "#0a0a0a" : "var(--giq-text-muted)",
-                cursor: selectedAction ? "pointer" : "not-allowed",
-              }}
-            >
+            <button type="button" onClick={handleConfirm} disabled={!selectedAction} className="rounded-xl py-2.5 text-sm font-bold transition-all" style={{ flex: 2, background: selectedAction ? "var(--giq-accent)" : "#1a1a1a", color: selectedAction ? "var(--giq-accent-text)" : "#444", border: "none", opacity: selectedAction ? 1 : 0.5 }}>
               {t("confirm")}
             </button>
           </div>
         </div>
       )}
 
-      {historyModalRecord && (
-        <WorkoutHistoryModal
-          record={historyModalRecord}
-          onClose={() => setHistoryModalRecord(null)}
-        />
+      {/* Streak card — shown when streak >= 2 */}
+      {currentStreak >= 2 && (
+        <div className="bg-[#141414] border border-[#1f1f1f] rounded-xl p-4 flex items-center gap-4">
+          <span className="text-4xl font-black leading-none" style={{ color: "var(--giq-accent)" }}>{currentStreak}</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-white">{isES ? "días de racha" : "day streak"} 🔥</p>
+            <p className="text-xs text-[#555] mt-0.5">{isES ? "¡Sigue así, lo estás haciendo genial!" : "Keep it up, you're doing great!"}</p>
+          </div>
+        </div>
       )}
+
     </div>
   );
 }
