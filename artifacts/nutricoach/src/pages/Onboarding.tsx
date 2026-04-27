@@ -5,6 +5,7 @@ import { submitOnboarding, type OnboardingFormData } from "@/lib/onboarding-serv
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
 import { useT, useLanguage } from "@/lib/language";
+import { useGenerateMealPlan, useGenerateWorkoutPlan } from "@/lib/supabase-queries";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,9 @@ export default function Onboarding() {
   const isEditMode =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("edit") === "true";
+
+  const mealMutation = useGenerateMealPlan();
+  const workoutMutation = useGenerateWorkoutPlan();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -203,12 +207,12 @@ export default function Onboarding() {
       }));
       await submitOnboarding({ ...formData, supplements, goalPace, fastingProtocol: fastingEnabled ? fastingProtocol : null });
 
-      if (isEditMode) {
-        // Always regenerate both plans on any preference change
-        setLocation("/workouts?regenerate=true&meal=true");
-      } else {
-        setLocation("/meals?regenerate=true");
-      }
+      // Fire both mutations directly — GenerationOverlay handles the loading UI globally
+      mealMutation.mutate({ lang });
+      workoutMutation.mutate({ lang });
+
+      // Navigate to home so user sees the overlay over the main app
+      setLocation("/");
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Something went wrong. Please try again.";

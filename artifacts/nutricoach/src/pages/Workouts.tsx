@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useWorkoutPlan, useGenerateWorkoutPlan, useGenerateMealPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
+import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell, RefreshCw, CheckCircle } from "lucide-react";
@@ -164,10 +164,7 @@ export default function Workouts() {
 function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
-  const mealGenerateMutation = useGenerateMealPlan();
   const hasTriggeredRegen = useRef(false);
-  const hasProcessedUrlParam = useRef(false);
-  const [regenFromPrefs, setRegenFromPrefs] = useState(false);
   const [genSuccess, setGenSuccess] = useState(false);
   const t = useT();
   const { lang } = useLanguage();
@@ -175,38 +172,7 @@ function WorkoutsContent() {
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Effect 1: handle ?regenerate=true URL param — waits for lang to resolve, fires only once
-  useEffect(() => {
-    if (hasProcessedUrlParam.current) return;
-
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("regenerate") !== "true") return;
-
-    console.log("[Workouts] ?regenerate param found, lang:", lang);
-    hasProcessedUrlParam.current = true;
-    window.history.replaceState({}, "", window.location.pathname);
-    hasTriggeredRegen.current = true;
-    setRegenFromPrefs(true);
-
-    const alsoMeal = params.get("meal") === "true";
-    generateMutation.mutate({ lang }, {
-      onSuccess: () => {
-        console.log("[Workouts] Generation complete");
-        setRegenFromPrefs(false);
-        setGenSuccess(true);
-        setTimeout(() => setGenSuccess(false), 3500);
-      },
-      onError: (err) => {
-        console.log("[Workouts] Generation failed:", err);
-        setRegenFromPrefs(false);
-      },
-    });
-    if (alsoMeal) {
-      mealGenerateMutation.mutate({ lang });
-    }
-  }, [lang]); // depends on lang so it fires once lang is resolved
-
-  // Effect 2: auto-regen when no plan or missing exercise_ids
+  // Effect: auto-regen when no plan or missing exercise_ids
   useEffect(() => {
     if (isLoading || hasTriggeredRegen.current || generateMutation.isPending) return;
 
@@ -285,25 +251,7 @@ function WorkoutsContent() {
         </button>
       </div>
 
-      {/* Generating banner (from preferences edit) */}
       <AnimatePresence>
-        {regenFromPrefs && generateMutation.isPending && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mb-5 flex items-center gap-3 rounded-lg px-4 py-3"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
-              border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
-            }}
-          >
-            <Loader2 className="w-4 h-4 animate-spin shrink-0" style={{ color: "var(--giq-accent)" }} />
-            <p className="text-sm font-medium" style={{ color: "var(--giq-accent)" }}>
-              {t("generating_workout_plan")}
-            </p>
-          </motion.div>
-        )}
         {genSuccess && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
