@@ -23,6 +23,7 @@ const PLATE_COLORS: Record<string, string> = {
   carbs: "#fb923c",
   vegetables: "#60a5fa",
   fats: "#a78bfa",
+  fat: "#a78bfa",
   fruit: "#f472b6",
   dairy: "#facc15",
   other: "#555555",
@@ -803,7 +804,7 @@ function MealCard({
   // Macro chips from plate distribution
   const proteinPct = meal.plate_distribution?.protein ?? 0;
   const carbsPct = meal.plate_distribution?.carbs ?? 0;
-  const fatsPct = meal.plate_distribution?.fats ?? 0;
+  const fatsPct = meal.plate_distribution?.fats ?? meal.plate_distribution?.fat ?? 0;
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ background: "#111", borderColor: "#1a1a1a" }}>

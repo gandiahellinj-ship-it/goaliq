@@ -986,7 +986,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
                         <span className="text-xs font-bold leading-none" style={{ color: "#7B8CDE" }}>
-                          {nextMeal.plate_distribution?.fats ?? "—"}%
+                          {nextMeal.plate_distribution?.fats ?? nextMeal.plate_distribution?.fat ?? "—"}%
                         </span>
                         <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Fat" : "Grasas"}</span>
                       </div>
