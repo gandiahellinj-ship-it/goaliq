@@ -91,113 +91,123 @@ export function GenerationOverlay() {
   ];
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
-      style={{
-        background: "rgba(0,0,0,0.80)",
-        backdropFilter: "blur(4px)",
-        opacity: dismissing ? 0 : 1,
-        transition: "opacity 0.5s ease",
-      }}
-    >
+    <>
+      {/* Blur backdrop — separate from card so blur never affects card content */}
       <div
-        className="flex flex-col items-center gap-6 rounded-2xl px-8 py-8 w-full mx-4"
+        className="fixed inset-0 z-[9999]"
         style={{
-          background: "#141414",
-          border: "1px solid #1f1f1f",
-          maxWidth: 320,
-          transform: "translateZ(0)",
-          willChange: "transform",
-          isolation: "isolate",
+          background: "rgba(0,0,0,0.80)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+          opacity: dismissing ? 0 : 1,
+          transition: "opacity 0.5s ease",
+        }}
+      />
+
+      {/* Modal card — no blur, sits above backdrop */}
+      <div
+        className="fixed inset-0 z-[10000] flex items-center justify-center"
+        style={{
+          opacity: dismissing ? 0 : 1,
+          transition: "opacity 0.5s ease",
         }}
       >
-        {/* Header */}
-        <div className="text-center">
-          <p className="text-base font-bold text-white">
-            {allDone
-              ? (isES ? "¡Todo listo! 🎉" : "All done! 🎉")
-              : (isES ? "Creando tu plan..." : "Building your plan...")}
-          </p>
-          <p className="text-xs mt-1.5" style={{ color: "#555" }}>
-            {allDone
-              ? (isES ? "Redirigiendo..." : "Redirecting...")
-              : (isES ? "⏱ 1–2 minutos" : "⏱ 1–2 minutes")}
-          </p>
-        </div>
+        <div
+          className="flex flex-col items-center gap-6 rounded-2xl px-8 py-8 w-full mx-4"
+          style={{
+            background: "#141414",
+            border: "1px solid #1f1f1f",
+            maxWidth: 320,
+          }}
+        >
+          {/* Header */}
+          <div className="text-center">
+            <p className="text-base font-bold text-white">
+              {allDone
+                ? (isES ? "¡Todo listo! 🎉" : "All done! 🎉")
+                : (isES ? "Creando tu plan..." : "Building your plan...")}
+            </p>
+            <p className="text-xs mt-1.5" style={{ color: "#555" }}>
+              {allDone
+                ? (isES ? "Redirigiendo..." : "Redirecting...")
+                : (isES ? "⏱ 1–2 minutos" : "⏱ 1–2 minutes")}
+            </p>
+          </div>
 
-        {/* Steps */}
-        <div className="w-full space-y-3">
-          {steps.map((step) => {
-            const label = isES ? step.labelES : step.labelEN;
-            return (
-              <div
-                key={step.id}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                style={{
-                  background: step.status === "done"
-                    ? "rgba(136,238,34,0.08)"
-                    : step.status === "loading"
-                    ? "rgba(255,255,255,0.04)"
-                    : "#111",
-                  border: `1px solid ${
-                    step.status === "done"
-                      ? "rgba(136,238,34,0.25)"
-                      : step.status === "loading"
-                      ? "#2a2a2a"
-                      : "#1a1a1a"
-                  }`,
-                  transition: "all 0.3s ease",
-                }}
-              >
-                <div className="shrink-0 w-6 h-6 flex items-center justify-center">
-                  {step.status === "done" ? (
-                    <CheckCircle2 className="w-5 h-5" style={{ color: "var(--giq-accent)" }} />
-                  ) : step.status === "loading" ? (
-                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--giq-accent)" }} />
-                  ) : (
-                    <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "#2a2a2a" }} />
-                  )}
-                </div>
-                <span
-                  className="text-sm font-semibold flex-1"
+          {/* Steps */}
+          <div className="w-full space-y-3">
+            {steps.map((step) => {
+              const label = isES ? step.labelES : step.labelEN;
+              return (
+                <div
+                  key={step.id}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl"
                   style={{
-                    color: step.status === "done" ? "var(--giq-accent)"
-                      : step.status === "loading" ? "#e8e8e8"
-                      : "#444",
+                    background: step.status === "done"
+                      ? "rgba(136,238,34,0.08)"
+                      : step.status === "loading"
+                      ? "rgba(255,255,255,0.04)"
+                      : "#111",
+                    border: `1px solid ${
+                      step.status === "done"
+                        ? "rgba(136,238,34,0.25)"
+                        : step.status === "loading"
+                        ? "#2a2a2a"
+                        : "#1a1a1a"
+                    }`,
+                    transition: "all 0.3s ease",
                   }}
                 >
-                  {label}
-                </span>
-                {step.status === "done" && (
+                  <div className="shrink-0 w-6 h-6 flex items-center justify-center">
+                    {step.status === "done" ? (
+                      <CheckCircle2 className="w-5 h-5" style={{ color: "var(--giq-accent)" }} />
+                    ) : step.status === "loading" ? (
+                      <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--giq-accent)" }} />
+                    ) : (
+                      <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "#2a2a2a" }} />
+                    )}
+                  </div>
                   <span
-                    className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: "rgba(136,238,34,0.15)", color: "var(--giq-accent)" }}
+                    className="text-sm font-semibold flex-1"
+                    style={{
+                      color: step.status === "done" ? "var(--giq-accent)"
+                        : step.status === "loading" ? "#e8e8e8"
+                        : "#444",
+                    }}
                   >
-                    {isES ? "Listo" : "Done"}
+                    {label}
                   </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  {step.status === "done" && (
+                    <span
+                      className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(136,238,34,0.15)", color: "var(--giq-accent)" }}
+                    >
+                      {isES ? "Listo" : "Done"}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Progress dots */}
-        <div className="flex gap-1.5">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className="rounded-full transition-all duration-500"
-              style={{
-                width: step.status === "loading" ? 16 : 6,
-                height: 6,
-                background: step.status === "done" || step.status === "loading"
-                  ? "var(--giq-accent)"
-                  : "#2a2a2a",
-              }}
-            />
-          ))}
+          {/* Progress dots */}
+          <div className="flex gap-1.5">
+            {steps.map((step) => (
+              <div
+                key={step.id}
+                className="rounded-full transition-all duration-500"
+                style={{
+                  width: step.status === "loading" ? 16 : 6,
+                  height: 6,
+                  background: step.status === "done" || step.status === "loading"
+                    ? "var(--giq-accent)"
+                    : "#2a2a2a",
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
