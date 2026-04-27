@@ -31,14 +31,14 @@ const PLATE_COLORS: Record<string, string> = {
 
 const MEAL_EMOJI: Record<string, string> = {
   breakfast: "🌅",
-  snack_morning: "🍎",
+  snack_morning: "🌤️",
   lunch: "☀️",
-  snack_afternoon: "🥜",
+  snack_afternoon: "🌆",
   dinner: "🌙",
 };
 
 const MEAL_COLOR: Record<string, string> = {
-  breakfast: "#AAFF45",
+  breakfast: "#88ee22",
   snack_morning: "#7B8CDE",
   lunch: "#FFB347",
   snack_afternoon: "#7B8CDE",
@@ -77,6 +77,33 @@ const DIET_LABELS: Record<string, string> = {
   vegetarian: "Vegetariana",
   vegan: "Vegana",
 };
+
+function getProtein(meals: MealRow[]): number {
+  const total = meals.reduce((sum, m) => {
+    const p = m.plate_distribution?.protein ?? 0;
+    const kcal = CALORIES_APPROX[m.meal_type] ?? 400;
+    return sum + Math.round((p / 100) * kcal * 0.25);
+  }, 0);
+  return total;
+}
+
+function getCarbs(meals: MealRow[]): number {
+  const total = meals.reduce((sum, m) => {
+    const c = (m.plate_distribution?.carbs ?? 0);
+    const kcal = CALORIES_APPROX[m.meal_type] ?? 400;
+    return sum + Math.round((c / 100) * kcal * 0.25);
+  }, 0);
+  return total;
+}
+
+function getFat(meals: MealRow[]): number {
+  const total = meals.reduce((sum, m) => {
+    const f = m.plate_distribution?.fats ?? 0;
+    const kcal = CALORIES_APPROX[m.meal_type] ?? 400;
+    return sum + Math.round((f / 100) * kcal * 0.11);
+  }, 0);
+  return total;
+}
 
 export default function Meals() {
   const t = useT();
@@ -250,9 +277,16 @@ function MealsContent() {
 
   const activeDayData = mealPlan.days.find(d => d.day === activeDay);
   const isGenerating = generateMutation.isPending;
+  const isES = lang !== "en";
 
   const dietLabel = profile?.diet_type ? (DIET_LABELS[profile.diet_type] ?? profile.diet_type) : null;
   const goalLabel = profile?.goal ? (GOAL_LABELS[profile.goal] ?? profile.goal) : null;
+
+  const dayMeals = activeDayData?.meals ?? [];
+  const kcalTarget = dayMeals.reduce((sum, m) => sum + (CALORIES_APPROX[m.meal_type] ?? 400), 0);
+  const kcalConsumed = Math.round(kcalTarget * 0.6); // placeholder: 60% consumed
+  const kcalLeft = kcalTarget - kcalConsumed;
+  const kcalPct = kcalTarget > 0 ? Math.min(100, Math.round((kcalConsumed / kcalTarget) * 100)) : 0;
 
   return (
     <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32 overflow-x-hidden">
@@ -271,75 +305,115 @@ function MealsContent() {
       )}
 
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-display font-black uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>
-            <Utensils className="w-6 h-6" style={{ color: "var(--giq-accent)" }} /> {t("weekly_menu")}
-          </h1>
-          {dietLabel && goalLabel ? (
-            <p className="text-sm mt-1" style={{ color: "var(--giq-text-muted)" }}>
-              Tu plan personalizado · {dietLabel} · {goalLabel}
-            </p>
-          ) : (
-            <p className="text-sm text-[#555555] mt-1">
-              {t("week_of")} {new Date(mealPlan.weekStart + "T12:00:00").toLocaleDateString("es-ES", { day: "numeric", month: "long" })}
-            </p>
-          )}
+      <div className="mb-5">
+        {/* Top row: avatar + title + regen button */}
+        <div className="flex items-center gap-3 mb-4">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xl"
+            style={{ background: "color-mix(in srgb, var(--giq-accent) 15%, transparent)" }}
+          >
+            🥗
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold leading-tight" style={{ color: "var(--giq-text-primary)" }}>
+              {isES ? "Tu plan semanal" : "Your weekly plan"}
+            </h1>
+            {(dietLabel || goalLabel) && (
+              <p className="text-xs truncate" style={{ color: "var(--giq-text-muted)" }}>
+                {[dietLabel, goalLabel].filter(Boolean).join(" · ")}
+              </p>
+            )}
+          </div>
+
+          {/* Regenerate button */}
+          <div className="relative shrink-0">
+            {!isProfileComplete ? (
+              <Link
+                href="/onboarding?edit=true"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold transition-all hover:bg-amber-500/20"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                {t("update_profile")}
+              </Link>
+            ) : !showConfirm ? (
+              <button
+                onClick={() => setShowConfirm(true)}
+                disabled={isGenerating}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-[#A0A0A0] hover:border-[#AAFF45]/30 hover:text-[#AAFF45] text-xs font-semibold transition-all disabled:opacity-50"
+              >
+                {isGenerating ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("generating_short")}</>
+                ) : genSuccess ? (
+                  <><CheckCircle2 className="w-3.5 h-3.5 text-[#AAFF45]" /> {profile?.full_name?.split(" ")[0] ? t("done_name", { name: profile.full_name.split(" ")[0] }) : t("done")}</>
+                ) : (
+                  <><Sparkles className="w-3.5 h-3.5" /> {t("new_plan")}</>
+                )}
+              </button>
+            ) : (
+              <AnimatePresence>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="absolute right-0 top-0 z-10 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] shadow-2xl p-3 w-56"
+                >
+                  <p className="text-xs text-[#A0A0A0] font-medium mb-2.5 leading-snug">
+                    {t("replace_plan_confirm")}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGenerate}
+                      className="flex-1 py-1.5 rounded-lg bg-[#AAFF45] text-[#0A0A0A] text-xs font-bold hover:bg-[#99EE34] transition-colors"
+                    >
+                      {t("generate")}
+                    </button>
+                    <button
+                      onClick={() => setShowConfirm(false)}
+                      className="flex-1 py-1.5 rounded-lg bg-[#2A2A2A] text-[#A0A0A0] text-xs font-semibold hover:bg-[#3A3A3A] transition-colors"
+                    >
+                      {t("cancel")}
+                    </button>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
+          </div>
         </div>
 
-        {/* Regenerate button */}
-        <div className="relative shrink-0">
-          {!isProfileComplete ? (
-            <Link
-              href="/onboarding?edit=true"
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold transition-all hover:bg-amber-500/20"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              {t("update_profile")}
-            </Link>
-          ) : !showConfirm ? (
-            <button
-              onClick={() => setShowConfirm(true)}
-              disabled={isGenerating}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-[#A0A0A0] hover:border-[#AAFF45]/30 hover:text-[#AAFF45] text-xs font-semibold transition-all disabled:opacity-50"
-            >
-              {isGenerating ? (
-                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("generating_short")}</>
-              ) : genSuccess ? (
-                <><CheckCircle2 className="w-3.5 h-3.5 text-[#AAFF45]" /> {profile?.full_name?.split(" ")[0] ? t("done_name", { name: profile.full_name.split(" ")[0] }) : t("done")}</>
-              ) : (
-                <><Sparkles className="w-3.5 h-3.5" /> {t("new_plan")}</>
-              )}
-            </button>
-          ) : (
-            <AnimatePresence>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="absolute right-0 top-0 z-10 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] shadow-2xl p-3 w-56"
-              >
-                <p className="text-xs text-[#A0A0A0] font-medium mb-2.5 leading-snug">
-                  {t("replace_plan_confirm")}
+        {/* Kcal strip + progress bar */}
+        {kcalTarget > 0 && (
+          <div className="rounded-xl border p-3" style={{ backgroundColor: "#141414", borderColor: "#1f1f1f" }}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-center flex-1">
+                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>
+                  {isES ? "Objetivo" : "Target"}
                 </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleGenerate}
-                    className="flex-1 py-1.5 rounded-lg bg-[#AAFF45] text-[#0A0A0A] text-xs font-bold hover:bg-[#99EE34] transition-colors"
-                  >
-                    {t("generate")}
-                  </button>
-                  <button
-                    onClick={() => setShowConfirm(false)}
-                    className="flex-1 py-1.5 rounded-lg bg-[#2A2A2A] text-[#A0A0A0] text-xs font-semibold hover:bg-[#3A3A3A] transition-colors"
-                  >
-                    {t("cancel")}
-                  </button>
-                </div>
-              </motion.div>
-            </AnimatePresence>
-          )}
-        </div>
+                <p className="text-base font-bold" style={{ color: "var(--giq-text-primary)" }}>{kcalTarget}</p>
+              </div>
+              <div className="w-px h-8 bg-[#2a2a2a]" />
+              <div className="text-center flex-1">
+                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>
+                  {isES ? "Consumido" : "Consumed"}
+                </p>
+                <p className="text-base font-bold" style={{ color: "var(--giq-accent)" }}>{kcalConsumed}</p>
+              </div>
+              <div className="w-px h-8 bg-[#2a2a2a]" />
+              <div className="text-center flex-1">
+                <p className="text-[10px] uppercase tracking-wide" style={{ color: "var(--giq-text-muted)" }}>
+                  {isES ? "Restante" : "Remaining"}
+                </p>
+                <p className="text-base font-bold" style={{ color: "var(--giq-text-secondary)" }}>{kcalLeft}</p>
+              </div>
+            </div>
+            <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "#222" }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${kcalPct}%`, backgroundColor: "var(--giq-accent)" }}
+              />
+            </div>
+            <p className="text-[10px] text-right mt-1" style={{ color: "var(--giq-text-muted)" }}>{kcalPct}% kcal</p>
+          </div>
+        )}
       </div>
 
       {/* Profile incomplete warning */}
@@ -447,6 +521,26 @@ function MealsContent() {
           );
         })}
       </div>
+
+      {/* Macro summary row */}
+      {dayMeals.length > 0 && (
+        <div className="flex gap-2 mb-4">
+          {[
+            { label: isES ? "Proteína" : "Protein", value: getProtein(dayMeals), unit: "g", color: "#AAFF45" },
+            { label: isES ? "Carbos" : "Carbs", value: getCarbs(dayMeals), unit: "g", color: "#FFB347" },
+            { label: isES ? "Grasas" : "Fat", value: getFat(dayMeals), unit: "g", color: "#a78bfa" },
+          ].map(({ label, value, unit, color }) => (
+            <div
+              key={label}
+              className="flex-1 rounded-lg px-3 py-2 text-center"
+              style={{ backgroundColor: "#141414", border: "1px solid #1f1f1f" }}
+            >
+              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ color: "var(--giq-text-muted)" }}>{label}</p>
+              <p className="text-sm font-bold" style={{ color }}>{value}{unit}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Meals */}
       <AnimatePresence mode="wait">
@@ -582,41 +676,43 @@ function MealCard({
       ? (lang === "en" ? "Morning snack" : "Snack mañana")
       : (lang === "en" ? "Afternoon snack" : "Snack tarde");
     const snackCalories = CALORIES_APPROX[meal.meal_type] ?? 175;
+    const ingCount = meal.ingredients.length;
 
     return (
       <div
         className="rounded-xl border overflow-hidden transition-all"
-        style={{ backgroundColor: "#0d0d0d", borderColor: "#181818" }}
+        style={{ backgroundColor: "#0d0d0d", borderColor: "#161616" }}
       >
         <button
           onClick={() => setExpanded(e => !e)}
           className="w-full text-left px-4 py-3 transition-colors hover:bg-[#111]"
         >
           <div className="flex items-center gap-3">
-            <span className="text-2xl shrink-0">{MEAL_EMOJI[meal.meal_type]}</span>
+            <span className="text-xl shrink-0 leading-none">{MEAL_EMOJI[meal.meal_type]}</span>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-0.5">
+              <div className="flex items-center gap-1.5 mb-0.5">
                 <span
-                  className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full"
+                  className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full"
                   style={{
-                    background: "rgba(123,140,222,0.15)",
-                    border: "1px solid rgba(123,140,222,0.30)",
+                    background: "rgba(123,140,222,0.12)",
+                    border: "1px solid rgba(123,140,222,0.25)",
                     color: "#7B8CDE",
                   }}
                 >
                   {snackLabel}
                 </span>
+                <span className="text-[9px] text-[#444]">{ingCount} {lang === "en" ? "items" : "ingredientes"}</span>
               </div>
               <p className="text-sm font-semibold text-white leading-tight truncate">{meal.meal_name}</p>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[10px] text-[#555] bg-[#1a1a1a] px-2 py-0.5 rounded-full whitespace-nowrap">
-                🔥 {snackCalories} kcal
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[10px] text-[#555]">🔥 {snackCalories} kcal</span>
+              <span
+                className="text-[10px] font-semibold transition-colors"
+                style={{ color: expanded ? "var(--giq-accent)" : "#555" }}
+              >
+                {expanded ? (lang === "en" ? "Ver ↑" : "Ver ↑") : (lang === "en" ? "Ver →" : "Ver →")}
               </span>
-              <ChevronDown
-                className="w-3.5 h-3.5 text-[#555] transition-transform duration-300"
-                style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
-              />
             </div>
           </div>
         </button>
@@ -630,7 +726,7 @@ function MealCard({
               transition={{ duration: 0.25, ease: "easeInOut" }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-3 border-t border-[#181818]">
+              <div className="px-4 pb-3 border-t border-[#161616]">
                 {errorMsg && (
                   <div className="mt-3 mb-2 flex items-center gap-2 text-xs text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-3 py-2">
                     <AlertCircle className="w-3.5 h-3.5 shrink-0" />
@@ -674,48 +770,68 @@ function MealCard({
   }));
 
   const mealColor = MEAL_COLOR[meal.meal_type] ?? "#AAFF45";
-  const mealLabel = t(meal.meal_type).toUpperCase();
+  const mealEmoji = MEAL_EMOJI[meal.meal_type] ?? "🍽️";
+  const mealLabel = t(meal.meal_type);
   const prepTime = PREP_TIME[meal.meal_type] ?? 15;
   const calories = CALORIES_APPROX[meal.meal_type] ?? 500;
 
+  // Macro chips from plate distribution
+  const proteinPct = meal.plate_distribution?.protein ?? 0;
+  const carbsPct = meal.plate_distribution?.carbs ?? 0;
+  const fatsPct = meal.plate_distribution?.fats ?? 0;
+
   return (
     <div
-      className="rounded-xl border border-[#222222] overflow-hidden transition-all hover:border-[#333333]"
-      style={{ backgroundColor: "#151515", borderLeftWidth: 3, borderLeftColor: mealColor }}
+      className="rounded-xl border overflow-hidden transition-all"
+      style={{ backgroundColor: "#141414", borderColor: "#1f1f1f" }}
     >
       {/* Header — click to expand */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full text-left px-5 py-4 transition-colors hover:bg-[#111111]"
+        className="w-full text-left px-4 py-3.5 transition-colors hover:bg-[#181818]"
       >
-        <div className="flex items-start gap-3">
-          <div className="flex-1 min-w-0">
-            {/* Meal type label */}
-            <p
-              className="text-[11px] font-bold uppercase tracking-widest mb-1"
-              style={{ color: mealColor }}
-            >
-              {mealLabel}
-            </p>
-            {/* Meal name */}
-            <p className="text-[22px] font-bold text-white leading-tight truncate">
-              {meal.meal_name}
-            </p>
-          </div>
+        {/* Type row */}
+        <div className="flex items-center gap-1.5 mb-2">
+          <span className="text-base leading-none">{mealEmoji}</span>
+          <span
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: mealColor }}
+          />
+          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: mealColor }}>
+            {mealLabel}
+          </span>
+        </div>
 
-          {/* Info pills + chevron */}
-          <div className="flex items-center gap-1.5 shrink-0 mt-1">
-            <span className="flex items-center gap-1 text-[11px] text-[#A0A0A0] bg-[#2A2A2A] px-2 py-1 rounded-full whitespace-nowrap">
-              ⏱ {prepTime} min
+        {/* Meal name */}
+        <p className="text-[18px] font-bold text-white leading-snug mb-2.5 truncate">
+          {meal.meal_name}
+        </p>
+
+        {/* Macro chips + chevron */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {proteinPct > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(170,255,69,0.12)", color: "#AAFF45", border: "1px solid rgba(170,255,69,0.2)" }}>
+              P {proteinPct}%
             </span>
-            <span className="hidden sm:flex items-center gap-1 text-[11px] text-[#A0A0A0] bg-[#2A2A2A] px-2 py-1 rounded-full whitespace-nowrap">
-              🔥 {calories} kcal
+          )}
+          {carbsPct > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,179,71,0.12)", color: "#FFB347", border: "1px solid rgba(255,179,71,0.2)" }}>
+              C {carbsPct}%
             </span>
-            <ChevronDown
-              className="w-4 h-4 text-[#555555] transition-transform duration-300 shrink-0"
-              style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
-            />
-          </div>
+          )}
+          {fatsPct > 0 && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}>
+              G {fatsPct}%
+            </span>
+          )}
+          <div className="flex-1" />
+          <span className="text-[10px] text-[#555]">⏱ {prepTime} min</span>
+          <span className="text-[10px] text-[#555]">·</span>
+          <span className="text-[10px] text-[#555]">🔥 {calories} kcal</span>
+          <ChevronDown
+            className="w-3.5 h-3.5 text-[#555] transition-transform duration-300 ml-1"
+            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
+          />
         </div>
       </button>
 
@@ -729,89 +845,75 @@ function MealCard({
             transition={{ duration: 0.3, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="px-5 pb-5 border-t border-[#222222]">
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+            <div className="border-t border-[#1f1f1f]">
+              {/* Ingredients section */}
+              <div className="px-4 pt-3 pb-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: "#444" }}>
+                  {t("ingredients_portions")}
+                </h4>
 
-                {/* Ingredients */}
-                <div className="flex-1">
-                  <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-3">
-                    {t("ingredients_portions")}
-                  </h4>
+                {errorMsg && (
+                  <div className="mb-3 flex items-center gap-2 text-xs text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-3 py-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {errorMsg}
+                  </div>
+                )}
 
-                  {errorMsg && (
-                    <div className="mb-3 flex items-center gap-2 text-xs text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-3 py-2">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      {errorMsg}
-                    </div>
-                  )}
+                <div className="space-y-0.5">
+                  {meal.ingredients.map((ing, i) => (
+                    <IngredientRow
+                      key={i}
+                      ingredient={ing}
+                      index={i}
+                      isLoadingOptions={loadingOptionsIndex === i}
+                      isApplying={applyingIndex === i}
+                      isSuccess={successIndex === i}
+                      pickerOptions={picker?.ingredientIndex === i ? picker.options : null}
+                      onRequestSwap={() => handleRequestSwap(ing, i)}
+                      onSelectSwap={(opt) => handleSelectSwap(i, opt)}
+                      onDismissPicker={() => setPicker(null)}
+                      disabled={loadingOptionsIndex !== null || applyingIndex !== null}
+                      canSwap={canSwap}
+                    />
+                  ))}
+                </div>
+              </div>
 
-                  <div className="space-y-0.5">
-                    {meal.ingredients.map((ing, i) => (
-                      <IngredientRow
-                        key={i}
-                        ingredient={ing}
-                        index={i}
-                        isLoadingOptions={loadingOptionsIndex === i}
-                        isApplying={applyingIndex === i}
-                        isSuccess={successIndex === i}
-                        pickerOptions={picker?.ingredientIndex === i ? picker.options : null}
-                        onRequestSwap={() => handleRequestSwap(ing, i)}
-                        onSelectSwap={(opt) => handleSelectSwap(i, opt)}
-                        onDismissPicker={() => setPicker(null)}
-                        disabled={loadingOptionsIndex !== null || applyingIndex !== null}
-                        canSwap={canSwap}
+              {/* Plate distribution — compact horizontal bar */}
+              {plateData.length > 0 && (
+                <div className="px-4 py-2 border-t border-[#1a1a1a]">
+                  <div className="flex gap-1 h-1.5 rounded-full overflow-hidden mb-2">
+                    {plateData.map(item => (
+                      <div
+                        key={item.name}
+                        style={{ width: `${item.value}%`, backgroundColor: item.color }}
                       />
                     ))}
                   </div>
-                </div>
-
-                {/* Plate distribution chart — visible on all sizes */}
-                {plateData.length > 0 && (
-                  <div className="flex flex-col items-center sm:shrink-0 sm:w-[120px] w-full">
-                    <h4 className="text-[10px] font-bold text-[#444444] uppercase tracking-widest mb-2 self-center">
-                      {t("distribution")}
-                    </h4>
-                    <div className="w-[100px] h-[100px] sm:w-[100px] sm:h-[100px] mx-auto">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={plateData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius="52%"
-                            outerRadius="82%"
-                            dataKey="value"
-                            stroke="none"
-                          >
-                            {plateData.map((entry, i) => (
-                              <Cell key={i} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(v) => [`${v}%`]}
-                            contentStyle={{
-                              borderRadius: 8,
-                              border: "1px solid #2A2A2A",
-                              backgroundColor: "#1A1A1A",
-                              fontSize: 12,
-                              padding: "6px 10px",
-                              color: "#FFFFFF",
-                            }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 justify-center sm:flex-col sm:flex-nowrap sm:gap-y-1 sm:justify-start w-full">
-                      {plateData.map(item => (
-                        <div key={item.name} className="flex items-center gap-1.5 text-xs">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="text-[#555555] flex-1 truncate">{t(item.name.toLowerCase())}</span>
-                          <span className="font-bold text-white">{item.value}%</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1">
+                    {plateData.map(item => (
+                      <div key={item.name} className="flex items-center gap-1 text-[10px]">
+                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <span style={{ color: "#555" }}>{t(item.name.toLowerCase())}</span>
+                        <span className="font-semibold text-white">{item.value}%</span>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
+
+              {/* Footer CTA */}
+              <div className="px-4 py-2.5 border-t border-[#1a1a1a] flex items-center justify-between">
+                {meal.notes ? (
+                  <p className="text-[10px] italic flex-1 mr-3 leading-snug" style={{ color: "#555" }}>{meal.notes}</p>
+                ) : <div />}
+                <button
+                  className="text-[11px] font-semibold shrink-0 transition-colors"
+                  style={{ color: "var(--giq-accent)" }}
+                  onClick={() => setExpanded(false)}
+                >
+                  {lang === "en" ? "Close ↑" : "Cerrar ↑"}
+                </button>
               </div>
             </div>
           </motion.div>
