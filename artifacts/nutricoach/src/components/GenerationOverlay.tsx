@@ -1,16 +1,9 @@
 import { useIsMutating } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { useLanguage } from "@/lib/language";
 
 type StepStatus = "pending" | "loading" | "done";
-
-interface Step {
-  id: string;
-  labelES: string;
-  labelEN: string;
-  status: StepStatus;
-}
 
 export function GenerationOverlay() {
   const { lang } = useLanguage();
@@ -19,10 +12,14 @@ export function GenerationOverlay() {
   const isGeneratingMeal = useIsMutating({ mutationKey: ["generate-meal"] }) > 0;
   const isGeneratingWorkout = useIsMutating({ mutationKey: ["generate-workout"] }) > 0;
 
+  const [visible, setVisible] = useState(false);
   const [mealDone, setMealDone] = useState(false);
   const [workoutDone, setWorkoutDone] = useState(false);
-  const [visible, setVisible] = useState(false);
   const [dismissing, setDismissing] = useState(false);
+
+  // Track whether each mutation was ever observed as active
+  const mealWasActive = useRef(false);
+  const workoutWasActive = useRef(false);
 
   // Show overlay when any generation starts
   useEffect(() => {
@@ -32,41 +29,47 @@ export function GenerationOverlay() {
     }
   }, [isGeneratingMeal, isGeneratingWorkout]);
 
-  // Mark meal as done when meal mutation finishes
+  // Edge detection: meal was running → now finished
   useEffect(() => {
-    if (visible && !isGeneratingMeal && (mealDone === false)) {
-      // Only mark done if we were visible (i.e. we actually tracked a meal gen)
-      if (isGeneratingWorkout || workoutDone) {
-        setMealDone(true);
-      }
+    if (isGeneratingMeal) {
+      mealWasActive.current = true;
+    } else if (mealWasActive.current && !mealDone) {
+      setMealDone(true);
     }
-  }, [isGeneratingMeal, visible]);
+  }, [isGeneratingMeal]);
 
-  // Mark workout as done when workout mutation finishes
+  // Edge detection: workout was running → now finished
   useEffect(() => {
-    if (visible && !isGeneratingWorkout && workoutDone === false && mealDone) {
+    if (isGeneratingWorkout) {
+      workoutWasActive.current = true;
+    } else if (workoutWasActive.current && !workoutDone) {
       setWorkoutDone(true);
     }
-  }, [isGeneratingWorkout, visible, mealDone]);
+  }, [isGeneratingWorkout]);
 
-  // If only meal is generating (no workout mutation), auto-mark workout as done
+  // If meal is done but workout was never started, auto-complete workout after short delay
   useEffect(() => {
-    if (visible && !isGeneratingWorkout && mealDone && !workoutDone) {
-      // Short delay so user sees the workout step briefly before it completes
-      const t = setTimeout(() => setWorkoutDone(true), 600);
+    if (visible && mealDone && !workoutWasActive.current && !workoutDone) {
+      const t = setTimeout(() => setWorkoutDone(true), 800);
       return () => clearTimeout(t);
     }
-  }, [visible, isGeneratingWorkout, mealDone, workoutDone]);
+  }, [visible, mealDone, workoutDone]);
 
-  // Auto-dismiss when all done
+  // Auto-dismiss when all tracked steps are done and nothing is generating
   useEffect(() => {
-    if (visible && mealDone && workoutDone && !isGeneratingMeal && !isGeneratingWorkout) {
+    const anyTracked = mealWasActive.current || workoutWasActive.current;
+    const allFinished = !isGeneratingMeal && !isGeneratingWorkout;
+    const allDone = (mealWasActive.current ? mealDone : true) && (workoutWasActive.current ? workoutDone : true);
+
+    if (visible && anyTracked && allFinished && allDone) {
       setDismissing(true);
       const timer = setTimeout(() => {
         setVisible(false);
         setMealDone(false);
         setWorkoutDone(false);
         setDismissing(false);
+        mealWasActive.current = false;
+        workoutWasActive.current = false;
       }, 1500);
       return () => clearTimeout(timer);
     }
@@ -74,28 +77,18 @@ export function GenerationOverlay() {
 
   if (!visible) return null;
 
-  const steps: Step[] = [
-    {
-      id: "meal",
-      labelES: "Plan de comidas",
-      labelEN: "Meal plan",
-      status: mealDone ? "done" : isGeneratingMeal ? "loading" : "pending",
-    },
-    {
-      id: "shopping",
-      labelES: "Lista de la compra",
-      labelEN: "Shopping list",
-      status: mealDone ? "done" : isGeneratingMeal ? "loading" : "pending",
-    },
-    {
-      id: "workout",
-      labelES: "Plan de entrenos",
-      labelEN: "Workout plan",
-      status: workoutDone ? "done" : isGeneratingWorkout ? "loading" : mealDone ? "loading" : "pending",
-    },
-  ];
+  const allDone = mealDone && (workoutWasActive.current ? workoutDone : true);
 
-  const allDone = mealDone && workoutDone;
+  // Step statuses
+  const mealStatus: StepStatus = mealDone ? "done" : isGeneratingMeal ? "loading" : mealWasActive.current ? "loading" : "pending";
+  const shoppingStatus: StepStatus = mealDone ? "done" : isGeneratingMeal ? "loading" : mealWasActive.current ? "loading" : "pending";
+  const workoutStatus: StepStatus = workoutDone ? "done" : isGeneratingWorkout ? "loading" : workoutWasActive.current ? "loading" : mealDone ? "loading" : "pending";
+
+  const steps = [
+    { id: "meal",     labelES: "Plan de comidas",    labelEN: "Meal plan",     status: mealStatus },
+    { id: "shopping", labelES: "Lista de la compra", labelEN: "Shopping list", status: shoppingStatus },
+    { id: "workout",  labelES: "Plan de entrenos",   labelEN: "Workout plan",  status: workoutStatus },
+  ];
 
   return (
     <div
@@ -109,11 +102,7 @@ export function GenerationOverlay() {
     >
       <div
         className="flex flex-col items-center gap-6 rounded-2xl px-8 py-8 w-full mx-4"
-        style={{
-          background: "#141414",
-          border: "1px solid #1f1f1f",
-          maxWidth: 320,
-        }}
+        style={{ background: "#141414", border: "1px solid #1f1f1f", maxWidth: 320 }}
       >
         {/* Header */}
         <div className="text-center">
@@ -153,48 +142,29 @@ export function GenerationOverlay() {
                   transition: "all 0.3s ease",
                 }}
               >
-                {/* Step icon */}
                 <div className="shrink-0 w-6 h-6 flex items-center justify-center">
                   {step.status === "done" ? (
-                    <CheckCircle2
-                      className="w-5 h-5"
-                      style={{ color: "var(--giq-accent)" }}
-                    />
+                    <CheckCircle2 className="w-5 h-5" style={{ color: "var(--giq-accent)" }} />
                   ) : step.status === "loading" ? (
-                    <Loader2
-                      className="w-4 h-4 animate-spin"
-                      style={{ color: "var(--giq-accent)" }}
-                    />
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--giq-accent)" }} />
                   ) : (
-                    <div
-                      className="w-4 h-4 rounded-full border-2"
-                      style={{ borderColor: "#2a2a2a" }}
-                    />
+                    <div className="w-4 h-4 rounded-full border-2" style={{ borderColor: "#2a2a2a" }} />
                   )}
                 </div>
-
-                {/* Label */}
                 <span
                   className="text-sm font-semibold flex-1"
                   style={{
-                    color: step.status === "done"
-                      ? "var(--giq-accent)"
-                      : step.status === "loading"
-                      ? "#e8e8e8"
+                    color: step.status === "done" ? "var(--giq-accent)"
+                      : step.status === "loading" ? "#e8e8e8"
                       : "#444",
                   }}
                 >
                   {label}
                 </span>
-
-                {/* Done badge */}
                 {step.status === "done" && (
                   <span
                     className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                    style={{
-                      background: "rgba(136,238,34,0.15)",
-                      color: "var(--giq-accent)",
-                    }}
+                    style={{ background: "rgba(136,238,34,0.15)", color: "var(--giq-accent)" }}
                   >
                     {isES ? "Listo" : "Done"}
                   </span>
@@ -213,9 +183,7 @@ export function GenerationOverlay() {
               style={{
                 width: step.status === "loading" ? 16 : 6,
                 height: 6,
-                background: step.status === "done"
-                  ? "var(--giq-accent)"
-                  : step.status === "loading"
+                background: step.status === "done" || step.status === "loading"
                   ? "var(--giq-accent)"
                   : "#2a2a2a",
               }}
