@@ -129,6 +129,14 @@ function MealsContent() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [genSuccess, setGenSuccess] = useState(false);
   const [regenFromUrl, setRegenFromUrl] = useState(false);
+  const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentHour(new Date().getHours());
+    }, 60000); // update every 60 seconds
+    return () => clearInterval(interval);
+  }, []);
 
   const isLoading = mealLoading || profileLoading;
 
@@ -283,8 +291,26 @@ function MealsContent() {
 
   const dayMeals = activeDayData?.meals ?? [];
   const kcalTarget = dayMeals.reduce((sum, m) => sum + (CALORIES_APPROX[m.meal_type] ?? 400), 0);
-  const kcalConsumed = Math.round(kcalTarget * 0.6); // placeholder: 60% consumed
-  const kcalLeft = kcalTarget - kcalConsumed;
+
+  // Time-based automatic tracking — assumes meals are eaten at these cutoff hours
+  const MEAL_CUTOFF_HOURS: Record<string, number> = {
+    breakfast:        9,
+    snack_morning:   11,
+    lunch:           14,
+    snack_afternoon: 17,
+    dinner:          20,
+  };
+
+  // Only track today — past and future days show 0
+  const isActiveToday = activeDay === todayName;
+
+  const kcalConsumed = isActiveToday
+    ? dayMeals
+        .filter(m => currentHour >= (MEAL_CUTOFF_HOURS[m.meal_type] ?? 23))
+        .reduce((sum, m) => sum + (CALORIES_APPROX[m.meal_type] ?? 0), 0)
+    : 0;
+
+  const kcalLeft = Math.max(kcalTarget - kcalConsumed, 0);
   const kcalPct = kcalTarget > 0 ? Math.min(100, Math.round((kcalConsumed / kcalTarget) * 100)) : 0;
 
   return (
