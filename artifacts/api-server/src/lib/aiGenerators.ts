@@ -393,7 +393,7 @@ export async function generateMealPlanForUser(profile: {
   "meal_type": string — MUST be exactly one of: breakfast, snack_morning, lunch, snack_afternoon, dinner,
   "meal_name": string,
   "ingredients": [{ "name": string, "amount": string, "visual_ref": string, "category": string (protein | carbs | vegetables | fats | dairy | fruit | other) }],
-  "plate_distribution": { "protein": number, "carbs": number, "fat": number, "vegetables": number },
+  "plate_distribution": { "protein": number, "carbs": number, "fat": number },
   "calories_approx": number,
   "prep_time_minutes": number,
   "notes": string
@@ -407,6 +407,7 @@ ${hasSnacks
 - CRITICAL: Assign correct category to every ingredient.
 - Strictly respect the diet type and allergies. Never include disliked foods.
 - Vary meals (no repeated meals). Adjust calories to match the goal.
+- CRITICAL: plate_distribution must contain ONLY "protein", "carbs" and "fat" keys. They MUST sum to exactly 100. No other keys allowed (no vegetables, no dairy, no fruit).
 - plate_distribution values must sum to 100.
 - ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;

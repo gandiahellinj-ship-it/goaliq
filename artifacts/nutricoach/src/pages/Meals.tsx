@@ -790,13 +790,19 @@ function MealCard({
 
   // ── Full meal card ─────────────────────────────────────────────────────────
   const MACRO_KEYS = ["protein", "carbs", "fat", "fats"];
-  const plateData = Object.entries(meal.plate_distribution)
+  const rawPlateData = Object.entries(meal.plate_distribution)
     .filter(([name]) => MACRO_KEYS.includes(name.toLowerCase()))
     .map(([name, value]) => ({
       name: name === "fats" ? "Fat" : name.charAt(0).toUpperCase() + name.slice(1),
-      value,
+      value: value as number,
       color: PLATE_COLORS[name] ?? "#555555",
     }));
+
+  // Normalize to 100% in case AI didn't sum correctly
+  const rawTotal = rawPlateData.reduce((s, d) => s + d.value, 0);
+  const plateData = rawTotal > 0 && rawTotal !== 100
+    ? rawPlateData.map(d => ({ ...d, value: Math.round((d.value / rawTotal) * 100) }))
+    : rawPlateData;
 
   const mealColor = MEAL_COLOR[meal.meal_type] ?? "#AAFF45";
   const mealEmoji = MEAL_EMOJI[meal.meal_type] ?? "🍽️";
@@ -804,10 +810,10 @@ function MealCard({
   const prepTime = PREP_TIME[meal.meal_type] ?? 15;
   const calories = CALORIES_APPROX[meal.meal_type] ?? 500;
 
-  // Macro chips from plate distribution
-  const proteinPct = meal.plate_distribution?.protein ?? 0;
-  const carbsPct = meal.plate_distribution?.carbs ?? 0;
-  const fatsPct = meal.plate_distribution?.fats ?? meal.plate_distribution?.fat ?? 0;
+  // Macro chips — read from normalized plateData
+  const proteinPct = plateData.find(d => d.name === "Protein")?.value ?? 0;
+  const carbsPct = plateData.find(d => d.name === "Carbs")?.value ?? 0;
+  const fatsPct = plateData.find(d => d.name === "Fat")?.value ?? 0;
 
   return (
     <div className="rounded-2xl border overflow-hidden" style={{ background: "#111", borderColor: "#1a1a1a" }}>
