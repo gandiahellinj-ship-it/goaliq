@@ -98,7 +98,7 @@ function getCarbs(meals: MealRow[]): number {
 
 function getFat(meals: MealRow[]): number {
   const total = meals.reduce((sum, m) => {
-    const f = m.plate_distribution?.fats ?? 0;
+    const f = m.plate_distribution?.fats ?? m.plate_distribution?.fat ?? 0;
     const kcal = CALORIES_APPROX[m.meal_type] ?? 400;
     return sum + Math.round((f / 100) * kcal * 0.11);
   }, 0);
@@ -789,11 +789,14 @@ function MealCard({
   }
 
   // ── Full meal card ─────────────────────────────────────────────────────────
-  const plateData = Object.entries(meal.plate_distribution).map(([name, value]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    value,
-    color: PLATE_COLORS[name] ?? "#555555",
-  }));
+  const MACRO_KEYS = ["protein", "carbs", "fat", "fats"];
+  const plateData = Object.entries(meal.plate_distribution)
+    .filter(([name]) => MACRO_KEYS.includes(name.toLowerCase()))
+    .map(([name, value]) => ({
+      name: name === "fats" ? "Fat" : name.charAt(0).toUpperCase() + name.slice(1),
+      value,
+      color: PLATE_COLORS[name] ?? "#555555",
+    }));
 
   const mealColor = MEAL_COLOR[meal.meal_type] ?? "#AAFF45";
   const mealEmoji = MEAL_EMOJI[meal.meal_type] ?? "🍽️";
