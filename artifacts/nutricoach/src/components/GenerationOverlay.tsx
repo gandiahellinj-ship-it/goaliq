@@ -95,14 +95,21 @@ export function GenerationOverlay() {
       className="fixed inset-0 z-[9999] flex items-center justify-center"
       style={{
         background: "rgba(0,0,0,0.80)",
-        backdropFilter: "blur(6px)",
+        backdropFilter: "blur(4px)",
         opacity: dismissing ? 0 : 1,
         transition: "opacity 0.5s ease",
       }}
     >
       <div
         className="flex flex-col items-center gap-6 rounded-2xl px-8 py-8 w-full mx-4"
-        style={{ background: "#141414", border: "1px solid #1f1f1f", maxWidth: 320 }}
+        style={{
+          background: "#141414",
+          border: "1px solid #1f1f1f",
+          maxWidth: 320,
+          transform: "translateZ(0)",
+          willChange: "transform",
+          isolation: "isolate",
+        }}
       >
         {/* Header */}
         <div className="text-center">
