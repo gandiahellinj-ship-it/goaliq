@@ -23,6 +23,7 @@ import Profile from "@/pages/Profile";
 import Settings from "@/pages/Settings";
 import AppLayout from "@/components/layout/AppLayout";
 import NotFound from "@/pages/not-found";
+import { GenerationOverlay } from "@/components/GenerationOverlay";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,7 @@ function App() {
             <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
               <Router />
             </WouterRouter>
+            <GenerationOverlay />
             <AuthModal />
             <Toaster />
             <SonnerToaster position="bottom-center" theme="dark" />

@@ -259,19 +259,6 @@ function WorkoutsContent() {
   return (
     <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto pb-32">
 
-      {/* Generation overlay — shown when regenerating an existing plan */}
-      {generateMutation.isPending && (regenFromPrefs || workoutPlan) && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-          <div className="rounded-2xl border p-8 flex flex-col items-center gap-4 max-w-xs mx-4 text-center" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
-            <Loader2 className="w-10 h-10 animate-spin" style={{ color: "var(--giq-accent)" }} />
-            <div>
-              <p className="font-bold text-white text-base mb-1">{lang === "en" ? "Creating your plan..." : "Creando tu plan..."}</p>
-              <p className="text-sm" style={{ color: "var(--giq-text-muted)" }}>{lang === "en" ? "⏱ ~30 seconds" : "⏱ ~30 segundos"}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="mb-6 flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-display font-black uppercase flex items-center gap-2" style={{ color: "var(--giq-text-primary)" }}>

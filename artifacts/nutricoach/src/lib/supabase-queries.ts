@@ -1133,6 +1133,7 @@ export function useToggleWorkoutComplete() {
 export function useGenerateWorkoutPlan() {
   const queryClient = useQueryClient();
   return useMutation({
+    mutationKey: ["generate-workout"],
     mutationFn: async ({ lang = "es" }: { lang?: "es" | "en" } = {}) => {
       const token = await getAccessToken();
       const res = await fetch("/api/workouts", {
@@ -1159,6 +1160,7 @@ export function useGenerateMealPlan() {
   const weekStart = getWeekStart();
 
   return useMutation({
+    mutationKey: ["generate-meal"],
     mutationFn: async ({ token: providedToken, lang: providedLang }: { token?: string; lang?: "es" | "en" } = {}) => {
       const token = providedToken ?? await getAccessToken();
       const lang: "es" | "en" = providedLang ?? (localStorage.getItem("goaliq_lang") as "es" | "en") ?? "es";
