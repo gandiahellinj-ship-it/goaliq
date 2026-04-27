@@ -88,27 +88,34 @@ function translateDiet(diet: string | null): string {
 function translateMealType(mealType: string, t: (k: string) => string): string {
   const m = mealType?.toLowerCase() ?? "";
   if (m === "breakfast" || m === "desayuno") return t("breakfast");
+  if (m === "snack_morning") return t("snack_morning");
   if (m === "lunch" || m === "comida" || m === "almuerzo") return t("lunch");
+  if (m === "snack_afternoon") return t("snack_afternoon");
   if (m === "dinner" || m === "cena") return t("dinner");
   if (m === "snack" || m === "merienda") return t("snack");
   return mealType;
 }
 
 function mealTypeColor(mealType: string): string {
-  const t = mealType?.toLowerCase() ?? "";
-  if (t === "breakfast" || t === "desayuno") return "var(--giq-accent)";
-  if (t === "lunch" || t === "comida" || t === "almuerzo") return "#FFB347";
-  if (t === "dinner" || t === "cena") return "#7B8CDE";
+  const t = mealType.toLowerCase();
+  if (t.includes("breakfast") || t.includes("desayuno")) return "#88ee22";
+  if (t.includes("snack_morning")) return "#7B8CDE";
+  if (t.includes("lunch") || t.includes("comida") || t.includes("almuerzo")) return "#FFB347";
+  if (t.includes("snack_afternoon")) return "#7B8CDE";
+  if (t.includes("dinner") || t.includes("cena")) return "#7B8CDE";
+  if (t.includes("snack") || t.includes("merienda")) return "#7B8CDE";
   return "#888888";
 }
 
-function mealEmoji(mealType: string) {
-  const t = mealType?.toLowerCase() || "";
-  if (t.includes("breakfast") || t.includes("desayuno")) return "🍳";
-  if (t.includes("lunch") || t.includes("comida") || t.includes("almuerzo")) return "🥙";
-  if (t.includes("dinner") || t.includes("cena")) return "🍽️";
-  if (t.includes("snack") || t.includes("merienda")) return "🍎";
-  return "🥗";
+function mealEmoji(mealType: string): string {
+  const t = mealType.toLowerCase();
+  if (t.includes("breakfast") || t.includes("desayuno")) return "🌅";
+  if (t.includes("snack_morning")) return "🌤️";
+  if (t.includes("lunch") || t.includes("comida") || t.includes("almuerzo")) return "☀️";
+  if (t.includes("snack_afternoon")) return "🌆";
+  if (t.includes("dinner") || t.includes("cena")) return "🌙";
+  if (t.includes("snack") || t.includes("merienda")) return "🌤️";
+  return "🍽️";
 }
 
 // SVG arc path for a top-opening semicircle (0-100)
@@ -531,6 +538,57 @@ export default function Dashboard() {
   const todayStr = now.toISOString().split("T")[0];
 
   const todaysMeals = mealPlan?.days.find(d => d.day === todayName)?.meals ?? [];
+
+  const DASH_MEAL_CUTOFF: Record<string, number> = {
+    breakfast:        9,
+    snack_morning:   11,
+    lunch:           14,
+    snack_afternoon: 17,
+    dinner:          20,
+  };
+
+  const DASH_MEAL_KCAL: Record<string, number> = {
+    breakfast:        400,
+    snack_morning:    175,
+    lunch:            650,
+    snack_afternoon:  150,
+    dinner:           550,
+  };
+
+  const DASH_MEAL_TIME: Record<string, string> = {
+    breakfast:        "9:00 – 10:00",
+    snack_morning:    "11:00 – 12:00",
+    lunch:            "14:00 – 15:00",
+    snack_afternoon:  "17:00 – 18:00",
+    dinner:           "20:00 – 21:00",
+  };
+
+  const DASH_MEAL_PREP: Record<string, number> = {
+    breakfast:        10,
+    snack_morning:    5,
+    lunch:            15,
+    snack_afternoon:  5,
+    dinner:           25,
+  };
+
+  const MEAL_ORDER_DASH = ["breakfast", "snack_morning", "lunch", "snack_afternoon", "dinner"];
+
+  const currentHourDash = now.getHours();
+
+  const sortedTodaysMeals = [...todaysMeals].sort((a, b) => {
+    const ai = MEAL_ORDER_DASH.indexOf(a.meal_type);
+    const bi = MEAL_ORDER_DASH.indexOf(b.meal_type);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+
+  const nextMeal = sortedTodaysMeals.find(m => currentHourDash < (DASH_MEAL_CUTOFF[m.meal_type] ?? 23)) ?? null;
+
+  const pastMealTypes = new Set(
+    sortedTodaysMeals
+      .filter(m => currentHourDash >= (DASH_MEAL_CUTOFF[m.meal_type] ?? 23))
+      .map(m => m.meal_type)
+  );
+
   const todaysDayPlan = workoutPlan?.days.find(d => d.day === todayName);
   const isWorkoutDay = !!(todaysDayPlan && !todaysDayPlan.isRestDay);
 
@@ -874,57 +932,151 @@ export default function Dashboard() {
 
       {/* ── 6. Today's Meals ──────────────────────────────────────────────── */}
       <motion.div
-        initial={{ opacity: 0, y: 10 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.19 }}
-        className="rounded-2xl overflow-hidden"
-        style={{ backgroundColor: "var(--giq-bg-card)", border: "1px solid var(--giq-border)" }}
+        transition={{ delay: 0.3 }}
       >
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="font-bold flex items-center gap-2 text-sm uppercase tracking-wide" style={{ color: "var(--giq-text-primary)" }}>
-            <Utensils className="w-4 h-4" style={{ color: "var(--giq-accent)" }} /> {t("todays_meals")}
-          </h2>
-          <Link href="/meals" className="text-xs font-semibold hover:underline flex items-center gap-1" style={{ color: "var(--giq-accent)" }}>
-            {t("view_full_plan")}
-          </Link>
-        </div>
-
         {todaysMeals.length > 0 ? (
-          <div className="divide-y" style={{ borderColor: "var(--giq-border)" }}>
-            {todaysMeals.map(meal => {
-              const typeLabel = translateMealType(meal.meal_type, t);
-              const typeColor = mealTypeColor(meal.meal_type);
-              const kcal = (meal as any).estimated_kcal ?? null;
-              return (
-                <div key={meal.id} className="flex items-center gap-3 px-5 py-3">
-                  <div
-                    className="w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0"
-                    style={{ backgroundColor: `${typeColor}18` }}
-                  >
-                    {mealEmoji(meal.meal_type)}
+          <div className="space-y-3">
+
+            {/* Próxima comida card */}
+            {nextMeal && (
+              <Link href="/meals">
+                <div className="rounded-2xl border overflow-hidden" style={{ background: "#111", borderColor: "#1a1a1a" }}>
+                  <div className="px-4 pt-4 pb-3">
+                    {/* Header row */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#88ee22] animate-pulse" />
+                        <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#88ee22" }}>
+                          {lang === "en" ? "Next meal" : "Próxima comida"}
+                        </span>
+                      </div>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#141414", border: "1px solid #1e1e1e", color: "#555" }}>
+                        {DASH_MEAL_TIME[nextMeal.meal_type] ?? ""}
+                      </span>
+                    </div>
+
+                    {/* Meal type */}
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: mealTypeColor(nextMeal.meal_type) }} />
+                      <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: mealTypeColor(nextMeal.meal_type) }}>
+                        {mealEmoji(nextMeal.meal_type)} {translateMealType(nextMeal.meal_type, t)}
+                      </span>
+                    </div>
+
+                    {/* Meal name */}
+                    <p className="text-[16px] font-bold leading-snug mb-3" style={{ color: "#e8e8e8" }}>
+                      {nextMeal.meal_name}
+                    </p>
+
+                    {/* Macro chips */}
+                    <div className="flex gap-2">
+                      <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+                        <span className="text-xs font-bold leading-none" style={{ color: "#FF6B6B" }}>
+                          {nextMeal.plate_distribution?.protein ?? "—"}%
+                        </span>
+                        <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Protein" : "Proteína"}</span>
+                      </div>
+                      <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+                        <span className="text-xs font-bold leading-none" style={{ color: "#FFB347" }}>
+                          {nextMeal.plate_distribution?.carbs ?? "—"}%
+                        </span>
+                        <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Carbs" : "Carbos"}</span>
+                      </div>
+                      <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+                        <span className="text-xs font-bold leading-none" style={{ color: "#7B8CDE" }}>
+                          {nextMeal.plate_distribution?.fats ?? "—"}%
+                        </span>
+                        <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Fat" : "Grasas"}</span>
+                      </div>
+                      <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+                        <span className="text-xs font-bold leading-none" style={{ color: "var(--giq-accent)" }}>
+                          {DASH_MEAL_KCAL[nextMeal.meal_type] ?? "—"}
+                        </span>
+                        <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>kcal</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold" style={{ color: typeColor }}>{typeLabel}</p>
-                    <p className="text-sm font-medium truncate" style={{ color: "var(--giq-text-primary)" }}>{meal.meal_name}</p>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: "#151515" }}>
+                    <span className="text-[11px]" style={{ color: "#555" }}>
+                      ⏱ {DASH_MEAL_PREP[nextMeal.meal_type] ?? 15} min · {nextMeal.ingredients?.length ?? 0} {lang === "en" ? "ingredients" : "ingredientes"}
+                    </span>
+                    <span className="text-[11px] font-bold" style={{ color: "var(--giq-accent)" }}>
+                      {lang === "en" ? "View recipe →" : "Ver receta →"}
+                    </span>
                   </div>
-                  {kcal != null && (
-                    <span className="text-xs font-medium shrink-0" style={{ color: "var(--giq-text-muted)" }}>{kcal} kcal</span>
-                  )}
                 </div>
-              );
-            })}
+              </Link>
+            )}
+
+            {/* Timeline del día */}
+            <div className="rounded-2xl border p-4" style={{ background: "#111", borderColor: "#1a1a1a" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "#444" }}>
+                {lang === "en" ? "Today's plan" : "Plan del día"}
+              </p>
+              <div>
+                {sortedTodaysMeals.map((meal, i) => {
+                  const isPast = pastMealTypes.has(meal.meal_type);
+                  const isNext = meal === nextMeal;
+                  const isSnack = meal.meal_type === "snack_morning" || meal.meal_type === "snack_afternoon";
+                  const color = isSnack ? "#7B8CDE" : mealTypeColor(meal.meal_type);
+                  const isLast = i === sortedTodaysMeals.length - 1;
+
+                  return (
+                    <div key={meal.id ?? i} className="flex items-center gap-3 py-2 relative">
+                      {/* Timeline dot + line */}
+                      <div className="flex flex-col items-center shrink-0" style={{ width: 16 }}>
+                        <div
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{
+                            background: isPast ? color : isNext ? color : "#1e1e1e",
+                            border: isNext ? `2px solid ${color}` : isPast ? "none" : "2px solid #2a2a2a",
+                            boxShadow: isNext ? `0 0 0 3px ${color}30` : "none",
+                          }}
+                        />
+                        {!isLast && <div className="w-px flex-1 mt-0.5" style={{ height: 20, background: "#1a1a1a" }} />}
+                      </div>
+
+                      {/* Time */}
+                      <span className="text-[10px] shrink-0 tabular-nums" style={{ color: "#555", width: 36 }}>
+                        {(DASH_MEAL_CUTOFF[meal.meal_type] ?? 0)}:00
+                      </span>
+
+                      {/* Meal info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: isPast || isNext ? color : "#444" }}>
+                          {mealEmoji(meal.meal_type)} {translateMealType(meal.meal_type, t)}
+                        </p>
+                        <p className="text-[12px] truncate mt-0.5" style={{ color: isPast ? "#555" : isNext ? "#e8e8e8" : "#333" }}>
+                          {meal.meal_name}
+                        </p>
+                      </div>
+
+                      {/* Kcal or checkmark */}
+                      <span className="text-[10px] shrink-0" style={{ color: isPast ? "var(--giq-accent)" : "#444" }}>
+                        {isPast ? "✓" : `${DASH_MEAL_KCAL[meal.meal_type] ?? ""}kcal`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
         ) : mealPlan ? (
-          <p className="px-5 pb-5 text-sm" style={{ color: "var(--giq-text-muted)" }}>{t("no_meals_today_plan")}</p>
+          <div className="rounded-2xl border p-5 text-center" style={{ background: "#111", borderColor: "#1a1a1a" }}>
+            <p className="text-sm" style={{ color: "var(--giq-text-muted)" }}>{t("no_meals_today_plan")}</p>
+          </div>
         ) : (
-          <div className="px-5 pb-5 pt-2">
+          <div className="rounded-2xl border p-5 text-center" style={{ background: "#111", borderColor: "#1a1a1a" }}>
             <p className="text-sm mb-3" style={{ color: "var(--giq-text-muted)" }}>{t("meal_plan_after_onboarding")}</p>
-            <Link
-              href="/meals"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors"
-              style={{ backgroundColor: "var(--giq-accent)", color: "#0a0a0a" }}
-            >
-              {t("view_meals")} <ArrowRight className="w-4 h-4" />
+            <Link href="/meals">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" style={{ background: "var(--giq-accent)", color: "var(--giq-accent-text)" }}>
+                {t("view_meals")} <ArrowRight className="w-4 h-4" />
+              </div>
             </Link>
           </div>
         )}
