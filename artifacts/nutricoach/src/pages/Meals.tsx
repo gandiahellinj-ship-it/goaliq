@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMealPlan, useProfile, useFoodPreferences, useSwapIngredient, useGenerateMealPlan, getSwapOptions } from "@/lib/supabase-queries";
 import type { MealRow, Ingredient, SwapOption } from "@/lib/supabase-queries";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Sparkles, X, Pencil, ChevronDown, Utensils } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
@@ -781,84 +780,140 @@ function MealCard({
   const fatsPct = meal.plate_distribution?.fats ?? 0;
 
   return (
-    <div
-      className="rounded-xl border overflow-hidden transition-all"
-      style={{ backgroundColor: "#141414", borderColor: "#1f1f1f" }}
-    >
-      {/* Header — click to expand */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="w-full text-left px-4 py-3.5 transition-colors hover:bg-[#181818]"
-      >
+    <div className="rounded-2xl border overflow-hidden" style={{ background: "#111", borderColor: "#1a1a1a" }}>
+
+      {/* ── Card top — always visible ── */}
+      <div className="px-4 pt-4 pb-3">
         {/* Type row */}
-        <div className="flex items-center gap-1.5 mb-2">
-          <span className="text-base leading-none">{mealEmoji}</span>
-          <span
-            className="w-1.5 h-1.5 rounded-full"
-            style={{ backgroundColor: mealColor }}
-          />
-          <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: mealColor }}>
-            {mealLabel}
-          </span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base leading-none">{mealEmoji}</span>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: mealColor }} />
+            <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: mealColor }}>{mealLabel}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px]" style={{ color: "#555" }}>⏱ {prepTime} min</span>
+            <span className="text-[10px]" style={{ color: "#555" }}>🔥 {calories} kcal</span>
+          </div>
         </div>
 
-        {/* Meal name */}
-        <p className="text-[18px] font-bold text-white leading-snug mb-2.5 truncate">
+        {/* Meal name — full, no truncate */}
+        <p className="text-[16px] font-bold leading-snug mb-3" style={{ color: "#e8e8e8" }}>
           {meal.meal_name}
         </p>
 
-        {/* Macro chips + chevron */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Macro chips */}
+        <div className="flex gap-2">
           {proteinPct > 0 && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(170,255,69,0.12)", color: "#AAFF45", border: "1px solid rgba(170,255,69,0.2)" }}>
-              P {proteinPct}%
-            </span>
+            <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+              <span className="text-xs font-bold leading-none" style={{ color: "#FF6B6B" }}>{proteinPct}%</span>
+              <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Protein" : "Proteína"}</span>
+            </div>
           )}
           {carbsPct > 0 && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,179,71,0.12)", color: "#FFB347", border: "1px solid rgba(255,179,71,0.2)" }}>
-              C {carbsPct}%
-            </span>
+            <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+              <span className="text-xs font-bold leading-none" style={{ color: "#FFB347" }}>{carbsPct}%</span>
+              <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Carbs" : "Carbos"}</span>
+            </div>
           )}
           {fatsPct > 0 && (
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(167,139,250,0.12)", color: "#a78bfa", border: "1px solid rgba(167,139,250,0.2)" }}>
-              G {fatsPct}%
-            </span>
+            <div className="flex flex-col items-center rounded-lg px-3 py-1.5" style={{ background: "#141414", border: "1px solid #1e1e1e" }}>
+              <span className="text-xs font-bold leading-none" style={{ color: "#7B8CDE" }}>{fatsPct}%</span>
+              <span className="text-[8px] mt-0.5 uppercase tracking-wide" style={{ color: "#555" }}>{lang === "en" ? "Fat" : "Grasas"}</span>
+            </div>
           )}
-          <div className="flex-1" />
-          <span className="text-[10px] text-[#555]">⏱ {prepTime} min</span>
-          <span className="text-[10px] text-[#555]">·</span>
-          <span className="text-[10px] text-[#555]">🔥 {calories} kcal</span>
-          <ChevronDown
-            className="w-3.5 h-3.5 text-[#555] transition-transform duration-300 ml-1"
-            style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)" }}
-          />
         </div>
-      </button>
+      </div>
 
-      {/* Expanded content */}
+      {/* ── Footer ── */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: "#151515" }}>
+        <span className="text-[11px]" style={{ color: "#555" }}>
+          {meal.ingredients.length} {lang === "en" ? "ingredients" : "ingredientes"}
+        </span>
+        <button
+          type="button"
+          onClick={() => setExpanded(e => !e)}
+          className="text-[11px] font-bold"
+          style={{ color: "var(--giq-accent)" }}
+        >
+          {expanded ? (lang === "en" ? "Hide ↑" : "Ocultar ↑") : (lang === "en" ? "View recipe →" : "Ver receta →")}
+        </button>
+      </div>
+
+      {/* ── Expanded recipe panel ── */}
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
+            transition={{ duration: 0.25, ease: "easeInOut" }}
             className="overflow-hidden"
           >
-            <div className="border-t border-[#1f1f1f]">
-              {/* Ingredients section */}
+            <div className="border-t" style={{ borderColor: "#1a1a1a" }}>
+
+              {/* 2D Plate chart */}
+              {plateData.length > 0 && (
+                <div className="flex flex-col items-center py-5 px-4" style={{ background: "#0d0d0d" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest mb-4" style={{ color: "#555" }}>
+                    {lang === "en" ? "Plate distribution" : "Distribución del plato"}
+                  </p>
+
+                  {/* SVG donut chart — 2D plate */}
+                  <div className="relative mb-4" style={{ width: 160, height: 160 }}>
+                    <svg width="160" height="160" viewBox="0 0 160 160">
+                      {/* Outer plate rim */}
+                      <circle cx="80" cy="80" r="78" fill="#1e1e1e" />
+                      {/* Segments */}
+                      {(() => {
+                        const total = plateData.reduce((s, d) => s + d.value, 0);
+                        let startAngle = -Math.PI / 2;
+                        return plateData.map((seg, i) => {
+                          const angle = (seg.value / total) * 2 * Math.PI;
+                          const x1 = 80 + 68 * Math.cos(startAngle);
+                          const y1 = 80 + 68 * Math.sin(startAngle);
+                          const endAngle = startAngle + angle;
+                          const x2 = 80 + 68 * Math.cos(endAngle);
+                          const y2 = 80 + 68 * Math.sin(endAngle);
+                          const largeArc = angle > Math.PI ? 1 : 0;
+                          const path = `M 80 80 L ${x1} ${y1} A 68 68 0 ${largeArc} 1 ${x2} ${y2} Z`;
+                          const el = <path key={i} d={path} fill={seg.color} opacity="0.9" />;
+                          startAngle = endAngle;
+                          return el;
+                        });
+                      })()}
+                      {/* Center circle */}
+                      <circle cx="80" cy="80" r="38" fill="#141414" />
+                      <circle cx="80" cy="80" r="38" fill="none" stroke="#1e1e1e" strokeWidth="2" />
+                      {/* Kcal text */}
+                      <text x="80" y="75" textAnchor="middle" fill="#e8e8e8" fontSize="16" fontWeight="800" fontFamily="Plus Jakarta Sans, sans-serif">{calories}</text>
+                      <text x="80" y="89" textAnchor="middle" fill="#555" fontSize="9" fontFamily="Plus Jakarta Sans, sans-serif">kcal</text>
+                    </svg>
+                  </div>
+
+                  {/* Legend */}
+                  <div className="flex gap-4 flex-wrap justify-center">
+                    {plateData.map(item => (
+                      <div key={item.name} className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: item.color }} />
+                        <span className="text-[10px]" style={{ color: "#888" }}>{t(item.name.toLowerCase())}</span>
+                        <span className="text-[11px] font-bold ml-1" style={{ color: item.color }}>{item.value}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Ingredients */}
               <div className="px-4 pt-3 pb-2">
-                <h4 className="text-[10px] font-bold uppercase tracking-widest mb-2.5" style={{ color: "#444" }}>
+                <h4 className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "#444" }}>
                   {t("ingredients_portions")}
                 </h4>
-
                 {errorMsg && (
-                  <div className="mb-3 flex items-center gap-2 text-xs text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-3 py-2">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    {errorMsg}
+                  <div className="mb-3 flex items-center gap-2 text-xs rounded-lg px-3 py-2" style={{ color: "#FF4444", background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.2)" }}>
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />{errorMsg}
                   </div>
                 )}
-
                 <div className="space-y-0.5">
                   {meal.ingredients.map((ing, i) => (
                     <IngredientRow
@@ -879,42 +934,21 @@ function MealCard({
                 </div>
               </div>
 
-              {/* Plate distribution — compact horizontal bar */}
-              {plateData.length > 0 && (
-                <div className="px-4 py-2 border-t border-[#1a1a1a]">
-                  <div className="flex gap-1 h-1.5 rounded-full overflow-hidden mb-2">
-                    {plateData.map(item => (
-                      <div
-                        key={item.name}
-                        style={{ width: `${item.value}%`, backgroundColor: item.color }}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-1">
-                    {plateData.map(item => (
-                      <div key={item.name} className="flex items-center gap-1 text-[10px]">
-                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span style={{ color: "#555" }}>{t(item.name.toLowerCase())}</span>
-                        <span className="font-semibold text-white">{item.value}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Footer CTA */}
-              <div className="px-4 py-2.5 border-t border-[#1a1a1a] flex items-center justify-between">
-                {meal.notes ? (
-                  <p className="text-[10px] italic flex-1 mr-3 leading-snug" style={{ color: "#555" }}>{meal.notes}</p>
-                ) : <div />}
+              {/* Notes + close */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-t" style={{ borderColor: "#1a1a1a" }}>
+                {meal.notes
+                  ? <p className="text-[10px] italic flex-1 mr-3 leading-snug" style={{ color: "#555" }}>{meal.notes}</p>
+                  : <div />}
                 <button
-                  className="text-[11px] font-semibold shrink-0 transition-colors"
+                  type="button"
+                  className="text-[11px] font-bold shrink-0"
                   style={{ color: "var(--giq-accent)" }}
                   onClick={() => setExpanded(false)}
                 >
                   {lang === "en" ? "Close ↑" : "Cerrar ↑"}
                 </button>
               </div>
+
             </div>
           </motion.div>
         )}
