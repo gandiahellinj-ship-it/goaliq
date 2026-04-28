@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell, RefreshCw, CheckCircle } from "lucide-react";
+import { Loader2, Timer, Repeat, Zap, X, ArrowRight, Dumbbell } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { ExerciseAnimation } from "@/components/ExerciseAnimation";
 import { useT, useLanguage, translateDay } from "@/lib/language";
@@ -165,7 +165,6 @@ function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
   const hasTriggeredRegen = useRef(false);
-  const [genSuccess, setGenSuccess] = useState(false);
   const t = useT();
   const { lang } = useLanguage();
 
@@ -201,20 +200,9 @@ function WorkoutsContent() {
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
         <Dumbbell className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
         <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("no_workout_plan")}</h2>
-        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--giq-text-secondary)" }}>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
           {t("complete_onboarding_workout")}
         </p>
-        <button
-          onClick={() => generateMutation.mutate({ lang })}
-          disabled={generateMutation.isPending}
-          className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm transition-opacity disabled:opacity-50"
-          style={{ backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }}
-        >
-          {generateMutation.isPending
-            ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <RefreshCw className="w-4 h-4" />}
-          {generateMutation.isPending ? t("regenerating") : t("regenerate_plan")}
-        </button>
       </div>
     );
   }
@@ -234,42 +222,7 @@ function WorkoutsContent() {
             {t("training_days_count", { n: workoutPlan.trainingDays.size })}
           </p>
         </div>
-        <button
-          onClick={() => generateMutation.mutate({ lang })}
-          disabled={generateMutation.isPending}
-          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg shrink-0 transition-opacity disabled:opacity-50"
-          style={{
-            backgroundColor: "var(--giq-bg-card)",
-            border: "1px solid var(--giq-border)",
-            color: "var(--giq-text-muted)",
-          }}
-        >
-          {generateMutation.isPending
-            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            : <RefreshCw className="w-3.5 h-3.5" />}
-          <span>{generateMutation.isPending ? t("regenerating") : t("regenerate_plan")}</span>
-        </button>
       </div>
-
-      <AnimatePresence>
-        {genSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            className="mb-5 flex items-center gap-3 rounded-lg px-4 py-3"
-            style={{
-              backgroundColor: "color-mix(in srgb, var(--giq-accent) 10%, transparent)",
-              border: "1px solid color-mix(in srgb, var(--giq-accent) 20%, transparent)",
-            }}
-          >
-            <CheckCircle className="w-4 h-4 shrink-0" style={{ color: "var(--giq-accent)" }} />
-            <p className="text-sm font-medium" style={{ color: "var(--giq-accent)" }}>
-              {t("workout_plan_updated")}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Day Tabs — 7-column grid, fits all screen sizes */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-4 sm:mb-6">

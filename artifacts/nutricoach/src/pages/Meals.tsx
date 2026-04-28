@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useMealPlan, useProfile, useFoodPreferences, useSwapIngredient, useGenerateMealPlan, getSwapOptions } from "@/lib/supabase-queries";
 import type { MealRow, Ingredient, SwapOption } from "@/lib/supabase-queries";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, RefreshCw, CheckCircle2, AlertCircle, Sparkles, X, Pencil, ChevronDown, Utensils } from "lucide-react";
+import { Loader2, RefreshCw, CheckCircle2, AlertCircle, X, Pencil, ChevronDown, Utensils } from "lucide-react";
 import { TrialGate } from "@/components/TrialGate";
 import { useAuth } from "@/hooks/useAuth";
 import { useT, useLanguage, translateDay } from "@/lib/language";
@@ -120,16 +120,12 @@ function MealsContent() {
   const { data: foodPrefs } = useFoodPreferences();
   const { session } = useAuth();
   const generateMutation = useGenerateMealPlan();
-  const autoGenTriggered = useRef(false);
   const t = useT();
   const { lang } = useLanguage();
 
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
   const [activeDay, setActiveDay] = useState(defaultDay);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [genSuccess, setGenSuccess] = useState(false);
-  const [regenFromUrl, setRegenFromUrl] = useState(false);
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
 
   useEffect(() => {
@@ -141,60 +137,10 @@ function MealsContent() {
 
   const isLoading = mealLoading || profileLoading;
 
-  useEffect(() => {
-    if (autoGenTriggered.current) return;
-    if (!session?.access_token) return;
-    // Wait until language is resolved (avoids generating with stale lang)
-    if (!lang) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("regenerate") !== "true") return;
-    console.log("[Meals] ?regenerate param found, lang:", lang);
-    autoGenTriggered.current = true;
-    setRegenFromUrl(true);
-    window.history.replaceState({}, "", window.location.pathname);
-    generateMutation.mutate(
-      { token: session.access_token, lang },
-      {
-        onSuccess: () => {
-          console.log("[Meals] Generation complete");
-          setRegenFromUrl(false);
-          setGenSuccess(true);
-          setTimeout(() => setGenSuccess(false), 3500);
-        },
-        onError: (err) => {
-          console.log("[Meals] Generation failed:", err);
-          setRegenFromUrl(false);
-        },
-      },
-    );
-  }, [session?.access_token, lang]);
-
-  function handleGenerate() {
-    if (!session?.access_token) return;
-    setShowConfirm(false);
-    generateMutation.mutate(
-      { token: session.access_token, lang },
-      {
-        onSuccess: () => {
-          setGenSuccess(true);
-          setTimeout(() => setGenSuccess(false), 3500);
-        },
-      },
-    );
-  }
-
   function handleRetry() {
     if (!session?.access_token) return;
     generateMutation.reset();
-    generateMutation.mutate(
-      { token: session.access_token, lang },
-      {
-        onSuccess: () => {
-          setGenSuccess(true);
-          setTimeout(() => setGenSuccess(false), 3500);
-        },
-      },
-    );
+    generateMutation.mutate({ token: session.access_token, lang });
   }
 
   if (isLoading) {
@@ -338,59 +284,6 @@ function MealsContent() {
             )}
           </div>
 
-          {/* Regenerate button */}
-          <div className="relative shrink-0">
-            {!isProfileComplete ? (
-              <Link
-                href="/onboarding?edit=true"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold transition-all hover:bg-amber-500/20"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                {t("update_profile")}
-              </Link>
-            ) : !showConfirm ? (
-              <button
-                onClick={() => setShowConfirm(true)}
-                disabled={isGenerating}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-[#A0A0A0] hover:border-[#AAFF45]/30 hover:text-[#AAFF45] text-xs font-semibold transition-all disabled:opacity-50"
-              >
-                {isGenerating ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("generating_short")}</>
-                ) : genSuccess ? (
-                  <><CheckCircle2 className="w-3.5 h-3.5 text-[#AAFF45]" /> {profile?.full_name?.split(" ")[0] ? t("done_name", { name: profile.full_name.split(" ")[0] }) : t("done")}</>
-                ) : (
-                  <><Sparkles className="w-3.5 h-3.5" /> {t("new_plan")}</>
-                )}
-              </button>
-            ) : (
-              <AnimatePresence>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="absolute right-0 top-0 z-10 bg-[#1A1A1A] rounded-lg border border-[#2A2A2A] shadow-2xl p-3 w-56"
-                >
-                  <p className="text-xs text-[#A0A0A0] font-medium mb-2.5 leading-snug">
-                    {t("replace_plan_confirm")}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleGenerate}
-                      className="flex-1 py-1.5 rounded-lg bg-[#AAFF45] text-[#0A0A0A] text-xs font-bold hover:bg-[#99EE34] transition-colors"
-                    >
-                      {t("generate")}
-                    </button>
-                    <button
-                      onClick={() => setShowConfirm(false)}
-                      className="flex-1 py-1.5 rounded-lg bg-[#2A2A2A] text-[#A0A0A0] text-xs font-semibold hover:bg-[#3A3A3A] transition-colors"
-                    >
-                      {t("cancel")}
-                    </button>
-                  </div>
-                </motion.div>
-              </AnimatePresence>
-            )}
-          </div>
         </div>
 
         {/* Kcal strip + progress bar */}
