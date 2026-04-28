@@ -867,7 +867,7 @@ function Logo() {
     <img
       src="/images/GOALIQ.png"
       alt="GoalIQ"
-      style={{ height: 32, width: "auto", objectFit: "contain", display: "block" }}
+      style={{ height: 48, width: "auto", objectFit: "contain", display: "block" }}
     />
   );
 }

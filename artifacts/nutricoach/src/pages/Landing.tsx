@@ -5,7 +5,7 @@ import { ArrowRight, CheckCircle2, Dumbbell, Utensils, TrendingUp } from "lucide
 import { useEffect } from "react";
 
 function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const heights: Record<string, number> = { sm: 20, md: 28, lg: 40 };
+  const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 };
   return (
     <img
       src={`${import.meta.env.BASE_URL}images/GOALIQ.png`}
