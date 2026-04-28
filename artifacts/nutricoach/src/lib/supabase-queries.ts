@@ -13,6 +13,8 @@ export type MealRow = {
   meal_name: string;
   ingredients: Ingredient[];
   plate_distribution: PlateDistribution;
+  calories_approx: number | null;
+  notes?: string | null;
 };
 
 export type DayMeals = {
@@ -245,35 +247,34 @@ export function useMealPlan() {
   const weekStart = getWeekStart();
   return useQuery({
     queryKey: ["meal_plans", weekStart],
-    staleTime: 0,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("meal_plans")
-        .select("*")
-        .eq("week_start", weekStart);
-      if (error) throw error;
-      if (!data || data.length === 0) return null;
+      const token = await getAccessToken();
+      const res = await fetch("/api/meals", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error("Failed to fetch meal plan");
+      }
+      const data = await res.json();
+      if (!data?.days) return null;
 
-      // Sanitize ingredients on every row coming out of the DB
-      const safeRows: MealRow[] = (data as MealRow[]).map(r => ({
-        ...r,
-        meal_name: typeof r.meal_name === "string" && r.meal_name.trim() ? r.meal_name.trim() : "Meal",
-        meal_type: typeof r.meal_type === "string" && r.meal_type.trim() ? r.meal_type.trim() : "other",
-        ingredients: sanitizeIngredients(r.ingredients),
-        plate_distribution: (r.plate_distribution && typeof r.plate_distribution === "object" && !Array.isArray(r.plate_distribution))
-          ? r.plate_distribution
-          : {},
+      // Normalize camelCase API response to MealRow shape
+      const days = (data.days as any[]).map((day: any) => ({
+        day: day.day,
+        meals: (day.meals ?? []).map((meal: any): MealRow => ({
+          id: meal.id ?? `${day.day}-${meal.mealType ?? meal.meal_type}`,
+          day_name: day.day,
+          meal_type: meal.mealType ?? meal.meal_type ?? "other",
+          meal_name: meal.name ?? meal.meal_name ?? "Meal",
+          ingredients: sanitizeIngredients(meal.ingredients ?? []),
+          plate_distribution: meal.plate_distribution ?? {},
+          calories_approx: meal.calories ?? meal.calories_approx ?? null,
+          notes: meal.notes ?? null,
+        })),
       }));
 
-      const grouped: DayMeals[] = ALL_DAYS.map(day => ({
-        day,
-        meals: safeRows.filter(r => r.day_name === day).sort((a, b) => {
-          const order = ["breakfast", "lunch", "dinner", "snack"];
-          return order.indexOf(a.meal_type) - order.indexOf(b.meal_type);
-        }),
-      }));
-
-      return { days: grouped, weekStart } as MealPlan;
+      return { days, weekStart: data.weekStart ?? weekStart };
     },
   });
 }
@@ -1164,114 +1165,26 @@ export function useGenerateMealPlan() {
     mutationFn: async ({ token: providedToken, lang: providedLang }: { token?: string; lang?: "es" | "en" } = {}) => {
       const token = providedToken ?? await getAccessToken();
       const lang: "es" | "en" = providedLang ?? (localStorage.getItem("goaliq_lang") as "es" | "en") ?? "es";
-      // ── Step 1: verify auth ────────────────────────────────────────────────
-      console.log("[generateMealPlan] Step 1: checking auth");
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-      console.log("[generateMealPlan] Step 1 OK — user:", user.id);
 
-      // ── Step 2: snapshot existing row IDs (do NOT delete yet) ─────────────
-      // We record the IDs now so we can target them for deletion later,
-      // only after the new plan is confirmed valid and fully inserted.
-      console.log("[generateMealPlan] Step 2: reading existing row IDs for weekStart:", weekStart);
-      const { data: existingRows, error: readError } = await supabase
-        .from("meal_plans")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("week_start", weekStart);
-      if (readError) {
-        console.error("[generateMealPlan] Step 2 FAILED — read error:", readError);
-        throw new Error("Could not read existing meal plan: " + readError.message);
-      }
-      const oldIds: number[] = (existingRows ?? []).map((r: any) => r.id);
-      console.log("[generateMealPlan] Step 2 OK — existing row IDs:", oldIds.length, "rows");
-
-      // ── Step 3: call API to generate new plan ──────────────────────────────
-      console.log("[generateMealPlan] Step 3: POST /api/meals");
       const res = await fetch("/api/meals", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ lang }),
       });
+
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        console.error("[generateMealPlan] Step 3 FAILED — API error:", res.status, body);
-        throw new Error(body.error ?? `API error ${res.status}`);
+        throw new Error(body.error ?? "Meal plan generation failed. Please try again.");
       }
-      const data = await res.json();
-      const rawDays: any[] = data.days ?? [];
-      console.log("[generateMealPlan] Step 3 OK — days received:", rawDays.length);
 
-      // ── Step 4: validate and flatten into flat DB rows ────────────────────
-      console.log("[generateMealPlan] Step 4: validating and flattening AI days");
-      if (rawDays.length < 7) {
-        throw new Error(`Incomplete plan received (${rawDays.length}/7 days). Old plan kept — please try again.`);
-      }
-      const rows = rawDays.flatMap((day: any) =>
-        ((day.meals ?? []) as any[])
-          .filter((meal: any) => meal && typeof meal === "object")
-          .map((meal: any) => {
-            const rawPlateDist = meal.plateDistribution ?? meal.plate_distribution;
-            const plateDist =
-              rawPlateDist && typeof rawPlateDist === "object" && !Array.isArray(rawPlateDist)
-                ? rawPlateDist
-                : {};
-            return {
-              user_id: user.id,
-              week_start: weekStart,
-              day_name: typeof day.day === "string" ? day.day : "monday",
-              meal_type: typeof (meal.mealType ?? meal.meal_type) === "string"
-                ? (meal.mealType ?? meal.meal_type)
-                : "other",
-              meal_name: typeof (meal.name ?? meal.meal_name) === "string" && (meal.name ?? meal.meal_name).trim()
-                ? (meal.name ?? meal.meal_name).trim()
-                : "Meal",
-              ingredients: sanitizeIngredients(meal.ingredients),
-              plate_distribution: plateDist,
-            };
-          })
-      );
-      if (rows.length < 7) {
-        throw new Error(`Plan validation failed — too few meals (${rows.length}). Old plan kept — please try again.`);
-      }
-      console.log("[generateMealPlan] Step 4 OK — flat rows built:", rows.length);
-
-      // ── Step 5: insert new rows (old rows still intact at this point) ──────
-      console.log("[generateMealPlan] Step 5: inserting", rows.length, "new rows");
-      const { error: insertError } = await supabase.from("meal_plans").insert(rows);
-      if (insertError) {
-        console.error("[generateMealPlan] Step 5 FAILED — insert error:", insertError);
-        throw new Error("New plan could not be saved: " + insertError.message + ". Old plan kept.");
-      }
-      console.log("[generateMealPlan] Step 5 OK — new rows inserted");
-
-      // ── Step 6: new plan confirmed — now delete old rows by their IDs ──────
-      if (oldIds.length > 0) {
-        console.log("[generateMealPlan] Step 6: removing", oldIds.length, "old rows");
-        const { error: deleteError } = await supabase
-          .from("meal_plans")
-          .delete()
-          .in("id", oldIds);
-        if (deleteError) {
-          // New plan is already saved — log the warning but don't fail the mutation.
-          // The UI will show both old and new meals until the next cache refresh,
-          // but on next load only the new rows will appear correctly.
-          console.warn("[generateMealPlan] Step 6 WARNING — old row cleanup failed:", deleteError.message);
-        } else {
-          console.log("[generateMealPlan] Step 6 OK — old rows removed");
-        }
-      } else {
-        console.log("[generateMealPlan] Step 6 SKIPPED — no old rows to remove");
-      }
+      return res.json();
     },
     onSuccess: () => {
-      // ── Step 7: invalidate query cache so UI re-fetches ───────────────────
-      console.log("[generateMealPlan] Step 7: invalidating query cache for weekStart:", weekStart);
       queryClient.invalidateQueries({ queryKey: ["meal_plans", weekStart] });
-      console.log("[generateMealPlan] Step 7 OK — cache invalidated");
-    },
-    onError: (err) => {
-      console.error("[generateMealPlan] FAILED — existing plan preserved:", err);
+      queryClient.invalidateQueries({ queryKey: ["meal_plans"] });
     },
   });
 }

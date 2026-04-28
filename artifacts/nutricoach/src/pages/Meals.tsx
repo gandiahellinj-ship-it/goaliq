@@ -291,7 +291,7 @@ function MealsContent() {
   const goalLabel = profile?.goal ? (GOAL_LABELS[profile.goal] ?? profile.goal) : null;
 
   const dayMeals = activeDayData?.meals ?? [];
-  const kcalTarget = dayMeals.reduce((sum, m) => sum + (CALORIES_APPROX[m.meal_type] ?? 400), 0);
+  const kcalTarget = dayMeals.reduce((sum, m) => sum + (m.calories_approx ?? CALORIES_APPROX[m.meal_type] ?? 400), 0);
 
   // Time-based automatic tracking — assumes meals are eaten at these cutoff hours
   const MEAL_CUTOFF_HOURS: Record<string, number> = {
@@ -688,7 +688,7 @@ function MealCard({
     const snackLabel = meal.meal_type === "snack_morning"
       ? (lang === "en" ? "Morning snack" : "Snack mañana")
       : (lang === "en" ? "Afternoon snack" : "Snack tarde");
-    const snackCalories = CALORIES_APPROX[meal.meal_type] ?? 175;
+    const snackCalories = meal.calories_approx ?? CALORIES_APPROX[meal.meal_type] ?? 175;
     const ingCount = meal.ingredients.length;
 
     return (
@@ -795,7 +795,7 @@ function MealCard({
   const mealEmoji = MEAL_EMOJI[meal.meal_type] ?? "🍽️";
   const mealLabel = t(meal.meal_type);
   const prepTime = PREP_TIME[meal.meal_type] ?? 15;
-  const calories = CALORIES_APPROX[meal.meal_type] ?? 500;
+  const calories = meal.calories_approx ?? CALORIES_APPROX[meal.meal_type] ?? 500;
 
   // Macro chips — read from normalized plateData
   const proteinPct = plateData.find(d => d.name === "Protein")?.value ?? 0;
