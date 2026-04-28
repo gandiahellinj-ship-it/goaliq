@@ -7,7 +7,7 @@ import { TrialGate } from "@/components/TrialGate";
 import { ExerciseAnimation } from "@/components/ExerciseAnimation";
 import { useT, useLanguage, translateDay } from "@/lib/language";
 import { useQuery } from "@tanstack/react-query";
-import { ShareWorkoutButton } from "@/components/ShareWorkoutCard";
+import { ShareWorkoutButton, ShareRestDayButton } from "@/components/ShareWorkoutCard";
 
 type ExerciseImages = { imageStart: string | null; imageEnd: string | null; isGif?: boolean; equipment?: string };
 
@@ -306,6 +306,11 @@ function WorkoutsContent() {
               <p className="text-sm max-w-xs leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
                 {t("rest_recover_msg")}
               </p>
+              {activeDay === todayName && (
+                <div className="mt-6">
+                  <ShareRestDayButton />
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
