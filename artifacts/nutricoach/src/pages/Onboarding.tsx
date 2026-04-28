@@ -864,10 +864,11 @@ function TagInput({
 
 function Logo() {
   return (
-    <span className="font-display font-black italic text-2xl leading-none">
-      <span className="text-white">Goal</span>
-      <span className="text-[#AAFF45]">IQ</span>
-    </span>
+    <img
+      src="/images/GOALIQ.png"
+      alt="GoalIQ"
+      style={{ height: 32, width: "auto", objectFit: "contain", display: "block" }}
+    />
   );
 }
 

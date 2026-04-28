@@ -5,11 +5,13 @@ import { ArrowRight, CheckCircle2, Dumbbell, Utensils, TrendingUp } from "lucide
 import { useEffect } from "react";
 
 function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const sizes = { sm: "text-base", md: "text-xl", lg: "text-3xl" };
+  const heights: Record<string, number> = { sm: 20, md: 28, lg: 40 };
   return (
-    <span className={`font-display font-black italic ${sizes[size]} leading-none`}>
-      <span className="text-white">Goal</span><span className="text-[#AAFF45]">IQ</span>
-    </span>
+    <img
+      src={`${import.meta.env.BASE_URL}images/GOALIQ.png`}
+      alt="GoalIQ"
+      style={{ height: heights[size], width: "auto", objectFit: "contain", display: "block" }}
+    />
   );
 }
 
