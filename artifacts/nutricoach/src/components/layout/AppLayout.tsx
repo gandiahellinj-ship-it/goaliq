@@ -51,8 +51,8 @@ function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" }) {
   const h = size === "sm" ? 22 : 28;
   return (
     <img
-      src="/images/NowOn.png"
-      alt="NowOn"
+      src="/images/GOALIQ.png"
+      alt="GoalIQ"
       style={{ height: h, width: "auto", objectFit: "contain", display: "block" }}
     />
   );
