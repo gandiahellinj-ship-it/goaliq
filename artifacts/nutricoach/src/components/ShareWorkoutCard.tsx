@@ -40,9 +40,11 @@ function estimateDuration(exercises: WorkoutData["exercises"]): number {
 function formatDate(lang: string): string {
   const now = new Date();
   return now.toLocaleDateString(lang === "en" ? "en-US" : "es-ES", {
-    day: "numeric", month: "short", year: "numeric"
+    day: "numeric", month: "short", year: "numeric",
   }).toUpperCase();
 }
+
+// ─── ShareWorkoutButton ───────────────────────────────────────────────────────
 
 export function ShareWorkoutButton({ workout }: { workout: WorkoutData }) {
   const [open, setOpen] = useState(false);
@@ -78,6 +80,8 @@ export function ShareWorkoutButton({ workout }: { workout: WorkoutData }) {
   );
 }
 
+// ─── ShareModal ───────────────────────────────────────────────────────────────
+
 function ShareModal({ workout, onClose, lang, isES }: {
   workout: WorkoutData;
   onClose: () => void;
@@ -95,13 +99,13 @@ function ShareModal({ workout, onClose, lang, isES }: {
   const startYRef = useRef(0);
   const startOffsetRef = useRef(0);
   const stripHRef = useRef(0);
+  const isSelectingFile = useRef(false);
 
   const typeLabel = getWorkoutTypeLabel(workout.workout_type, lang);
   const duration = workout.duration_minutes ?? estimateDuration(workout.exercises);
   const streak = stats?.streak ?? 0;
   const dateStr = formatDate(lang);
 
-  // Workout subtitle — muscle groups
   const subtitleMap: Record<string, string> = {
     push_day: isES ? "Pecho · Hombros · Tríceps" : "Chest · Shoulders · Triceps",
     pull_day: isES ? "Espalda · Bíceps" : "Back · Biceps",
@@ -118,6 +122,7 @@ function ShareModal({ workout, onClose, lang, isES }: {
   }, [imgRenderedH]);
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isSelectingFile.current = false;
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -142,7 +147,6 @@ function ShareModal({ workout, onClose, lang, isES }: {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Mouse drag
   const onMouseDown = (e: React.MouseEvent) => {
     if (!photoUrl || imgRenderedH <= stripHRef.current) return;
     setIsDragging(true);
@@ -156,7 +160,6 @@ function ShareModal({ workout, onClose, lang, isES }: {
   };
   const onMouseUp = () => setIsDragging(false);
 
-  // Touch drag
   const onTouchStart = (e: React.TouchEvent) => {
     if (!photoUrl || imgRenderedH <= stripHRef.current) return;
     setIsDragging(true);
@@ -172,180 +175,223 @@ function ShareModal({ workout, onClose, lang, isES }: {
 
   const handleShare = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: isES ? "Mi entrenamiento de hoy" : "My workout today",
-          text: `${typeLabel} — ${workout.exercises.length} ${isES ? "ejercicios" : "exercises"} · ${duration} min`,
-        });
-      }
+      const card = cardRef.current;
+      if (!card) return;
+
+      const actionsEl = card.querySelector("[data-actions]") as HTMLElement | null;
+      if (actionsEl) actionsEl.style.visibility = "hidden";
+
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(card, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#0d0d0d",
+        scale: 2,
+      });
+
+      if (actionsEl) actionsEl.style.visibility = "";
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "goaliq-entreno.png", { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: isES ? "Mi entrenamiento" : "My workout" });
+        } else if (navigator.share) {
+          await navigator.share({
+            title: isES ? "Mi entrenamiento de hoy" : "My workout today",
+            text: `${typeLabel} — ${workout.exercises.length} ${isES ? "ejercicios" : "exercises"} · ${duration} min`,
+          });
+        } else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "goaliq-entreno.png";
+          a.click();
+        }
+      }, "image/png");
     } catch (err) {
-      console.log("Share cancelled or not supported");
+      console.error("Share failed:", err);
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
-    >
+    <>
+      {/* Backdrop — blur isolated here, no children */}
       <div
-        className="w-full max-w-sm mx-4 mb-4 sm:mb-0 rounded-2xl overflow-hidden"
-        style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}
-        onClick={e => e.stopPropagation()}
+        className="fixed inset-0 z-[9999]"
+        style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+        onClick={() => { if (!isSelectingFile.current) onClose(); }}
+      />
+      {/* Modal card — sits above backdrop, no blur */}
+      <div
+        className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center"
+        onClick={() => { if (!isSelectingFile.current) onClose(); }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1a1a1a" }}>
-          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#555", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            {isES ? "Compartir entrenamiento" : "Share workout"}
-          </span>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ background: "#1a1a1a" }}>
-            <X className="w-4 h-4" style={{ color: "#888" }} />
-          </button>
-        </div>
-
-        <div className="p-4">
-          {/* THE CARD */}
-          <div
-            ref={cardRef}
-            style={{
-              width: "100%",
-              aspectRatio: "4/5",
-              borderRadius: 16,
-              overflow: "hidden",
-              position: "relative",
-              background: "#0d0d0d",
-              marginBottom: 14,
-              cursor: photoUrl ? (isDragging ? "grabbing" : "grab") : "pointer",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-            onClick={() => !photoUrl && fileInputRef.current?.click()}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            {/* Photo placeholder */}
-            {!photoUrl && (
-              <div style={{ position: "absolute", top: 20, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <span style={{ fontSize: 14 }}>📸</span>
-                <span style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {isES ? "Añadir foto" : "Add photo"}
-                </span>
-              </div>
-            )}
-
-            {/* Photo */}
-            {photoUrl && (
-              <>
-                <img
-                  src={photoUrl}
-                  style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "auto", transform: `translateY(${offsetY}px)`, pointerEvents: "none", userSelect: "none" }}
-                  draggable={false}
-                />
-                {/* Gradient overlay */}
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.95) 100%)", pointerEvents: "none" }} />
-                {/* Date */}
-                <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "3px 10px", fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  {dateStr}
-                </div>
-                {/* Action buttons */}
-                <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 6, zIndex: 10 }}>
-                  <button onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }} style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#222", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
-                    ✏️ {isES ? "Cambiar foto" : "Change photo"}
-                  </button>
-                  <button onClick={removePhoto} style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#7f1d1d", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
-                    ✕ {isES ? "Eliminar foto" : "Remove photo"}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Bottom content — always visible */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 16px 16px", pointerEvents: "none" }}>
-              {/* Workout type pill */}
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#88ee22", flexShrink: 0 }} />
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#88ee22", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                  {isES ? "Entreno completado" : "Workout completed"}
-                </span>
-              </div>
-
-              {/* Workout name */}
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 3, letterSpacing: "-0.02em", textTransform: "uppercase" }}>
-                {typeLabel}
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                {subtitle}
-              </div>
-
-              {/* Stats */}
-              <div style={{ display: "flex", gap: 14, marginBottom: 14, alignItems: "flex-end" }}>
-                {[
-                  { val: workout.exercises.length, lbl: isES ? "Ejercicios" : "Exercises", accent: true },
-                  { val: duration, lbl: isES ? "Minutos" : "Minutes" },
-                  { val: streak > 0 ? `🔥${streak}` : "—", lbl: isES ? "Racha" : "Streak" },
-                ].map((s, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: 24, fontWeight: 900, color: s.accent ? "#88ee22" : "#fff", lineHeight: 1 }}>{s.val}</span>
-                    <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginTop: 2, fontWeight: 700, textTransform: "uppercase" }}>{s.lbl}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Divider */}
-              <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 10 }} />
-
-              {/* Exercise list */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                {workout.exercises.slice(0, 6).map((ex, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{ width: 16, height: 16, borderRadius: 4, background: "rgba(136,238,34,0.08)", border: "1px solid rgba(136,238,34,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#88ee22", flexShrink: 0 }}>
-                      {i + 1}
-                    </div>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.7)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.03em", textTransform: "uppercase" }}>
-                      {ex.name}
-                    </span>
-                    {ex.sets && ex.reps && (
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", flexShrink: 0, letterSpacing: "0.03em" }}>
-                        {ex.sets}×{ex.reps}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div
+          className="w-full max-w-sm mx-4 mb-4 sm:mb-0 rounded-2xl overflow-hidden"
+          style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1a1a1a" }}>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#555", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {isES ? "Compartir entrenamiento" : "Share workout"}
+            </span>
+            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ background: "#1a1a1a" }}>
+              <X className="w-4 h-4" style={{ color: "#888" }} />
+            </button>
           </div>
 
-          {/* Share button */}
-          <button
-            onClick={handleShare}
-            style={{
-              width: "100%", background: "#111", border: "1px solid #1f1f1f",
-              borderRadius: 14, padding: "15px 20px",
-              fontSize: 13, fontWeight: 800, color: "#88ee22",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#88ee22" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-            {isES ? "Compartir" : "Share"}
-          </button>
+          <div className="p-4">
+            {/* THE CARD */}
+            <div
+              ref={cardRef}
+              style={{
+                width: "100%",
+                aspectRatio: "4/5",
+                borderRadius: 16,
+                overflow: "hidden",
+                position: "relative",
+                background: "#0d0d0d",
+                marginBottom: 14,
+                cursor: photoUrl ? (isDragging ? "grabbing" : "grab") : "pointer",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
+              onClick={() => !photoUrl && fileInputRef.current?.click()}
+              onMouseDown={onMouseDown}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseUp}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              {/* Photo placeholder */}
+              {!photoUrl && (
+                <div style={{ position: "absolute", top: 20, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>📸</span>
+                  <span style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {isES ? "Añadir foto" : "Add photo"}
+                  </span>
+                </div>
+              )}
+
+              {/* Photo */}
+              {photoUrl && (
+                <>
+                  <img
+                    src={photoUrl}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "auto", transform: `translateY(${offsetY}px)`, pointerEvents: "none", userSelect: "none" }}
+                    draggable={false}
+                  />
+                  {/* Gradient overlay */}
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.95) 100%)", pointerEvents: "none" }} />
+                  {/* Date */}
+                  <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "3px 10px", fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {dateStr}
+                  </div>
+                  {/* Action buttons */}
+                  <div data-actions style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 6, zIndex: 10 }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); isSelectingFile.current = true; fileInputRef.current?.click(); }}
+                      style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#222", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      ✏️ {isES ? "Cambiar foto" : "Change photo"}
+                    </button>
+                    <button
+                      onClick={removePhoto}
+                      style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#7f1d1d", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      ✕ {isES ? "Eliminar foto" : "Remove photo"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Bottom content — always visible */}
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 16px 16px", pointerEvents: "none" }}>
+                {/* Title */}
+                <div style={{ fontSize: 18, fontWeight: 900, color: "#88ee22", lineHeight: 1, marginBottom: 4, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  {isES ? "Entreno completado" : "Workout completed"}
+                </div>
+                {/* Subtitle */}
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  {subtitle}
+                </div>
+
+                {/* Stats */}
+                <div style={{ display: "flex", gap: 14, marginBottom: 14, alignItems: "flex-end" }}>
+                  {[
+                    { val: workout.exercises.length, lbl: isES ? "Ejercicios" : "Exercises", accent: true },
+                    { val: duration, lbl: isES ? "Minutos" : "Minutes" },
+                    { val: streak > 0 ? `🔥${streak}` : "—", lbl: isES ? "Racha" : "Streak" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: 24, fontWeight: 900, color: s.accent ? "#88ee22" : "#fff", lineHeight: 1, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.val}</span>
+                      <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginTop: 2, fontWeight: 700, textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.lbl}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Divider */}
+                <div style={{ height: 1, background: "rgba(255,255,255,0.08)", marginBottom: 10 }} />
+
+                {/* Exercise list */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                  {workout.exercises.slice(0, 6).map((ex, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ width: 16, height: 16, borderRadius: 4, background: "rgba(136,238,34,0.08)", border: "1px solid rgba(136,238,34,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#88ee22", flexShrink: 0, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {i + 1}
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.7)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.03em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                        {ex.name}
+                      </span>
+                      {ex.sets && ex.reps && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.35)", flexShrink: 0, letterSpacing: "0.03em", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                          {ex.sets}×{ex.reps}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Share button */}
+            <button
+              onClick={handleShare}
+              style={{
+                width: "100%", background: "#111", border: "1px solid #1f1f1f",
+                borderRadius: 14, padding: "15px 20px",
+                fontSize: 13, fontWeight: 800, color: "#88ee22",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#88ee22" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              {isES ? "Compartir" : "Share"}
+            </button>
+          </div>
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhoto} />
-    </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handlePhoto}
+      />
+    </>
   );
 }
+
+// ─── ShareRestDayButton ───────────────────────────────────────────────────────
 
 export function ShareRestDayButton() {
   const [open, setOpen] = useState(false);
@@ -381,6 +427,8 @@ export function ShareRestDayButton() {
   );
 }
 
+// ─── RestDayModal ─────────────────────────────────────────────────────────────
+
 function RestDayModal({ onClose, lang, isES }: { onClose: () => void; lang: string; isES: boolean }) {
   const { data: stats } = useProgressStats();
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -392,11 +440,12 @@ function RestDayModal({ onClose, lang, isES }: { onClose: () => void; lang: stri
   const startYRef = useRef(0);
   const startOffsetRef = useRef(0);
   const stripHRef = useRef(0);
+  const isSelectingFile = useRef(false);
 
   const streak = stats?.streak ?? 0;
   const totalWorkouts = stats?.totalWorkouts ?? 0;
   const dateStr = new Date().toLocaleDateString(lang === "en" ? "en-US" : "es-ES", {
-    day: "numeric", month: "short", year: "numeric"
+    day: "numeric", month: "short", year: "numeric",
   }).toUpperCase();
 
   const clamp = useCallback((v: number) => {
@@ -404,6 +453,7 @@ function RestDayModal({ onClose, lang, isES }: { onClose: () => void; lang: stri
   }, [imgRenderedH]);
 
   const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    isSelectingFile.current = false;
     const file = e.target.files?.[0];
     if (!file) return;
     const url = URL.createObjectURL(file);
@@ -456,139 +506,193 @@ function RestDayModal({ onClose, lang, isES }: { onClose: () => void; lang: stri
 
   const handleShare = async () => {
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: isES ? "Mi día de descanso" : "My rest day",
-          text: isES ? `Recuperación activa · Racha de ${streak} días 🔥` : `Active recovery · ${streak} day streak 🔥`,
-        });
-      }
+      const card = cardRef.current;
+      if (!card) return;
+
+      const actionsEl = card.querySelector("[data-actions]") as HTMLElement | null;
+      if (actionsEl) actionsEl.style.visibility = "hidden";
+
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(card, {
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#0d0d0d",
+        scale: 2,
+      });
+
+      if (actionsEl) actionsEl.style.visibility = "";
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const file = new File([blob], "goaliq-descanso.png", { type: "image/png" });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: isES ? "Mi día de descanso" : "My rest day" });
+        } else if (navigator.share) {
+          await navigator.share({
+            title: isES ? "Mi día de descanso" : "My rest day",
+            text: isES ? `Recuperación activa · Racha de ${streak} días 🔥` : `Active recovery · ${streak} day streak 🔥`,
+          });
+        } else {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "goaliq-descanso.png";
+          a.click();
+        }
+      }, "image/png");
     } catch (err) {
-      console.log("Share cancelled");
+      console.error("Share failed:", err);
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)" }}
-      onClick={onClose}
-    >
+    <>
+      {/* Backdrop — blur isolated here, no children */}
       <div
-        className="w-full max-w-sm mx-4 mb-4 sm:mb-0 rounded-2xl overflow-hidden"
-        style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}
-        onClick={e => e.stopPropagation()}
+        className="fixed inset-0 z-[9999]"
+        style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+        onClick={() => { if (!isSelectingFile.current) onClose(); }}
+      />
+      {/* Modal card — sits above backdrop, no blur */}
+      <div
+        className="fixed inset-0 z-[10000] flex items-end sm:items-center justify-center"
+        onClick={() => { if (!isSelectingFile.current) onClose(); }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1a1a1a" }}>
-          <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#555", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
-            {isES ? "Compartir descanso" : "Share rest day"}
-          </span>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ background: "#1a1a1a" }}>
-            <X className="w-4 h-4" style={{ color: "#888" }} />
-          </button>
-        </div>
-
-        <div className="p-4">
-          {/* Card */}
-          <div
-            ref={cardRef}
-            style={{
-              width: "100%", aspectRatio: "4/5",
-              borderRadius: 16, overflow: "hidden",
-              position: "relative", background: "#0d0d0d",
-              marginBottom: 14,
-              cursor: photoUrl ? (isDragging ? "grabbing" : "grab") : "pointer",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-            onClick={() => !photoUrl && fileInputRef.current?.click()}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-          >
-            {/* Placeholder */}
-            {!photoUrl && (
-              <div style={{ position: "absolute", top: 20, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                <span style={{ fontSize: 14 }}>📸</span>
-                <span style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  {isES ? "Añadir foto" : "Add photo"}
-                </span>
-              </div>
-            )}
-
-            {/* Photo */}
-            {photoUrl && (
-              <>
-                <img src={photoUrl} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "auto", transform: `translateY(${offsetY}px)`, pointerEvents: "none", userSelect: "none" }} draggable={false} />
-                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.95) 100%)", pointerEvents: "none" }} />
-                <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "3px 10px", fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                  {dateStr}
-                </div>
-                <div style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 6, zIndex: 10 }}>
-                  <button onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }} style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#222", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
-                    ✏️ {isES ? "Cambiar foto" : "Change photo"}
-                  </button>
-                  <button onClick={removePhoto} style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#7f1d1d", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap" }}>
-                    ✕ {isES ? "Eliminar foto" : "Remove photo"}
-                  </button>
-                </div>
-              </>
-            )}
-
-            {/* Bottom content */}
-            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 16px 16px", pointerEvents: "none" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
-                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#7B8CDE", flexShrink: 0 }} />
-                <span style={{ fontSize: 9, fontWeight: 700, color: "#7B8CDE", letterSpacing: "0.15em", textTransform: "uppercase" }}>
-                  {isES ? "Día de descanso" : "Rest day"}
-                </span>
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 3, letterSpacing: "-0.02em", textTransform: "uppercase" }}>
-                {isES ? "Recuperación" : "Recovery"}
-              </div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-                {isES ? "Cuerpo · Mente · Energía" : "Body · Mind · Energy"}
-              </div>
-              <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
-                {[
-                  { val: "🧘", lbl: isES ? "Activo" : "Active", color: "#7B8CDE" },
-                  { val: streak > 0 ? `🔥${streak}` : "—", lbl: isES ? "Racha" : "Streak", color: "#88ee22" },
-                  { val: totalWorkouts, lbl: isES ? "Entrenos" : "Workouts", color: "#fff" },
-                ].map((s, i) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column" }}>
-                    <span style={{ fontSize: 24, fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.val}</span>
-                    <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginTop: 2, fontWeight: 700, textTransform: "uppercase" }}>{s.lbl}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div
+          className="w-full max-w-sm mx-4 mb-4 sm:mb-0 rounded-2xl overflow-hidden"
+          style={{ background: "#0a0a0a", border: "1px solid #1f1f1f" }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#1a1a1a" }}>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#555", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+              {isES ? "Compartir descanso" : "Share rest day"}
+            </span>
+            <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg" style={{ background: "#1a1a1a" }}>
+              <X className="w-4 h-4" style={{ color: "#888" }} />
+            </button>
           </div>
 
-          {/* Share button */}
-          <button
-            onClick={handleShare}
-            style={{
-              width: "100%", background: "#111", border: "1px solid #1f1f1f",
-              borderRadius: 14, padding: "15px 20px",
-              fontSize: 13, fontWeight: 800, color: "#88ee22",
-              cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#88ee22" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-              <polyline points="16 6 12 2 8 6"/>
-              <line x1="12" y1="2" x2="12" y2="15"/>
-            </svg>
-            {isES ? "Compartir" : "Share"}
-          </button>
+          <div className="p-4">
+            {/* Card */}
+            <div
+              ref={cardRef}
+              style={{
+                width: "100%", aspectRatio: "4/5",
+                borderRadius: 16, overflow: "hidden",
+                position: "relative", background: "#0d0d0d",
+                marginBottom: 14,
+                cursor: photoUrl ? (isDragging ? "grabbing" : "grab") : "pointer",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
+              onClick={() => !photoUrl && fileInputRef.current?.click()}
+              onMouseDown={onMouseDown}
+              onMouseMove={onMouseMove}
+              onMouseUp={onMouseUp}
+              onMouseLeave={onMouseUp}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+            >
+              {/* Placeholder */}
+              {!photoUrl && (
+                <div style={{ position: "absolute", top: 20, left: 0, right: 0, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <span style={{ fontSize: 14 }}>📸</span>
+                  <span style={{ fontSize: 11, color: "#333", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {isES ? "Añadir foto" : "Add photo"}
+                  </span>
+                </div>
+              )}
+
+              {/* Photo */}
+              {photoUrl && (
+                <>
+                  <img
+                    src={photoUrl}
+                    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "auto", transform: `translateY(${offsetY}px)`, pointerEvents: "none", userSelect: "none" }}
+                    draggable={false}
+                  />
+                  <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 25%, rgba(0,0,0,0.45) 55%, rgba(0,0,0,0.95) 100%)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: 14, right: 14, background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 20, padding: "3px 10px", fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.55)", letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {dateStr}
+                  </div>
+                  {/* Action buttons */}
+                  <div data-actions style={{ position: "absolute", top: 10, right: 10, display: "flex", flexDirection: "column", gap: 6, zIndex: 10 }}>
+                    <button
+                      onClick={e => { e.stopPropagation(); isSelectingFile.current = true; fileInputRef.current?.click(); }}
+                      style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#222", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      ✏️ {isES ? "Cambiar foto" : "Change photo"}
+                    </button>
+                    <button
+                      onClick={removePhoto}
+                      style={{ fontSize: 12, fontWeight: 700, color: "#fff", padding: "6px 12px", borderRadius: 8, border: "none", background: "#7f1d1d", cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.03em", whiteSpace: "nowrap", fontFamily: "'Plus Jakarta Sans', sans-serif" }}
+                    >
+                      ✕ {isES ? "Eliminar foto" : "Remove photo"}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Bottom content */}
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 16px 16px", pointerEvents: "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 5 }}>
+                  <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#7B8CDE", flexShrink: 0 }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "#7B8CDE", letterSpacing: "0.15em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                    {isES ? "Día de descanso" : "Rest day"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "#fff", lineHeight: 1, marginBottom: 3, letterSpacing: "-0.02em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  {isES ? "Recuperación" : "Recovery"}
+                </div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: 600, marginBottom: 14, letterSpacing: "0.05em", textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>
+                  {isES ? "Cuerpo · Mente · Energía" : "Body · Mind · Energy"}
+                </div>
+                <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
+                  {[
+                    { val: "🧘", lbl: isES ? "Activo" : "Active", color: "#7B8CDE" },
+                    { val: streak > 0 ? `🔥${streak}` : "—", lbl: isES ? "Racha" : "Streak", color: "#88ee22" },
+                    { val: totalWorkouts, lbl: isES ? "Entrenos" : "Workouts", color: "#fff" },
+                  ].map((s, i) => (
+                    <div key={i} style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: 24, fontWeight: 900, color: s.color, lineHeight: 1, fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.val}</span>
+                      <span style={{ fontSize: 7, color: "rgba(255,255,255,0.3)", letterSpacing: "0.08em", marginTop: 2, fontWeight: 700, textTransform: "uppercase", fontFamily: "'Plus Jakarta Sans', sans-serif" }}>{s.lbl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Share button */}
+            <button
+              onClick={handleShare}
+              style={{
+                width: "100%", background: "#111", border: "1px solid #1f1f1f",
+                borderRadius: 14, padding: "15px 20px",
+                fontSize: 13, fontWeight: 800, color: "#88ee22",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                letterSpacing: "0.08em", textTransform: "uppercase",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#88ee22" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                <polyline points="16 6 12 2 8 6"/>
+                <line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              {isES ? "Compartir" : "Share"}
+            </button>
+          </div>
         </div>
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handlePhoto} />
-    </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: "none" }}
+        onChange={handlePhoto}
+      />
+    </>
   );
 }
