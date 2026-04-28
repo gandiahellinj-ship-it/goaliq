@@ -48,12 +48,13 @@ const navItems = [
 ];
 
 function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" }) {
-  const s = size === "sm" ? "text-lg" : "text-xl";
+  const h = size === "sm" ? 22 : 28;
   return (
-    <span className={`font-display font-black italic ${s} leading-none`}>
-      <span style={{ color: "var(--giq-text-primary)" }}>Goal</span>
-      <span style={{ color: "var(--giq-accent)" }}>IQ</span>
-    </span>
+    <img
+      src="/images/NowOn.png"
+      alt="NowOn"
+      style={{ height: h, width: "auto", objectFit: "contain", display: "block" }}
+    />
   );
 }
 
