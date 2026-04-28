@@ -48,7 +48,7 @@ const navItems = [
 ];
 
 function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" }) {
-  const h = size === "sm" ? 32 : 40;
+  const h = 28;
   return (
     <img
       src="/images/GOALIQ.png"

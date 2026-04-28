@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Dumbbell, Utensils, TrendingUp } from "lucide-react";
 import { useEffect } from "react";
 
-function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
-  const heights: Record<string, number> = { sm: 32, md: 48, lg: 64 };
+function GoalIQLogo({ size = "md", className }: { size?: "sm" | "md" | "lg"; className?: string }) {
+  const heights: Record<string, number> = { sm: 36, md: 48, lg: 48 };
   return (
     <img
       src={`${import.meta.env.BASE_URL}images/GOALIQ.png`}
       alt="GoalIQ"
+      className={className}
       style={{ height: heights[size], width: "auto", objectFit: "contain", display: "block" }}
     />
   );
@@ -32,7 +33,10 @@ export default function Landing() {
 
       {/* Header */}
       <header className="px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full border-b border-[#1A1A1A]">
-        <GoalIQLogo size="md" />
+        <>
+          <GoalIQLogo size="sm" className="sm:hidden" />
+          <GoalIQLogo size="md" className="hidden sm:block" />
+        </>
         <div className="flex items-center gap-3">
           <Link href="/pricing" className="text-sm font-medium text-[#A0A0A0] hover:text-white transition-colors hidden sm:block">
             Precios
