@@ -91,8 +91,14 @@ export default function Onboarding() {
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
   const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
   const [goalPace, setGoalPace] = useState("moderate");
+  const [paceIndex, setPaceIndex] = useState(1);
   const [fastingEnabled, setFastingEnabled] = useState(false);
   const [fastingProtocol, setFastingProtocol] = useState("16:8");
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const STEPS = ["sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
+  const STEP_NAMES_ES = ["Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
+  const STEP_NAMES_EN = ["About you", "Your goal", "Your diet", "Training", "Supplements", "Summary"];
 
   // ── Prefill in edit mode ──────────────────────────────────────────────────
   useEffect(() => {
@@ -152,7 +158,10 @@ export default function Onboarding() {
 
         // Restore goal pace
         const savedPace = (profile as any)?.goal_pace as string | null;
-        if (savedPace) setGoalPace(savedPace);
+        if (savedPace) {
+          setGoalPace(savedPace);
+          setPaceIndex(savedPace === "gentle" ? 0 : savedPace === "aggressive" ? 2 : 1);
+        }
 
         // Restore fasting protocol
         const savedFasting = (profile as any)?.fasting_protocol as string | null;
@@ -316,43 +325,57 @@ export default function Onboarding() {
     ],
   };
 
+  const paceOptions = [
+    { key: "gentle",     labelES: "🐢 Suave",    labelEN: "🐢 Gentle",    badgeES: "−0.25 kg/sem · déficit 250 kcal",  badgeEN: "−0.25 kg/week · 250 kcal deficit" },
+    { key: "moderate",   labelES: "🚶 Moderado",  labelEN: "🚶 Moderate",  badgeES: "−0.5 kg/sem · déficit 500 kcal",   badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
+    { key: "aggressive", labelES: "🏃 Agresivo",  labelEN: "🏃 Aggressive", badgeES: "−1 kg/sem · déficit 1000 kcal",  badgeEN: "−1 kg/week · 1000 kcal deficit" },
+  ];
+
   return (
-    <div className="min-h-screen py-10 px-4 font-sans" style={{ background: "#0a0a0a" }}>
-      <div className="max-w-xl mx-auto">
+    <div className="font-sans" style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
 
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo />
-        </div>
-
-        {/* Edit mode banner */}
-        {isEditMode && (
-          <div className="mb-6 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
-            <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
-            <p className="text-sm text-[#AAFF45]/80 font-medium">
-              {t("updating_both_plans")}
-            </p>
+      {/* ── Sticky progress bar ─────────────────────────────────────────────── */}
+      <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid #1a1a1a", background: "#0a0a0a", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "#555" }}>
+              {isES ? `Paso ${currentStep + 1} de ${STEPS.length}` : `Step ${currentStep + 1} of ${STEPS.length}`}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              {isES ? STEP_NAMES_ES[currentStep] : STEP_NAMES_EN[currentStep]}
+            </span>
           </div>
-        )}
-
-        {/* Page title */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-display font-black uppercase text-white">
-            {isEditMode
-              ? (isES ? "Actualiza tu perfil" : "Update your profile")
-              : (isES ? "Crea tu plan" : "Create your plan")}
-          </h1>
-          <p className="text-sm text-[#555555] mt-1">
-            {isES
-              ? "Completa todos los campos para personalizar tu plan"
-              : "Fill in all fields to personalise your plan"}
-          </p>
+          <div style={{ display: "flex", gap: 4 }}>
+            {STEPS.map((_, i) => (
+              <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < currentStep ? "#88ee22" : i === currentStep ? "rgba(136,238,34,0.4)" : "#1f1f1f", transition: "background 0.3s" }} />
+            ))}
+          </div>
         </div>
+      </div>
 
-        <div className="space-y-3">
+      {/* ── Scrollable content ─────────────────────────────────────────────── */}
+      <div style={{ flex: 1, padding: "24px 20px 0" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
 
-          {/* ── Section 1: Sobre ti ─────────────────────────────────────── */}
-          <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <Logo />
+          </div>
+
+          {/* Edit mode banner */}
+          {isEditMode && (
+            <div className="mb-4 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
+              <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
+              <p className="text-sm text-[#AAFF45]/80 font-medium">
+                {t("updating_both_plans")}
+              </p>
+            </div>
+          )}
+
+        <div className="space-y-3 pb-4">
+
+          {/* ── Step 0: Sobre ti ────────────────────────────────────────── */}
+          {currentStep === 0 && <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
             <Field label={t("what_call_you")} hint={t("personalise_hint")}>
               <input
                 type="text"
@@ -424,9 +447,9 @@ export default function Onboarding() {
                 className={inputClass}
               />
             </Field>
-          </SectionCard>
+          </SectionCard>}
 
-          {/* ── Section 2: Tu objetivo ──────────────────────────────────── */}
+          {currentStep === 1 && <>
           <SectionCard emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
             <div className="flex flex-col gap-3">
               {[
@@ -471,42 +494,36 @@ export default function Onboarding() {
                           💬 {isES ? detail.description : detail.descriptionEN}
                         </p>
 
-                        {/* Pace options */}
+                        {/* Pace slider */}
                         {detail.paces && (
                           <>
-                            <p className="text-xs font-semibold text-[#A0A0A0] mb-2">
+                            <p className="text-xs font-semibold text-[#A0A0A0] mb-1">
                               {isES ? "¿A qué ritmo?" : "At what pace?"}
                             </p>
-                            <div className="flex flex-col gap-2">
-                              {detail.paces.map(pace => (
-                                <button
-                                  key={pace.id}
-                                  type="button"
-                                  onClick={() => setGoalPace(pace.id)}
-                                  className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
-                                    goalPace === pace.id
-                                      ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
-                                      : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
-                                  }`}
-                                >
-                                  <span className="text-base shrink-0">{pace.emoji}</span>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`text-xs font-bold ${goalPace === pace.id ? "text-[#AAFF45]" : "text-white"}`}>
-                                        {isES ? pace.label : pace.labelEN}
-                                      </span>
-                                      {pace.recommended && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#AAFF45]/20 text-[#AAFF45]">
-                                          {isES ? "Recomendado" : "Recommended"}
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-[10px] text-[#555] mt-0.5 leading-snug">
-                                      {isES ? pace.desc : pace.descEN}
-                                    </p>
-                                  </div>
-                                </button>
-                              ))}
+                            <div style={{ margin: "8px 0 16px" }}>
+                              <div
+                                style={{ position: "relative", height: 4, background: "#2a2a2a", borderRadius: 2, margin: "20px 0 10px", cursor: "pointer" }}
+                                onClick={e => {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const pct = (e.clientX - rect.left) / rect.width;
+                                  const idx = pct < 0.33 ? 0 : pct < 0.66 ? 1 : 2;
+                                  setPaceIndex(idx);
+                                  setGoalPace(idx === 0 ? "gentle" : idx === 2 ? "aggressive" : "moderate");
+                                }}
+                              >
+                                <div style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "#88ee22", borderRadius: 2, width: `${paceIndex * 50}%`, transition: "width 0.15s" }} />
+                                <div style={{ position: "absolute", top: "50%", left: `${paceIndex * 50}%`, transform: "translate(-50%, -50%)", width: 22, height: 22, borderRadius: "50%", background: "#88ee22", border: "2px solid #0a0a0a", boxShadow: "0 0 0 3px rgba(136,238,34,0.2)", transition: "left 0.15s", cursor: "grab" }} />
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                {paceOptions.map((p, i) => (
+                                  <span key={i} style={{ fontSize: 11, color: i === paceIndex ? "#88ee22" : "#444", fontWeight: i === paceIndex ? 700 : 400, flex: 1, textAlign: i === 0 ? "left" : i === 2 ? "right" : "center" }}>
+                                    {isES ? p.labelES : p.labelEN}
+                                  </span>
+                                ))}
+                              </div>
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(136,238,34,0.08)", border: "1px solid rgba(136,238,34,0.2)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "#88ee22", fontWeight: 600, marginTop: 8 }}>
+                                {isES ? paceOptions[paceIndex].badgeES : paceOptions[paceIndex].badgeEN}
+                              </div>
                             </div>
                           </>
                         )}
@@ -518,7 +535,6 @@ export default function Onboarding() {
             </div>
           </SectionCard>
 
-          {/* ── Section 2b: Ayuno intermitente ──────────────────────────── */}
           <SectionCard emoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
             <div className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
               fastingEnabled ? "border-[#AAFF45]/40 bg-[#AAFF45]/5" : "border-[#2A2A2A] bg-[#111111]"
@@ -598,8 +614,10 @@ export default function Onboarding() {
             </div>
           </SectionCard>
 
-          {/* ── Section 3: Tu dieta ─────────────────────────────────────── */}
-          <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+          </>}
+
+          {/* ── Step 2: Tu dieta ────────────────────────────────────────── */}
+          {currentStep === 2 && <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
             <Field label={t("diet_type_question")}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {[
@@ -650,10 +668,10 @@ export default function Onboarding() {
                 accentColor="orange"
               />
             </Field>
-          </SectionCard>
+          </SectionCard>}
 
-          {/* ── Section 4: Entrenamiento ────────────────────────────────── */}
-          <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+          {/* ── Step 3: Entrenamiento ───────────────────────────────────── */}
+          {currentStep === 3 && <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
             <Field label={t("fitness_level")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
@@ -708,10 +726,10 @@ export default function Onboarding() {
                 <span>{t("seven_days")}</span>
               </div>
             </Field>
-          </SectionCard>
+          </SectionCard>}
 
-          {/* ── Section 5: Suplementos ──────────────────────────────────── */}
-          <SectionCard
+          {/* ── Step 4: Suplementos ─────────────────────────────────────── */}
+          {currentStep === 4 && <SectionCard
             emoji="💊"
             title={isES ? "Suplementos" : "Supplements"}
             badge={isES ? "opcional" : "optional"}
@@ -843,10 +861,10 @@ export default function Onboarding() {
                 );
               })}
             </div>
-          </SectionCard>
+          </SectionCard>}
 
-          {/* ── Section 6: Summary ─────────────────────────────────────── */}
-          <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
+          {/* ── Step 5: Resumen ─────────────────────────────────────────── */}
+          {currentStep === 5 && <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
             <div className="flex flex-col gap-2">
               {[
                 { icon: "🍽️", name: isES ? "Plan nutricional 7 días" : "7-day nutrition plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a ti" : "Breakfast, lunch, dinner and snacks tailored to you" },
@@ -867,50 +885,47 @@ export default function Onboarding() {
                 </div>
               ))}
             </div>
-          </SectionCard>
+          </SectionCard>}
 
-          {/* ── Section 7: CTA ──────────────────────────────────────────── */}
-          <div className="rounded-2xl border p-5 pb-6" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
-            {/* Error banner */}
-            {error && (
-              <div className="mb-5 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
-                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                <div>
-                  <p className="font-semibold">
-                    {isEditMode ? t("couldnt_save_prefs") : t("couldnt_create_plan")}
-                  </p>
-                  <p className="text-[#FF4444]/80 mt-0.5">{error}</p>
-                </div>
+        </div>
+        </div>
+      </div>
+
+      {/* ── Sticky footer nav ──────────────────────────────────────────────── */}
+      <div style={{ position: "sticky", bottom: 0, background: "#0a0a0a", borderTop: "1px solid #1a1a1a", padding: "12px 20px 20px" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+          {/* Error banner (last step only) */}
+          {error && currentStep === STEPS.length - 1 && (
+            <div className="mb-3 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">
+                  {isEditMode ? t("couldnt_save_prefs") : t("couldnt_create_plan")}
+                </p>
+                <p className="text-[#FF4444]/80 mt-0.5">{error}</p>
               </div>
-            )}
-
+            </div>
+          )}
+          <button
+            onClick={currentStep < STEPS.length - 1 ? () => setCurrentStep(s => s + 1) : handleSubmit}
+            disabled={isSubmitting}
+            style={{ width: "100%", background: "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: "#0a0a0a", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.6 : 1 }}
+          >
+            {isSubmitting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Creando tu plan..." : "Creating your plan..."}</>
+              : currentStep < STEPS.length - 1
+                ? (isES ? "Continuar →" : "Continue →")
+                : (isEditMode ? t("save_regenerate") : (isES ? "🚀 Crear mi plan" : "🚀 Create my plan"))
+            }
+          </button>
+          {currentStep > 0 && (
             <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="w-full py-4 rounded-xl font-bold text-base bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none shadow-lg shadow-[#AAFF45]/10"
+              onClick={() => setCurrentStep(s => s - 1)}
+              style={{ background: "none", border: "none", fontSize: 13, color: "#e8e8e8", cursor: "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600 }}
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {isEditMode ? t("saving_regenerating") : t("creating_plan")}
-                </>
-              ) : (
-                <>
-                  🚀{" "}
-                  {isEditMode
-                    ? t("save_regenerate")
-                    : (isES ? "Crear mi plan personalizado" : "Create my personalised plan")}
-                </>
-              )}
+              ← {isES ? "Volver" : "Back"}
             </button>
-
-            <p className="text-center text-xs text-[#444444] mt-3">
-              {isES
-                ? "Tu plan de comidas y entrenamientos estará listo en ~30 segundos"
-                : "Your meal and workout plan will be ready in ~30 seconds"}
-            </p>
-          </div>
+          )}
         </div>
       </div>
     </div>
