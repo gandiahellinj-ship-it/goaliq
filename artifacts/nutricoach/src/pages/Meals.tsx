@@ -473,6 +473,8 @@ function MealsContent() {
                 <MealCard
                   key={meal.id}
                   meal={meal}
+                  mealPlanId={mealPlan.id ?? null}
+                  dayOfWeek={activeDay}
                   dietType={profile?.diet_type ?? null}
                   goalType={profile?.goal ?? null}
                   dislikedFoods={foodPrefs?.disliked_foods ?? []}
@@ -495,6 +497,8 @@ type PickerState = {
 
 function MealCard({
   meal,
+  mealPlanId,
+  dayOfWeek,
   dietType,
   goalType,
   dislikedFoods,
@@ -503,6 +507,8 @@ function MealCard({
   lang,
 }: {
   meal: MealRow;
+  mealPlanId: number | null;
+  dayOfWeek: string;
   dietType: string | null;
   goalType: string | null;
   dislikedFoods: string[];
@@ -553,12 +559,16 @@ function MealCard({
     }
   };
 
-  const handleSelectSwap = (index: number, chosen: SwapOption) => {
+  const handleSelectSwap = (index: number, _chosen: SwapOption) => {
+    if (!mealPlanId) {
+      setErrorMsg("No meal plan ID available.");
+      return;
+    }
     setPicker(null);
     setApplyingIndex(index);
     setErrorMsg(null);
     swapMutation.mutate(
-      { mealId: meal.id, ingredientIndex: index, chosenSwap: chosen },
+      { mealPlanId, dayOfWeek, mealType: meal.meal_type, ingredientName: meal.ingredients[index].name, lang },
       {
         onSuccess: () => {
           setApplyingIndex(null);

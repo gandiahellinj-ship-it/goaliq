@@ -186,7 +186,7 @@ router.post("/meals/replace-ingredient", async (req, res) => {
   const days = planData.days as any[];
   const dayPlan = days.find((d: any) => d.day === body.dayOfWeek);
   if (!dayPlan) { res.status(404).json({ error: "Day not found" }); return; }
-  const meal = dayPlan.meals.find((m: any) => m.id === body.mealId);
+  const meal = dayPlan.meals.find((m: any) => (m.mealType ?? m.meal_type) === body.mealType);
   if (!meal) { res.status(404).json({ error: "Meal not found" }); return; }
   const ingredient = meal.ingredients.find((i: any) => i.name === body.ingredientName);
   if (!ingredient) { res.status(404).json({ error: "Ingredient not found" }); return; }

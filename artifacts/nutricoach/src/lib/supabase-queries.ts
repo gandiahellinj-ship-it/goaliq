@@ -23,6 +23,7 @@ export type DayMeals = {
 };
 
 export type MealPlan = {
+  id?: number | null;
   days: DayMeals[];
   weekStart: string;
 };
@@ -274,7 +275,7 @@ export function useMealPlan() {
         })),
       }));
 
-      return { days, weekStart: data.weekStart ?? weekStart };
+      return { days, weekStart: data.weekStart ?? weekStart, id: data.id ?? null };
     },
   });
 }
@@ -1027,65 +1028,39 @@ export async function getSwapOptions(
 
 export function useSwapIngredient() {
   const queryClient = useQueryClient();
-  const weekStart = getWeekStart();
 
   return useMutation({
     mutationFn: async ({
-      mealId,
-      ingredientIndex,
-      chosenSwap,
+      mealPlanId,
+      dayOfWeek,
+      mealType,
+      ingredientName,
+      lang,
     }: {
-      mealId: string;
-      ingredientIndex: number;
-      chosenSwap: SwapOption;
+      mealPlanId: number;
+      dayOfWeek: string;
+      mealType: string;
+      ingredientName: string;
+      lang?: string;
     }) => {
-      const { data: mealRow, error: fetchErr } = await supabase
-        .from("meal_plans")
-        .select("ingredients")
-        .eq("id", mealId)
-        .single();
-      if (fetchErr) throw fetchErr;
-
-      const ingredients: Ingredient[] = mealRow.ingredients;
-      const current = ingredients[ingredientIndex];
-      if (!current) throw new Error("Ingredient not found");
-
-      const newIngredient: Ingredient = {
-        name: chosenSwap.name,
-        amount: chosenSwap.amount || current.amount,
-        category: current.category,
-      };
-
-      const updated = ingredients.map((ing, i) => (i === ingredientIndex ? newIngredient : ing));
-
-      const { error: updateErr } = await supabase
-        .from("meal_plans")
-        .update({ ingredients: updated })
-        .eq("id", mealId);
-      if (updateErr) throw updateErr;
-
-      return { mealId, ingredientIndex, newIngredient };
+      const token = await getAccessToken();
+      const res = await fetch("/api/meals/replace-ingredient", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ mealPlanId, dayOfWeek, mealType, ingredientName, lang: lang ?? "es" }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to replace ingredient");
+      }
+      return res.json();
     },
 
-    onSuccess: ({ mealId, ingredientIndex, newIngredient }) => {
-      queryClient.setQueryData(["meal_plans", weekStart], (old: MealPlan | null) => {
-        if (!old) return old;
-        return {
-          ...old,
-          days: old.days.map(d => ({
-            ...d,
-            meals: d.meals.map(m => {
-              if (m.id !== mealId) return m;
-              return {
-                ...m,
-                ingredients: m.ingredients.map((ing, i) =>
-                  i === ingredientIndex ? newIngredient : ing,
-                ),
-              };
-            }),
-          })),
-        };
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meal_plans"] });
     },
   });
 }

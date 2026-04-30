@@ -245,7 +245,7 @@ export const ReplaceIngredientBody = zod.object({
     "saturday",
     "sunday",
   ]),
-  mealId: zod.string(),
+  mealType: zod.string(),
   ingredientName: zod.string(),
 });
 
