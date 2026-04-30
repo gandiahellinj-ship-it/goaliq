@@ -89,6 +89,7 @@ export default function Onboarding() {
   const [formData, setFormData] = useState<OnboardingFormData>(EMPTY_FORM);
   // selectedSupplements: id -> timingIndex
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
   const [goalPace, setGoalPace] = useState("moderate");
   const [fastingEnabled, setFastingEnabled] = useState(false);
   const [fastingProtocol, setFastingProtocol] = useState("16:8");
@@ -236,6 +237,84 @@ export default function Onboarding() {
   }
 
   const isES = lang !== "en";
+
+  const SUPPLEMENT_VARIANTS: Record<string, Array<{ name: string; info: string }>> = {
+    proteina_polvo: [
+      { name: isES ? "Whey concentrada" : "Concentrated whey", info: isES ? "Económica. Contiene lactosa." : "Budget-friendly. Contains lactose." },
+      { name: isES ? "Whey isolada" : "Whey isolate", info: isES ? "Sin lactosa. >90% proteína." : "Lactose-free. >90% protein." },
+      { name: isES ? "Proteína vegana" : "Vegan protein", info: isES ? "Guisante/arroz. Plant-based." : "Pea/rice. Plant-based." },
+      { name: isES ? "Caseína" : "Casein", info: isES ? "Digestión lenta. Ideal antes de dormir." : "Slow digestion. Ideal before bed." },
+    ],
+    creatina: [
+      { name: isES ? "Monohidrato" : "Monohydrate", info: isES ? "La más estudiada y eficaz." : "Most studied and effective." },
+      { name: isES ? "HCl (clorhidrato)" : "HCl (hydrochloride)", info: isES ? "Mayor solubilidad, dosis menor." : "Higher solubility, smaller dose." },
+      { name: "Kre-Alkalyn", info: isES ? "Sin fase de carga obligatoria." : "No loading phase required." },
+      { name: isES ? "Etil éster" : "Ethyl ester", info: isES ? "Absorción más rápida." : "Faster absorption." },
+    ],
+    colageno: [
+      { name: isES ? "Marino (tipo I)" : "Marine (type I)", info: isES ? "Mayor biodisponibilidad. Piel y tendones." : "Higher bioavailability. Skin and tendons." },
+      { name: isES ? "Bovino (tipo I/III)" : "Bovine (type I/III)", info: isES ? "Económico. Piel y articulaciones." : "Budget-friendly. Skin and joints." },
+      { name: isES ? "Tipo II" : "Type II", info: isES ? "Específico para cartílago." : "Specific for cartilage." },
+      { name: isES ? "Péptidos hidrolizados" : "Hydrolyzed peptides", info: isES ? "Fácil absorción en líquidos." : "Easy absorption in liquids." },
+    ],
+    magnesio: [
+      { name: "Bisglicinato", info: isES ? "Máxima absorción y tolerancia digestiva." : "Maximum absorption and digestive tolerance." },
+      { name: "Citrato", info: isES ? "Buena biodisponibilidad." : "Good bioavailability." },
+      { name: "Malato", info: isES ? "Ideal para energía y fatiga." : "Ideal for energy and fatigue." },
+      { name: "L-treonato", info: isES ? "Mejora sueño y memoria." : "Improves sleep and memory." },
+    ],
+    omega_3: [
+      { name: isES ? "Aceite de pescado" : "Fish oil", info: isES ? "Buena relación EPA/DHA." : "Good EPA/DHA ratio." },
+      { name: isES ? "Aceite de krill" : "Krill oil", info: isES ? "En fosfolípidos, mejor absorción." : "In phospholipids, better absorption." },
+      { name: isES ? "Algas (vegano)" : "Algae (vegan)", info: isES ? "Fuente directa de DHA." : "Direct DHA source." },
+      { name: isES ? "EPA/DHA concentrado" : "Concentrated EPA/DHA", info: isES ? "Alta dosis en cápsulas pequeñas." : "High dose in small capsules." },
+    ],
+    vitamina_d: [
+      { name: isES ? "Vitamina D3" : "Vitamin D3", info: isES ? "Forma más activa y biodisponible." : "Most active and bioavailable form." },
+      { name: "D3 + K2", info: isES ? "K2 dirige el calcio a los huesos." : "K2 directs calcium to bones." },
+      { name: isES ? "D2 (vegano)" : "D2 (vegan)", info: isES ? "Origen vegetal. Menos potente." : "Plant-based. Less potent." },
+    ],
+    zinc: [
+      { name: "Picolinato", info: isES ? "La forma mejor absorbida." : "Best absorbed form." },
+      { name: "Citrato", info: isES ? "Buena tolerancia digestiva." : "Good digestive tolerance." },
+      { name: "Gluconato", info: isES ? "Económico, menor biodisponibilidad." : "Budget-friendly, lower bioavailability." },
+      { name: "ZMA (Zinc+Mg+B6)", info: isES ? "Popular para recuperación nocturna." : "Popular for nighttime recovery." },
+    ],
+    hierro: [
+      { name: "Bisglicinato", info: isES ? "El más suave para el estómago." : "Easiest on the stomach." },
+      { name: isES ? "Sulfato ferroso" : "Ferrous sulfate", info: isES ? "Económico, puede irritar." : "Budget-friendly, may cause irritation." },
+      { name: isES ? "Hierro hemo" : "Heme iron", info: isES ? "Mayor biodisponibilidad natural." : "Higher natural bioavailability." },
+    ],
+    vitamina_c: [
+      { name: isES ? "Ácido ascórbico" : "Ascorbic acid", info: isES ? "Forma básica y económica." : "Basic and budget-friendly form." },
+      { name: isES ? "Ascorbato sódico" : "Sodium ascorbate", info: isES ? "Sin acidez, para estómagos sensibles." : "No acidity, for sensitive stomachs." },
+      { name: "Liposomal", info: isES ? "Mayor biodisponibilidad celular." : "Higher cellular bioavailability." },
+    ],
+    vitamina_b: [
+      { name: isES ? "Complejo B completo" : "Full B complex", info: isES ? "Cubre todas las vitaminas B." : "Covers all B vitamins." },
+      { name: isES ? "Solo B12" : "B12 only", info: isES ? "Esencial para veganos." : "Essential for vegans." },
+      { name: "B6+B12+ácido fólico", info: isES ? "Trío clave para energía." : "Key trio for energy." },
+    ],
+    calcio: [
+      { name: isES ? "Carbonato de calcio" : "Calcium carbonate", info: isES ? "Económico. Tomar con comida." : "Budget-friendly. Take with food." },
+      { name: isES ? "Citrato de calcio" : "Calcium citrate", info: isES ? "Se absorbe en ayunas." : "Absorbs on empty stomach." },
+      { name: "Calcio + D3 + K2", info: isES ? "Sinergia ideal para huesos." : "Ideal synergy for bones." },
+    ],
+    vitamina_a: [
+      { name: "Retinol", info: isES ? "Forma preformada, absorción directa." : "Preformed form, direct absorption." },
+      { name: "Beta-caroteno", info: isES ? "El cuerpo la convierte según necesite." : "Body converts as needed." },
+    ],
+    vitamina_e: [
+      { name: isES ? "Tocoferol mixto" : "Mixed tocopherols", info: isES ? "La forma más completa y natural." : "Most complete and natural form." },
+      { name: "Alfa-tocoferol", info: isES ? "La más estudiada. Forma estándar." : "Most studied. Standard form." },
+    ],
+    cafeina: [
+      { name: "L-teanina + cafeína", info: isES ? "Alerta sin ansiedad ni crash." : "Alert without anxiety or crash." },
+      { name: isES ? "Cafeína anhidra" : "Anhydrous caffeine", info: isES ? "Pura y potente. Dosis exacta." : "Pure and potent. Exact dose." },
+      { name: isES ? "Té verde natural" : "Natural green tea", info: isES ? "Liberación gradual, menor crash." : "Gradual release, less crash." },
+      { name: isES ? "Pre-entreno completo" : "Full pre-workout", info: isES ? "Cafeína + beta-alanina + citrulina." : "Caffeine + beta-alanine + citrulline." },
+    ],
+  };
 
   return (
     <div className="min-h-screen py-10 px-4 font-sans" style={{ background: "#0a0a0a" }}>
@@ -473,11 +552,11 @@ export default function Onboarding() {
                   </p>
                   <div className="flex flex-col gap-2">
                     {([
-                      { id: "12:12", label: "12:12", badge: isES ? "Para empezar" : "Beginner",    badgeColor: "#7B8CDE", desc: isES ? "El más suave. 12h de ayuno, ideal para principiantes. Generalmente de 20:00 a 08:00." : "The gentlest. 12h fast, ideal for beginners. Typically 8pm to 8am." },
-                      { id: "16:8", label: "16:8",  badge: isES ? "Más popular"  : "Most popular", badgeColor: "#88ee22", desc: isES ? "Ayunas 16h y comes en 8h. Ej: comes de 12:00 a 20:00 y ayunas el resto." : "Fast 16h, eat in 8h window. E.g. eat 12pm–8pm, fast the rest." },
-                      { id: "18:6", label: "18:6",  badge: null,                                    badgeColor: null,     desc: isES ? "Ventana de 6 horas. Más restrictivo, mayor flexibilidad metabólica. Ej: comes de 13:00 a 19:00." : "6-hour eating window. More restrictive, greater metabolic flexibility." },
-                      { id: "20:4", label: "20:4",  badge: isES ? "Avanzado"    : "Advanced",      badgeColor: "#FFB800", desc: isES ? "Solo 4 horas para comer. Warrior Diet. Para usuarios con experiencia en ayuno." : "Only 4 hours to eat. Warrior Diet. For experienced fasters." },
-                      { id: "5:2",  label: "5:2",   badge: null,                                    badgeColor: null,     desc: isES ? "Comes normal 5 días y restricción de 500-600 kcal los otros 2 días no consecutivos." : "Eat normally 5 days, restrict to 500-600 kcal on 2 non-consecutive days." },
+                      { id: "12:12", label: "12:12", badge: isES ? "Para empezar" : "Beginner",    badgeColor: "#7B8CDE", desc: isES ? "El más suave. 12h de ayuno, ideal para principiantes. Generalmente de 20:00 a 08:00. Sin grandes cambios en tu rutina diaria." : "The gentlest. 12h fast, ideal for beginners. Usually 8pm to 8am. No major changes to your routine." },
+                      { id: "16:8", label: "16:8",  badge: isES ? "Más popular"  : "Most popular", badgeColor: "#88ee22", desc: isES ? "Ayunas 16h y comes en una ventana de 8h. El protocolo más estudiado. Mejora sensibilidad a la insulina y favorece la pérdida de grasa. Ej: comes de 12:00 a 20:00." : "Fast 16h, eat in an 8h window. Most studied protocol. Improves insulin sensitivity. E.g. eat 12pm–8pm." },
+                      { id: "18:6", label: "18:6",  badge: null,                                    badgeColor: null,     desc: isES ? "Ventana de 6 horas. Mayor flexibilidad metabólica que el 16:8. Recomendado si ya tienes experiencia. Ej: comes de 13:00 a 19:00." : "6-hour eating window. Greater metabolic flexibility than 16:8. Recommended with prior fasting experience." },
+                      { id: "20:4", label: "20:4",  badge: isES ? "Avanzado"    : "Advanced",      badgeColor: "#FFB800", desc: isES ? "Solo 4 horas para comer. Warrior Diet. Alta demanda para el organismo. Para usuarios con experiencia sólida en ayuno intermitente." : "Only 4 hours to eat. Warrior Diet. High demand on the body. For users with solid fasting experience." },
+                      { id: "5:2",  label: "5:2",   badge: null,                                    badgeColor: null,     desc: isES ? "Comes normal 5 días a la semana. Los otros 2 días no consecutivos reduces a 500–600 kcal. Flexible y compatible con vida social." : "Eat normally 5 days. The other 2 non-consecutive days reduce to 500–600 kcal. Flexible and socially compatible." },
                     ] as const).map(p => (
                       <button
                         key={p.id}
@@ -687,9 +766,43 @@ export default function Onboarding() {
                       </div>
                     </button>
 
-                    {/* Expanded timing picker */}
+                    {/* Expanded: variant + timing picker */}
                     {isSelected && timing && (
                       <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                        {/* Variant selector */}
+                        {SUPPLEMENT_VARIANTS[supp.id] && (
+                          <div className="mb-3 mt-3">
+                            <p className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">
+                              {isES ? "Tipo" : "Type"}
+                            </p>
+                            <div className="flex flex-col gap-1.5">
+                              {SUPPLEMENT_VARIANTS[supp.id].map((variant, vIdx) => (
+                                <button
+                                  key={vIdx}
+                                  type="button"
+                                  onClick={() => setSelectedVariants(prev => ({ ...prev, [supp.id]: vIdx }))}
+                                  className="w-full text-left flex items-start gap-3 p-2.5 rounded-lg border transition-all"
+                                  style={{
+                                    background: selectedVariants[supp.id] === vIdx ? "rgba(136,238,34,0.05)" : "#0d0d0d",
+                                    borderColor: selectedVariants[supp.id] === vIdx ? "#88ee22" : "#1a1a1a",
+                                  }}
+                                >
+                                  <div
+                                    className="w-3.5 h-3.5 rounded-full border-[1.5px] flex-shrink-0 mt-0.5"
+                                    style={{
+                                      background: selectedVariants[supp.id] === vIdx ? "#88ee22" : "transparent",
+                                      borderColor: selectedVariants[supp.id] === vIdx ? "#88ee22" : "#444",
+                                    }}
+                                  />
+                                  <div>
+                                    <p className="text-[13px] font-semibold text-[#e8e8e8]">{variant.name}</p>
+                                    <p className="text-[11px] text-[#555] mt-0.5 leading-snug">{variant.info}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <p className="text-xs font-semibold text-[#A0A0A0] mt-3 mb-2">
                           {isES ? "¿Cuándo lo tomas?" : "When do you take it?"}
                         </p>
@@ -732,7 +845,31 @@ export default function Onboarding() {
             </div>
           </SectionCard>
 
-          {/* ── Section 6: CTA ──────────────────────────────────────────── */}
+          {/* ── Section 6: Summary ─────────────────────────────────────── */}
+          <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
+            <div className="flex flex-col gap-2">
+              {[
+                { icon: "🍽️", name: isES ? "Plan nutricional 7 días" : "7-day nutrition plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a ti" : "Breakfast, lunch, dinner and snacks tailored to you" },
+                { icon: "🛒", name: isES ? "Lista de la compra semanal" : "Weekly shopping list", desc: isES ? "Todos los ingredientes organizados para facilitar tu compra" : "All ingredients organized to make shopping easy" },
+                { icon: "🏋️", name: isES ? "Plan de entrenos semanal" : "Weekly workout plan", desc: isES ? "Ejercicios, series y repeticiones para tu nivel" : "Exercises, sets and reps for your level" },
+                { icon: "🔔", name: isES ? "Recordatorios de suplementos" : "Supplement reminders", desc: isES ? "Notificaciones en el momento exacto de cada toma" : "Notifications at the exact time of each dose" },
+                { icon: "📊", name: isES ? "Seguimiento de progreso" : "Progress tracking", desc: isES ? "Peso, racha, adherencia y estadísticas" : "Weight, streak, adherence and stats" },
+              ].map((item) => (
+                <div key={item.icon} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#111", border: "1px solid #1f1f1f" }}>
+                  <span className="text-xl flex-shrink-0">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-bold text-[#e8e8e8]">{item.name}</p>
+                    <p className="text-[11px] text-[#555] mt-0.5">{item.desc}</p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(136,238,34,0.1)", border: "1px solid rgba(136,238,34,0.2)", color: "#88ee22" }}>
+                    {isES ? "Incluido" : "Included"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
+          {/* ── Section 7: CTA ──────────────────────────────────────────── */}
           <div className="rounded-2xl border p-5 pb-6" style={{ background: "#141414", borderColor: "#1f1f1f" }}>
             {/* Error banner */}
             {error && (
