@@ -1036,12 +1036,14 @@ export function useSwapIngredient() {
       mealType,
       ingredientName,
       lang,
+      chosenReplacement,
     }: {
       mealPlanId: number;
       dayOfWeek: string;
       mealType: string;
       ingredientName: string;
       lang?: string;
+      chosenReplacement?: { name: string; amount: string };
     }) => {
       const token = await getAccessToken();
       const res = await fetch("/api/meals/replace-ingredient", {
@@ -1050,7 +1052,7 @@ export function useSwapIngredient() {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ mealPlanId, dayOfWeek, mealType, ingredientName, lang: lang ?? "es" }),
+        body: JSON.stringify({ mealPlanId, dayOfWeek, mealType, ingredientName, lang: lang ?? "es", chosenReplacement }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

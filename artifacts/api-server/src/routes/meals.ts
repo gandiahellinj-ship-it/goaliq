@@ -198,13 +198,15 @@ router.post("/meals/replace-ingredient", async (req, res) => {
   ]);
 
   const lang: "es" | "en" = req.body?.lang === "en" ? "en" : "es";
-  const replacement = await replaceIngredientInMeal(
-    ingredient.name, ingredient.category,
-    profileData?.diet_type || "balanced",
-    (prefsData?.allergies as string[]) || [],
-    (prefsData?.disliked_foods as string[]) || [],
-    lang,
-  );
+  const replacement = body.chosenReplacement
+    ? { name: body.chosenReplacement.name, amount: body.chosenReplacement.amount, category: ingredient.category }
+    : await replaceIngredientInMeal(
+        ingredient.name, ingredient.category,
+        profileData?.diet_type || "balanced",
+        (prefsData?.allergies as string[]) || [],
+        (prefsData?.disliked_foods as string[]) || [],
+        lang,
+      );
 
   const idx = meal.ingredients.indexOf(ingredient);
   meal.ingredients[idx] = replacement;

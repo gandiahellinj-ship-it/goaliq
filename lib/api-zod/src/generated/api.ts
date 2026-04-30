@@ -235,18 +235,15 @@ export const GenerateMealPlanResponse = zod.object({
  * @summary Replace a specific ingredient in a meal
  */
 export const ReplaceIngredientBody = zod.object({
-  mealPlanId: zod.number(),
-  dayOfWeek: zod.enum([
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday",
-  ]),
+  mealPlanId: zod.union([zod.number(), zod.string()]),
+  dayOfWeek: zod.string(),
   mealType: zod.string(),
   ingredientName: zod.string(),
+  chosenReplacement: zod.object({
+    name: zod.string(),
+    amount: zod.string(),
+  }).optional(),
+  lang: zod.enum(["es", "en"]).optional(),
 });
 
 export const ReplaceIngredientResponse = zod.object({

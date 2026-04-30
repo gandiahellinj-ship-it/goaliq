@@ -559,7 +559,7 @@ function MealCard({
     }
   };
 
-  const handleSelectSwap = (index: number, _chosen: SwapOption) => {
+  const handleSelectSwap = (index: number, chosen: SwapOption) => {
     if (!mealPlanId) {
       setErrorMsg("No meal plan ID available.");
       return;
@@ -568,7 +568,7 @@ function MealCard({
     setApplyingIndex(index);
     setErrorMsg(null);
     swapMutation.mutate(
-      { mealPlanId, dayOfWeek, mealType: meal.meal_type, ingredientName: meal.ingredients[index].name, lang },
+      { mealPlanId, dayOfWeek, mealType: meal.meal_type, ingredientName: meal.ingredients[index].name, lang, chosenReplacement: { name: chosen.name, amount: chosen.amount } },
       {
         onSuccess: () => {
           setApplyingIndex(null);
