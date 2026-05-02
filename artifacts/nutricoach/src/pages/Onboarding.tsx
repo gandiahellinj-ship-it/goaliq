@@ -328,6 +328,85 @@ export default function Onboarding() {
     ],
   };
 
+  const FASTING_ALLOWED: Record<string, { icon: string; textES: string; textEN: string }[]> = {
+    "12:12": [
+      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: "🫗", textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
+      { icon: "🧂", textES: "Agua con electrolitos (sin calorías)", textEN: "Electrolyte water (zero calories)" },
+    ],
+    "16:8": [
+      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: "🫗", textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
+      { icon: "🧂", textES: "Electrolitos sin calorías (sodio, potasio, magnesio)", textEN: "Zero-calorie electrolytes (sodium, potassium, magnesium)" },
+      { icon: "💊", textES: "Suplementos sin calorías (vitaminas, minerales)", textEN: "Zero-calorie supplements (vitamins, minerals)" },
+    ],
+    "18:6": [
+      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: "☕", textES: "Café negro solo — sin leche ni azúcar", textEN: "Black coffee only — no milk or sugar" },
+      { icon: "🫗", textES: "Té verde o negro sin endulzar", textEN: "Unsweetened green or black tea" },
+      { icon: "🧂", textES: "Electrolitos puros sin calorías", textEN: "Pure zero-calorie electrolytes" },
+      { icon: "💊", textES: "Suplementos sin calorías (no proteína, no colágeno)", textEN: "Zero-calorie supplements (no protein, no collagen)" },
+    ],
+    "20:4": [
+      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: "☕", textES: "Café negro estricto — sin nada añadido", textEN: "Strict black coffee — nothing added" },
+      { icon: "🫗", textES: "Té sin endulzar", textEN: "Unsweetened tea" },
+      { icon: "🧂", textES: "Electrolitos puros — imprescindibles en ayunos largos", textEN: "Pure electrolytes — essential for long fasts" },
+    ],
+    "5:2": [
+      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: "🥗", textES: "Verduras sin almidón (lechuga, pepino, brócoli)", textEN: "Non-starchy vegetables (lettuce, cucumber, broccoli)" },
+      { icon: "🍳", textES: "Proteína magra (pollo, huevo, pescado)", textEN: "Lean protein (chicken, egg, fish)" },
+      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: "🍜", textES: "Caldo de huesos — ayuda a llegar a la cuota calórica", textEN: "Bone broth — helps reach the calorie quota" },
+    ],
+  };
+
+  const FASTING_DIET_NOTES: Record<string, Record<string, { es: string; en: string }>> = {
+    "12:12": {
+      balanced:      { es: "🍽️ Dieta equilibrada: en tu ventana de 12h incluiremos proteínas, carbohidratos complejos y grasas saludables distribuidas en 3 comidas.", en: "🍽️ Balanced diet: in your 12h window we'll include proteins, complex carbs and healthy fats across 3 meals." },
+      vegan:         { es: "🌱 Dieta vegana: 12h es suficiente para 3 comidas con legumbres, tofu y cereales integrales cubriendo todos los aminoácidos.", en: "🌱 Vegan diet: 12h is enough for 3 meals with legumes, tofu and whole grains covering all amino acids." },
+      keto:          { es: "🥑 Dieta keto: las 12h de ayuno mantienen la cetosis. Prioridad a grasas saludables y proteína moderada.", en: "🥑 Keto diet: the 12h fast maintains ketosis. Priority on healthy fats and moderate protein." },
+      mediterranean: { es: "🫒 Dieta mediterránea: ventana de 12h ideal para 3 comidas con AOVE, legumbres, pescado azul y frutas frescas.", en: "🫒 Mediterranean diet: 12h window ideal for 3 meals with EVOO, legumes, oily fish and fresh fruit." },
+      high_protein:  { es: "💪 Alta proteína: distribuimos 3 comidas ricas en proteína en las 12h para maximizar la síntesis muscular.", en: "💪 High protein: we distribute 3 protein-rich meals across 12h to maximize muscle synthesis." },
+      vegetarian:    { es: "🥦 Dieta vegetariana: 3 comidas con huevo, lácteos y legumbres para cubrir proteína completa en 12h.", en: "🥦 Vegetarian diet: 3 meals with eggs, dairy and legumes to cover complete protein in 12h." },
+    },
+    "16:8": {
+      balanced:      { es: "🍽️ Dieta equilibrada: distribuiremos comida y cena en las 8h de ventana. Proteína en cada toma para mantener el músculo.", en: "🍽️ Balanced diet: we'll distribute lunch and dinner in the 8h window. Protein at each meal to preserve muscle." },
+      vegan:         { es: "🌱 Dieta vegana: atención especial a proteína completa. Combinaremos fuentes vegetales para cubrir tus necesidades en 2 comidas.", en: "🌱 Vegan diet: special attention to complete protein. We'll combine plant sources to meet your needs across 2 meals." },
+      keto:          { es: "🥑 Keto + 16:8 es la combinación más potente para cetosis. Tu cuerpo quemará grasa durante las 16h de ayuno.", en: "🥑 Keto + 16:8 is the most powerful combination for ketosis. Your body will burn fat during the 16h fast." },
+      mediterranean: { es: "🫒 Mediterránea + 16:8: comida principal al mediodía rica en legumbres y pescado. Cena ligera con verduras y AOVE.", en: "🫒 Mediterranean + 16:8: main meal at midday rich in legumes and fish. Light dinner with vegetables and EVOO." },
+      high_protein:  { es: "💪 Alta proteína + 16:8: 2 comidas con 40-50g proteína cada una. Añade batido si no llegas al objetivo.", en: "💪 High protein + 16:8: 2 meals with 40-50g protein each. Add a shake if you fall short of your goal." },
+      vegetarian:    { es: "🥦 Vegetariana + 16:8: 2 comidas con huevo, queso y legumbres para asegurar proteína en la ventana de 8h.", en: "🥦 Vegetarian + 16:8: 2 meals with eggs, cheese and legumes to ensure protein in the 8h window." },
+    },
+    "18:6": {
+      balanced:      { es: "🍽️ Con solo 6h priorizamos proteína y grasas saludables. Reducimos carbohidratos para mantener saciedad más tiempo.", en: "🍽️ With only 6h we prioritize protein and healthy fats. We reduce carbs to maintain satiety longer." },
+      vegan:         { es: "🌱 Vegana + 18:6 requiere planificación. Priorizamos legumbres, semillas y frutos secos para proteína y grasas en 2 comidas.", en: "🌱 Vegan + 18:6 requires planning. We prioritize legumes, seeds and nuts for protein and fats across 2 meals." },
+      keto:          { es: "🥑 Keto + 18:6: potencia la cetosis. Durante el ayuno puedes tomar café con MCT oil si mantienes cetosis.", en: "🥑 Keto + 18:6: boosts ketosis. During the fast you can have coffee with MCT oil if you maintain ketosis." },
+      mediterranean: { es: "🫒 Mediterránea + 18:6: dos comidas principales. Abundante en AOVE, frutos secos y proteína de calidad.", en: "🫒 Mediterranean + 18:6: two main meals. Abundant in EVOO, nuts and quality protein." },
+      high_protein:  { es: "💪 Alta proteína + 18:6: concentramos 2 comidas muy proteicas. Prioritario llegar al objetivo de proteína en 6h.", en: "💪 High protein + 18:6: we concentrate 2 very protein-rich meals. Priority is reaching your protein goal in 6h." },
+      vegetarian:    { es: "🥦 Vegetariana + 18:6: 2 comidas densas en nutrientes con huevo, legumbres y lácteos proteicos.", en: "🥦 Vegetarian + 18:6: 2 nutrient-dense meals with eggs, legumes and protein dairy." },
+    },
+    "20:4": {
+      balanced:      { es: "🍽️ En 4h concentramos proteína alta y grasas saludables. Carbohidratos solo post-entreno si haces ejercicio.", en: "🍽️ In 4h we concentrate high protein and healthy fats. Carbs only post-workout if you exercise." },
+      vegan:         { es: "🌱 Vegana + 20:4: protocolo exigente. Aseguraremos proteína suficiente en 4h con tofu, seitán y legumbres.", en: "🌱 Vegan + 20:4: demanding protocol. We'll ensure enough protein in 4h with tofu, seitan and legumes." },
+      keto:          { es: "🥑 Keto + 20:4: máxima cetosis. Concentra grasas y proteínas moderadas en 4h. Carbohidratos netos < 20g al día.", en: "🥑 Keto + 20:4: maximum ketosis. Concentrate fats and moderate protein in 4h. Net carbs < 20g daily." },
+      mediterranean: { es: "🫒 Mediterránea + 20:4: una comida principal abundante + snack. Rica en AOVE, pescado azul y vegetales.", en: "🫒 Mediterranean + 20:4: one main abundant meal + snack. Rich in EVOO, oily fish and vegetables." },
+      high_protein:  { es: "💪 Alta proteína + 20:4: una comida muy densa (60-80g proteína) + batido proteico. Vigilar recuperación muscular.", en: "💪 High protein + 20:4: one very dense meal (60-80g protein) + protein shake. Monitor muscle recovery." },
+      vegetarian:    { es: "🥦 Vegetariana + 20:4: comida principal con huevo, queso, legumbres y frutos secos para densidad nutricional máxima.", en: "🥦 Vegetarian + 20:4: main meal with eggs, cheese, legumes and nuts for maximum nutritional density." },
+    },
+    "5:2": {
+      balanced:      { es: "🍽️ Los 5 días normales sin cambios. Los 2 días de restricción: 1-2 comidas pequeñas ricas en proteína magra.", en: "🍽️ The 5 normal days unchanged. The 2 restriction days: 1-2 small meals rich in lean protein." },
+      vegan:         { es: "🌱 Los días de restricción: sopa de legumbres y verduras proteicas para llegar a 500 kcal con proteína suficiente.", en: "🌱 Restriction days: legume and vegetable soup to reach 500 kcal with enough protein." },
+      keto:          { es: "🥑 Los días de restricción: mantén < 500 kcal con grasas (aguacate, frutos secos) y proteína. Cero carbohidratos.", en: "🥑 Restriction days: keep < 500 kcal with fats (avocado, nuts) and protein. Zero carbs." },
+      mediterranean: { es: "🫒 Los días de restricción: sopa mediterránea de verduras, ensalada con AOVE y proteína magra (500-600 kcal).", en: "🫒 Restriction days: Mediterranean vegetable soup, salad with EVOO and lean protein (500-600 kcal)." },
+      high_protein:  { es: "💪 Los días de restricción: prioridad absoluta a proteína magra. 2 comidas pequeñas con pollo, huevo o pescado.", en: "💪 Restriction days: absolute priority on lean protein. 2 small meals with chicken, egg or fish." },
+      vegetarian:    { es: "🥦 Los días de restricción: huevo cocido, yogur proteico y caldo de verduras para llegar a 500 kcal.", en: "🥦 Restriction days: boiled egg, protein yogurt and vegetable broth to reach 500 kcal." },
+    },
+  };
+
   const paceOptions = [
     { key: "gentle",     labelES: "🐢 Suave",    labelEN: "🐢 Gentle",    badgeES: "−0.25 kg/sem · déficit 250 kcal",  badgeEN: "−0.25 kg/week · 250 kcal deficit" },
     { key: "moderate",   labelES: "🚶 Moderado",  labelEN: "🚶 Moderate",  badgeES: "−0.5 kg/sem · déficit 500 kcal",   badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
@@ -601,6 +680,38 @@ export default function Onboarding() {
                           )}
                         </div>
                         <p className="text-[10px] text-[#555] leading-snug">{p.desc}</p>
+
+                        {fastingProtocol === p.id && (
+                          <>
+                            {/* What you CAN consume during the fast */}
+                            <div style={{ marginTop: 10, marginBottom: 8 }}>
+                              <p style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 8 }}>
+                                ✅ {isES ? "Puedes tomar durante el ayuno" : "You can consume during the fast"}
+                              </p>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                {(FASTING_ALLOWED[p.id] ?? []).map((item, idx) => (
+                                  <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                                    <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
+                                    <span
+                                      style={{ fontSize: 12, color: "#aaa", lineHeight: 1.4 }}
+                                      dangerouslySetInnerHTML={{ __html: (isES ? item.textES : item.textEN).replace(/^([^—]+)/, '<strong style="color:#e8e8e8">$1</strong>') }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Diet-specific note */}
+                            {(() => {
+                              const note = FASTING_DIET_NOTES[p.id]?.[formData.dietType];
+                              return note ? (
+                                <div style={{ background: "rgba(136,238,34,0.05)", border: "1px solid rgba(136,238,34,0.15)", borderRadius: 10, padding: "10px 12px", fontSize: 11, color: "#88ee22", lineHeight: 1.5, marginBottom: 4 }}>
+                                  {isES ? note.es : note.en}
+                                </div>
+                              ) : null;
+                            })()}
+                          </>
+                        )}
                       </button>
                     ))}
                   </div>
