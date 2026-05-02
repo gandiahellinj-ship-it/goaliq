@@ -53,10 +53,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
-      setUser(newSession?.user ? supabaseUserToAuthUser(newSession.user) : null);
+      const authUser = newSession?.user ? supabaseUserToAuthUser(newSession.user) : null;
+      setUser(authUser);
       setIsLoading(false);
+
+      if (authUser && typeof window !== "undefined" && (window as any).OneSignal) {
+        const OS = (window as any).OneSignal;
+        try {
+          await OS.login(authUser.id);
+          const permission = await OS.Notifications.permission;
+          if (!permission) {
+            await OS.Notifications.requestPermission();
+          }
+        } catch (e) {
+          console.warn("OneSignal setup failed:", e);
+        }
+      }
     });
 
     return () => listener.subscription.unsubscribe();
@@ -67,6 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (typeof window !== "undefined" && (window as any).OneSignal) {
+      try {
+        await (window as any).OneSignal.logout();
+      } catch (e) {
+        // silent — don't block sign-out
+      }
+    }
     await supabase.auth.signOut();
   }, []);
 
