@@ -90,6 +90,7 @@ export default function Onboarding() {
   // selectedSupplements: id -> timingIndex
   const [selectedSupplements, setSelectedSupplements] = useState<Record<string, number>>({});
   const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
+  const [supplementTimes, setSupplementTimes] = useState<Record<string, string>>({});
   const [goalPace, setGoalPace] = useState("moderate");
   const [paceIndex, setPaceIndex] = useState(1);
   const [fastingEnabled, setFastingEnabled] = useState(false);
@@ -214,6 +215,8 @@ export default function Onboarding() {
       const supplements = Object.entries(selectedSupplements).map(([id, timingIndex]) => ({
         id,
         timingIndex,
+        variantIndex: selectedVariants[id] ?? 0,
+        notificationTime: supplementTimes[id] ?? `${String(SUPPLEMENT_TIMING[id]?.options[timingIndex]?.notificationHour ?? 8).padStart(2, "0")}:00`,
       }));
       await submitOnboarding({ ...formData, supplements, goalPace, fastingProtocol: fastingEnabled ? fastingProtocol : null });
 
@@ -821,33 +824,115 @@ export default function Onboarding() {
                             </div>
                           </div>
                         )}
-                        <p className="text-xs font-semibold text-[#A0A0A0] mt-3 mb-2">
-                          {isES ? "¿Cuándo lo tomas?" : "When do you take it?"}
-                        </p>
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {timing.options.map((opt, idx) => (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setTiming(supp.id, idx)}
-                              className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-all ${
-                                selectedTimingIdx === idx
-                                  ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
-                                  : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
-                              }`}
-                            >
-                              <span
-                                className={`text-xs font-bold ${
-                                  selectedTimingIdx === idx ? "text-[#AAFF45]" : "text-white"
-                                }`}
+                        {/* Timing picker */}
+                        <div style={{ marginTop: 10, border: "1px solid #1a1a1a", borderRadius: 14, overflow: "hidden", background: "#0d0d0d" }}>
+                          {timing.options.map((opt, optIdx) => {
+                            const isOptSelected = selectedTimingIdx === optIdx;
+                            const defaultHour = String(opt.notificationHour).padStart(2, "0");
+                            const currentTime = supplementTimes[supp.id] ?? `${defaultHour}:00`;
+                            return (
+                              <div
+                                key={optIdx}
+                                style={{
+                                  borderBottom: optIdx < timing.options.length - 1 ? "1px solid #1a1a1a" : "none",
+                                  border: isOptSelected ? "1px solid rgba(136,238,34,0.3)" : "none",
+                                  borderRadius: isOptSelected ? 12 : 0,
+                                  background: isOptSelected ? "rgba(136,238,34,0.04)" : "transparent",
+                                  margin: isOptSelected ? 4 : 0,
+                                }}
                               >
-                                {opt.time}
-                              </span>
-                              <span className="text-[10px] text-[#555555] leading-snug">
-                                {opt.desc}
-                              </span>
-                            </button>
-                          ))}
+                                {/* Top row */}
+                                <div
+                                  style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }}
+                                  onClick={() => setTiming(supp.id, optIdx)}
+                                >
+                                  <div style={{
+                                    width: 16, height: 16, borderRadius: "50%",
+                                    border: isOptSelected ? "none" : "1.5px solid #2a2a2a",
+                                    background: isOptSelected ? "#88ee22" : "transparent",
+                                    flexShrink: 0,
+                                    boxShadow: isOptSelected ? "0 0 0 3px rgba(136,238,34,0.15)" : "none",
+                                  }} />
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8e8" }}>{opt.time}</div>
+                                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{opt.desc}</div>
+                                  </div>
+                                  <div style={{
+                                    fontSize: 12, fontWeight: 800,
+                                    color: isOptSelected ? "#88ee22" : "#555",
+                                    background: isOptSelected ? "rgba(136,238,34,0.1)" : "#111",
+                                    border: `1px solid ${isOptSelected ? "rgba(136,238,34,0.2)" : "#1f1f1f"}`,
+                                    borderRadius: 8, padding: "3px 10px", whiteSpace: "nowrap",
+                                  }}>
+                                    {currentTime}
+                                  </div>
+                                </div>
+
+                                {/* Expanded detail */}
+                                {isOptSelected && (
+                                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #1a1a1a" }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.6px", margin: "12px 0 10px" }}>
+                                      ⏰ {isES ? "¿A qué hora quieres el aviso?" : "What time do you want the reminder?"}
+                                    </div>
+
+                                    {/* Time slot pills */}
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                                      {(opt.slots ?? []).map(slot => {
+                                        const slotVal = slot.length === 4 ? "0" + slot : slot;
+                                        const isSlotSel = currentTime === slotVal || currentTime === slot;
+                                        return (
+                                          <div
+                                            key={slot}
+                                            onClick={() => setSupplementTimes(prev => ({ ...prev, [supp.id]: slotVal }))}
+                                            style={{
+                                              background: isSlotSel ? "rgba(136,238,34,0.08)" : "#111",
+                                              border: `1px solid ${isSlotSel ? "#88ee22" : "#1f1f1f"}`,
+                                              borderRadius: 8, padding: "7px 11px",
+                                              fontSize: 12, fontWeight: 700,
+                                              color: isSlotSel ? "#88ee22" : "#666",
+                                              cursor: "pointer",
+                                            }}
+                                          >
+                                            {slot}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Custom time input */}
+                                    <div style={{ display: "flex", alignItems: "center", border: "1px solid #1f1f1f", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                                      <span style={{ fontSize: 11, color: "#555", padding: "8px 12px", background: "#0a0a0a", borderRight: "1px solid #1f1f1f", whiteSpace: "nowrap" }}>
+                                        {isES ? "Otra hora" : "Custom time"}
+                                      </span>
+                                      <input
+                                        type="time"
+                                        value={currentTime}
+                                        onChange={e => setSupplementTimes(prev => ({ ...prev, [supp.id]: e.target.value }))}
+                                        style={{ flex: 1, background: "#111", border: "none", outline: "none", padding: "8px 12px", fontSize: 14, fontWeight: 700, color: "#e8e8e8", fontFamily: "inherit", textAlign: "center", cursor: "pointer" }}
+                                      />
+                                    </div>
+
+                                    {/* Notification preview */}
+                                    <div style={{ background: "#0a0a0a", border: "1px solid #1f1f1f", borderRadius: 10, padding: "10px 12px", display: "flex", gap: 10 }}>
+                                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#88ee22", flexShrink: 0, marginTop: 4 }} />
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: 10, color: "#555", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
+                                          <span>{isES ? "GoalIQ · Todos los días" : "GoalIQ · Every day"}</span>
+                                          <span style={{ color: "#88ee22", fontWeight: 700 }}>{currentTime}</span>
+                                        </div>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: "#e8e8e8" }}>
+                                          {supp.emoji} {isES ? `Toma tu ${supp.name.toLowerCase()}` : `Take your ${supp.name.toLowerCase()}`}
+                                        </div>
+                                        <div style={{ fontSize: 11, color: "#666", marginTop: 2, lineHeight: 1.4 }}>
+                                          {opt.desc}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
 
                         {/* Science tip */}

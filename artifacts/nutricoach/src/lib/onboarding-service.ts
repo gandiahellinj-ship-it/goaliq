@@ -17,7 +17,7 @@ export interface OnboardingFormData {
   trainingLevel: string;
   trainingLocation: string;
   trainingDaysPerWeek: number;
-  supplements?: { id: string; timingIndex: number }[];
+  supplements?: { id: string; timingIndex: number; variantIndex?: number; notificationTime: string }[];
   goalPace?: string;
   fastingProtocol?: string | null;
 }
