@@ -70,7 +70,7 @@ export default function Landing() {
           </h1>
 
           <p className="text-base text-[#A0A0A0] mb-10 leading-relaxed max-w-lg mx-auto">
-            Obtén un plan de comidas y rutina de entrenamiento personalizados según tu cuerpo, objetivos y estilo de vida — generados por IA en segundos.
+            Obtén un plan de comidas y rutina de entrenamiento orientativos según tu cuerpo, objetivos y estilo de vida — generados por IA en segundos.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-5">
@@ -96,7 +96,7 @@ export default function Landing() {
           {/* Trust features */}
           <div className="flex flex-wrap justify-center gap-6 text-sm text-[#A0A0A0] font-medium">
             {[
-              "Personalizado a tus objetivos",
+              "Adaptado a tus preferencias",
               "Planes de comida y entrenamientos incluidos",
               "Cancela antes de que termine la prueba",
             ].map(feat => (
@@ -114,7 +114,7 @@ export default function Landing() {
         <div className="grid sm:grid-cols-3 gap-4">
           {[
             { icon: Utensils, title: "Planes de Comida 7 Días", desc: "Una semana completa de comidas adaptadas a tu dieta, objetivos y preferencias — regenera cuando quieras." },
-            { icon: Dumbbell, title: "Entrenamientos Personalizados", desc: "Fuerza, cardio o HIIT — tu plan de entrenamiento se adapta a tu nivel, horario y equipamiento." },
+            { icon: Dumbbell, title: "Entrenamientos Orientativos", desc: "Fuerza, cardio o HIIT — tu plan de entrenamiento se adapta a tu nivel, horario y equipamiento." },
             { icon: TrendingUp, title: "Seguimiento del Progreso", desc: "Registra tu peso, sigue tus rachas de entrenamiento y observa cómo mejoran tus resultados semana a semana." },
           ].map((card, idx) => (
             <motion.div

@@ -1063,7 +1063,7 @@ export default function Onboarding() {
           {currentStep === 5 && <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
             <div className="flex flex-col gap-2">
               {[
-                { icon: "🍽️", name: isES ? "Plan nutricional 7 días" : "7-day nutrition plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a ti" : "Breakfast, lunch, dinner and snacks tailored to you" },
+                { icon: "🍽️", name: isES ? "Plan de comidas 7 días" : "7-day meal plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a tus preferencias" : "Breakfast, lunch, dinner and snacks adapted to your preferences" },
                 { icon: "🛒", name: isES ? "Lista de la compra semanal" : "Weekly shopping list", desc: isES ? "Todos los ingredientes organizados para facilitar tu compra" : "All ingredients organized to make shopping easy" },
                 { icon: "🏋️", name: isES ? "Plan de entrenos semanal" : "Weekly workout plan", desc: isES ? "Ejercicios, series y repeticiones para tu nivel" : "Exercises, sets and reps for your level" },
                 { icon: "🔔", name: isES ? "Recordatorios de suplementos" : "Supplement reminders", desc: isES ? "Notificaciones en el momento exacto de cada toma" : "Notifications at the exact time of each dose" },
