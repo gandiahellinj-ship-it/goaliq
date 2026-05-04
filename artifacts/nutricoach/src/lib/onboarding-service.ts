@@ -1,3 +1,20 @@
+/*
+SUPABASE MIGRATION — Run in Supabase SQL editor:
+
+CREATE TABLE IF NOT EXISTS public.health_validation_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('info_shown','warning_shown','blocked','warning_accepted')),
+  trigger_reason TEXT NOT NULL,
+  user_data_snapshot JSONB NOT NULL,
+  action_taken TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE public.health_validation_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can insert own health logs" ON public.health_validation_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can read own health logs" ON public.health_validation_logs FOR SELECT USING (auth.uid() = user_id);
+*/
+
 import { supabase } from "@/lib/supabase";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -434,4 +451,35 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
     supabase.from("meal_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
     supabase.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
   ]);
+}
+
+// ─── Health Validation Logging ────────────────────────────────────────────────
+
+export async function logHealthValidation(params: {
+  eventType: "info_shown" | "warning_shown" | "blocked" | "warning_accepted";
+  triggerReason: string;
+  userDataSnapshot: {
+    weightKg: number;
+    heightCm: number;
+    age: number;
+    sex: string;
+    goalType: string;
+    imc: number;
+    imcTier: string;
+  };
+  actionTaken?: string;
+}): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("health_validation_logs").insert({
+      user_id: user.id,
+      event_type: params.eventType,
+      trigger_reason: params.triggerReason,
+      user_data_snapshot: params.userDataSnapshot,
+      action_taken: params.actionTaken ?? null,
+    });
+  } catch (e) {
+    console.warn("[health_validation_logs] insert failed (non-critical):", e);
+  }
 }

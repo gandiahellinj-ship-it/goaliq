@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Loader2, AlertCircle, Pencil, Check } from "lucide-react";
-import { submitOnboarding, type OnboardingFormData } from "@/lib/onboarding-service";
+import { submitOnboarding, logHealthValidation, type OnboardingFormData } from "@/lib/onboarding-service";
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
 import { useT, useLanguage } from "@/lib/language";
@@ -67,6 +67,29 @@ const GOAL_DETAILS: Record<string, {
   },
 };
 
+// ─── IMC Utilities ───────────────────────────────────────────────────────────
+
+function calcIMC(weightKg: number, heightCm: number): number {
+  if (heightCm <= 0) return 0;
+  return weightKg / Math.pow(heightCm / 100, 2);
+}
+
+function calcWeightMin(heightCm: number): number {
+  return Math.round(18.5 * Math.pow(heightCm / 100, 2) * 10) / 10;
+}
+
+function calcWeightMax(heightCm: number): number {
+  return Math.round(24.9 * Math.pow(heightCm / 100, 2) * 10) / 10;
+}
+
+function getIMCTier(imc: number): "underweight" | "normal" | "overweight" | "obese1" | "obese2" {
+  if (imc < 18.5) return "underweight";
+  if (imc < 25)   return "normal";
+  if (imc < 30)   return "overweight";
+  if (imc < 35)   return "obese1";
+  return "obese2";
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
@@ -96,6 +119,10 @@ export default function Onboarding() {
   const [fastingEnabled, setFastingEnabled] = useState(false);
   const [fastingProtocol, setFastingProtocol] = useState("16:8");
   const [currentStep, setCurrentStep] = useState(0);
+  const [healthCheckbox1, setHealthCheckbox1] = useState(false);
+  const [healthCheckbox2, setHealthCheckbox2] = useState(false);
+  const [ageCheckbox1, setAgeCheckbox1] = useState(false);
+  const [ageCheckbox2, setAgeCheckbox2] = useState(false);
 
   const STEPS = ["sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
   const STEP_NAMES_ES = ["Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
@@ -413,6 +440,118 @@ export default function Onboarding() {
     { key: "aggressive", labelES: "🏃 Agresivo",  labelEN: "🏃 Aggressive", badgeES: "−1 kg/sem · déficit 1000 kcal",  badgeEN: "−1 kg/week · 1000 kcal deficit" },
   ];
 
+  // ── IMC / Health Validation ─────────────────────────────────────────────────
+  const imcVal  = calcIMC(formData.weightKg, formData.heightCm);
+  const wMin    = calcWeightMin(formData.heightCm);
+  const wMax    = calcWeightMax(formData.heightCm);
+  const tier    = getIMCTier(imcVal);
+  const isOldAge = formData.age >= 65;
+
+  type GoalKey = "lose_fat" | "gain_muscle" | "maintain" | "recomposition";
+  type MatrixEntry = {
+    tone: "info" | "caution" | "warn" | "block";
+    msgES: string;
+    msgEN: string;
+    check1ES?: string; check1EN?: string;
+    check2ES?: string; check2EN?: string;
+  };
+
+  const HEALTH_MATRIX: Record<string, Record<GoalKey, MatrixEntry>> = {
+    underweight: {
+      lose_fat:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. Perder más peso puede ser perjudicial para tu salud. Tu peso mínimo saludable es ${wMin} kg.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Losing more weight may harm your health. Your minimum healthy weight is ${wMin} kg.` },
+      gain_muscle:   { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. Ganar músculo te ayudará a alcanzar un peso saludable. Ideal para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Building muscle will help you reach a healthy weight. This is ideal for you.` },
+      maintain:      { tone: "caution", msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. Mantener tu peso actual no es lo más saludable. Considera un objetivo de ganancia muscular.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Maintaining your current weight is not optimal. Consider a muscle-gain goal.`, check1ES: "Entiendo que mi peso actual está por debajo del rango saludable", check1EN: "I understand my current weight is below the healthy range", check2ES: "Quiero continuar con este objetivo de forma orientativa", check2EN: "I want to continue with this goal on an informational basis" },
+      recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. La recomposición puede ayudarte a ganar músculo y mejorar tu composición corporal.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Recomposition can help you build muscle and improve body composition.` },
+    },
+    normal: {
+      lose_fat:      { tone: "caution", msgES: `Tu IMC (${imcVal.toFixed(1)}) está en rango saludable (${wMin}–${wMax} kg). Si quieres perder peso, asegúrate de que tu objetivo sea razonable.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) is in the healthy range (${wMin}–${wMax} kg). If you want to lose weight, make sure your goal is reasonable.`, check1ES: "Entiendo que mi IMC ya está en rango normal", check1EN: "I understand my BMI is already in the normal range", check2ES: "Quiero continuar con el objetivo de pérdida de peso de forma orientativa", check2EN: "I want to continue with the weight-loss goal on an informational basis" },
+      gain_muscle:   { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) es saludable. Ganar músculo mejorará tu composición corporal sin afectar negativamente tu peso.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) is healthy. Building muscle will improve your body composition without negatively affecting your weight.` },
+      maintain:      { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) es saludable. Mantener tu peso es la elección ideal para ti ahora mismo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) is healthy. Maintaining your weight is the ideal choice for you right now.` },
+      recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) es saludable. La recomposición es una excelente opción para mejorar tu composición corporal.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) is healthy. Recomposition is an excellent option to improve your body composition.` },
+    },
+    overweight: {
+      lose_fat:      { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. Perder peso es un objetivo saludable para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Losing weight is a healthy goal for you.` },
+      gain_muscle:   { tone: "caution", msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. Ganar músculo es posible, pero considera también reducir grasa corporal.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Building muscle is possible, but also consider reducing body fat.`, check1ES: "Entiendo que ganar músculo puede aumentar mi peso temporalmente", check1EN: "I understand that building muscle may temporarily increase my weight", check2ES: "Quiero priorizar el músculo sobre la pérdida de grasa ahora mismo", check2EN: "I want to prioritise muscle over fat loss right now" },
+      maintain:      { tone: "caution", msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. Mantener tu peso actual puede no ser lo más beneficioso para tu salud a largo plazo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Maintaining your current weight may not be most beneficial long-term.`, check1ES: "Entiendo que mi IMC está por encima del rango saludable", check1EN: "I understand my BMI is above the healthy range", check2ES: "Quiero mantener mi peso actual de forma orientativa", check2EN: "I want to maintain my current weight on an informational basis" },
+      recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. La recomposición (perder grasa y ganar músculo) es ideal para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Recomposition (losing fat and gaining muscle) is ideal for you.` },
+    },
+    obese1: {
+      lose_fat:      { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Perder peso es muy beneficioso para tu salud.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Losing weight is very beneficial for your health.` },
+      gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Te recomendamos combinar ganancia muscular con pérdida de grasa. Este plan es orientativo — consulta con un profesional sanitario.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. We recommend combining muscle gain with fat loss. This plan is informational — consult a healthcare professional.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye consejo médico", check2EN: "I understand this plan is informational and does not replace medical advice" },
+      maintain:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Mantener tu peso actual puede aumentar riesgos de salud. Este plan es orientativo — consulta con un profesional sanitario.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Maintaining your current weight may increase health risks. This plan is informational — consult a healthcare professional.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye consejo médico", check2EN: "I understand this plan is informational and does not replace medical advice" },
+      recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. La recomposición corporal es un buen primer objetivo para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Body recomposition is a good first goal for you.` },
+    },
+    obese2: {
+      lose_fat:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Perder peso es importante, pero te recomendamos encarecidamente hacerlo con supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Losing weight is important, but we strongly recommend doing so with medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+      gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Recomendamos priorizar primero la pérdida de grasa bajo supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. We recommend prioritising fat loss first under medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+      maintain:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Mantener el peso actual puede suponer riesgos serios para tu salud. Por tu seguridad, no podemos generar un plan de mantenimiento. Consulta con un médico.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Maintaining your current weight may pose serious health risks. For your safety, we cannot generate a maintenance plan. Please consult a doctor.` },
+      recomposition: { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. La recomposición puede ser beneficiosa, pero te recomendamos supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Recomposition can be beneficial, but we recommend medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+    },
+  };
+
+  const goalKey = formData.goalType as GoalKey;
+  const matrixEntry: MatrixEntry | null = HEALTH_MATRIX[tier]?.[goalKey] ?? null;
+  const tone = matrixEntry?.tone ?? "info";
+  const msgText = matrixEntry ? (isES ? matrixEntry.msgES : matrixEntry.msgEN) : null;
+
+  const imcCategory = isES
+    ? tier === "underweight" ? "Bajo peso" : tier === "normal" ? "Peso normal" : tier === "overweight" ? "Sobrepeso" : tier === "obese1" ? "Obesidad I" : "Obesidad II+"
+    : tier === "underweight" ? "Underweight" : tier === "normal" ? "Normal weight" : tier === "overweight" ? "Overweight" : tier === "obese1" ? "Obesity I" : "Obesity II+";
+
+  const boxBg    = tone === "block"   ? "rgba(255,68,68,0.07)"   : tone === "warn"    ? "rgba(255,170,0,0.07)"  : tone === "caution" ? "rgba(59,130,246,0.07)"  : "rgba(136,238,34,0.05)";
+  const boxBorder= tone === "block"   ? "rgba(255,68,68,0.25)"   : tone === "warn"    ? "rgba(255,170,0,0.25)"  : tone === "caution" ? "rgba(59,130,246,0.25)"   : "rgba(136,238,34,0.15)";
+  const boxColor = tone === "block"   ? "#ff4444"                : tone === "warn"    ? "#ffaa00"               : tone === "caution" ? "#60a5fa"                  : "#88ee22";
+
+  const step2Blocked = currentStep === 1 && (
+    (tone === "block") ||
+    (tone === "warn"    && (!healthCheckbox1 || !healthCheckbox2)) ||
+    (tone === "caution" && matrixEntry?.check1ES && (!healthCheckbox1 || !healthCheckbox2)) ||
+    (isOldAge && (!ageCheckbox1 || !ageCheckbox2))
+  );
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (currentStep !== 1 || !matrixEntry) return;
+    logHealthValidation({
+      eventType: tone === "block" ? "blocked" : tone === "warn" ? "warning_shown" : tone === "caution" ? "warning_shown" : "info_shown",
+      triggerReason: `imc_${tier}_goal_${goalKey}`,
+      userDataSnapshot: {
+        weightKg: formData.weightKg,
+        heightCm: formData.heightCm,
+        age: formData.age,
+        sex: formData.sex,
+        goalType: goalKey,
+        imc: Math.round(imcVal * 10) / 10,
+        imcTier: tier,
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, tone, formData.goalType]);
+
+  async function handleNextStep() {
+    if (currentStep < STEPS.length - 1) {
+      if (currentStep === 1 && matrixEntry && tone !== "info" && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
+        await logHealthValidation({
+          eventType: "warning_accepted",
+          triggerReason: `imc_${tier}_goal_${goalKey}`,
+          userDataSnapshot: {
+            weightKg: formData.weightKg,
+            heightCm: formData.heightCm,
+            age: formData.age,
+            sex: formData.sex,
+            goalType: goalKey,
+            imc: Math.round(imcVal * 10) / 10,
+            imcTier: tier,
+          },
+          actionTaken: "user_accepted_checkboxes",
+        });
+      }
+      setCurrentStep(s => s + 1);
+    } else {
+      handleSubmit();
+    }
+  }
+
   return (
     <div className="font-sans" style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
 
@@ -533,6 +672,104 @@ export default function Onboarding() {
 
           {currentStep === 1 && <>
           <SectionCard emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
+
+            {/* ── IMC stats row ───────────────────────────────────────── */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              {[
+                { label: isES ? "IMC" : "BMI",              value: imcVal.toFixed(1) },
+                { label: isES ? "Categoría" : "Category",    value: imcCategory },
+                { label: isES ? "Rango sano" : "Healthy range", value: `${wMin}–${wMax} kg` },
+              ].map(stat => (
+                <div key={stat.label} style={{ flex: 1, background: "#111", border: "1px solid #1f1f1f", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "#555", fontWeight: 600, marginBottom: 2 }}>{stat.label}</div>
+                  <div style={{ fontSize: 13, color: "#e8e8e8", fontWeight: 700 }}>{stat.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Health message box ──────────────────────────────────── */}
+            {msgText && (
+              <div style={{ background: boxBg, border: `1px solid ${boxBorder}`, borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: boxColor, lineHeight: 1.5, margin: 0 }}>{msgText}</p>
+
+                {/* Blocked state */}
+                {tone === "block" && (
+                  <div style={{ marginTop: 10, background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.3)", borderRadius: 8, padding: "10px 12px" }}>
+                    <p style={{ fontSize: 11, color: "#ff6666", fontWeight: 700, margin: 0 }}>
+                      {isES ? "⛔ No podemos generar este plan para tu perfil actual." : "⛔ We cannot generate this plan for your current profile."}
+                    </p>
+                    <p style={{ fontSize: 11, color: "#888", marginTop: 4, lineHeight: 1.4 }}>
+                      {isES ? "Elige otro objetivo o consulta con un profesional de la salud antes de continuar." : "Choose a different goal or consult a health professional before continuing."}
+                    </p>
+                  </div>
+                )}
+
+                {/* Caution / Warn checkboxes */}
+                {(tone === "caution" || tone === "warn") && matrixEntry?.check1ES && (
+                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                    {[
+                      { checked: healthCheckbox1, setChecked: setHealthCheckbox1, labelES: matrixEntry.check1ES!, labelEN: matrixEntry.check1EN! },
+                      { checked: healthCheckbox2, setChecked: setHealthCheckbox2, labelES: matrixEntry.check2ES!, labelEN: matrixEntry.check2EN! },
+                    ].map((cb, i) => (
+                      <label key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                        <div
+                          onClick={() => cb.setChecked(v => !v)}
+                          style={{
+                            width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? boxColor : "#333"}`,
+                            background: cb.checked ? boxColor : "transparent", flexShrink: 0, marginTop: 1,
+                            display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                          }}
+                        >
+                          {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize: 11, color: "#aaa", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
+                          {isES ? cb.labelES : cb.labelEN}
+                        </span>
+                      </label>
+                    ))}
+                    <p style={{ fontSize: 10, color: "#555", marginTop: 4, lineHeight: 1.4 }}>
+                      {isES
+                        ? "⚠️ Este plan es orientativo y no constituye consejo médico. Consulta con un profesional sanitario si tienes dudas."
+                        : "⚠️ This plan is informational and does not constitute medical advice. Consult a healthcare professional if in doubt."}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Age >65 warning ─────────────────────────────────────── */}
+            {isOldAge && (
+              <div style={{ background: "rgba(255,170,0,0.07)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: "#ffaa00", lineHeight: 1.5, margin: 0 }}>
+                  {isES
+                    ? `Tienes ${formData.age} años. Para personas mayores de 65 años, los cambios en dieta y entrenamiento deben hacerse con supervisión médica. Este plan es orientativo.`
+                    : `You are ${formData.age} years old. For people over 65, dietary and training changes should be made with medical supervision. This plan is informational.`}
+                </p>
+                <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {[
+                    { checked: ageCheckbox1, setChecked: setAgeCheckbox1, labelES: "Entiendo que tengo más de 65 años y que debo consultar con mi médico", labelEN: "I understand I am over 65 and should consult my doctor" },
+                    { checked: ageCheckbox2, setChecked: setAgeCheckbox2, labelES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", labelEN: "I understand this plan is informational and does not replace medical supervision" },
+                  ].map((cb, i) => (
+                    <label key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                      <div
+                        onClick={() => cb.setChecked(v => !v)}
+                        style={{
+                          width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? "#ffaa00" : "#333"}`,
+                          background: cb.checked ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1,
+                          display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
+                        }}
+                      >
+                        {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </div>
+                      <span style={{ fontSize: 11, color: "#aaa", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
+                        {isES ? cb.labelES : cb.labelEN}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
               {[
                 { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"   : "Lose weight" },
@@ -554,7 +791,7 @@ export default function Onboarding() {
                     {/* Goal header */}
                     <button
                       type="button"
-                      onClick={() => update({ goalType: g.id })}
+                      onClick={() => { update({ goalType: g.id }); setHealthCheckbox1(false); setHealthCheckbox2(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
                     >
                       <span className="text-2xl shrink-0">{g.emoji}</span>
@@ -1103,9 +1340,9 @@ export default function Onboarding() {
             </div>
           )}
           <button
-            onClick={currentStep < STEPS.length - 1 ? () => setCurrentStep(s => s + 1) : handleSubmit}
-            disabled={isSubmitting}
-            style={{ width: "100%", background: "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: "#0a0a0a", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.6 : 1 }}
+            onClick={handleNextStep}
+            disabled={isSubmitting || step2Blocked}
+            style={{ width: "100%", background: step2Blocked ? "#333" : "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: step2Blocked ? "#555" : "#0a0a0a", cursor: step2Blocked ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
           >
             {isSubmitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Creando tu plan..." : "Creating your plan..."}</>

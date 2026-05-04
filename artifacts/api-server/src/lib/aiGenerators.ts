@@ -354,6 +354,16 @@ export async function generateMealPlanForUser(profile: {
     ? `FASTING: User practices ${fastingProtocol} intermittent fasting. ${fastingWindows[fastingProtocol] ?? ""} Do NOT schedule breakfast outside the eating window.`
     : null;
 
+  const supplementsList = (profile as any).supplements as { id: string }[] | null | undefined;
+  const supplementsLine = supplementsList && supplementsList.length > 0
+    ? `- Supplements: ${supplementsList.map((s: { id: string }) => s.id.replace(/_/g, " ")).join(", ")}`
+    : null;
+
+  const trainingDaysPerWeek = (profile as any).trainingDaysPerWeek as number | null | undefined;
+  const trainingDaysLine = trainingDaysPerWeek != null
+    ? `- Training days per week: ${trainingDaysPerWeek} (increase carbohydrates on training days, reduce on rest days)`
+    : null;
+
   const personContext = `Person:
 - Name: ${name}
 - Goal: ${profile.goalType.replace(/_/g, " ")}
@@ -363,8 +373,8 @@ export async function generateMealPlanForUser(profile: {
 - Allergies: ${allergies.join(", ") || "none"}
 - Disliked foods: ${dislikedFoods.join(", ") || "none"}
 - Liked foods (include when possible): ${likedFoods.join(", ") || "none"}
-- Current weight: ${profile.weightKg}kg${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
-- Age: ${profile.age}, Sex: ${profile.sex}${fastingInstruction ? `\n\n${fastingInstruction}` : ""}`;
+- Current weight: ${profile.weightKg}kg | Height: ${(profile as any).heightCm ?? "unknown"}cm${profile.targetWeightKg ? ` | Target weight: ${profile.targetWeightKg}kg` : ""}
+- Age: ${profile.age}, Sex: ${profile.sex}${trainingDaysLine ? `\n${trainingDaysLine}` : ""}${supplementsLine ? `\n${supplementsLine}` : ""}${fastingInstruction ? `\n\n${fastingInstruction}` : ""}`;
 
   const langInstruction = lang === "en"
     ? "LANGUAGE REQUIRED: All content must be in English (UK). Meal names, ingredient names, notes — everything in English."
@@ -409,6 +419,9 @@ ${hasSnacks
 - Vary meals (no repeated meals). Adjust calories to match the goal.
 - CRITICAL: plate_distribution must contain ONLY "protein", "carbs" and "fat" keys. They MUST sum to exactly 100. No other keys allowed (no vegetables, no dairy, no fruit).
 - plate_distribution values must sum to 100.
+- Consider height and weight to estimate accurate TDEE using the Mifflin-St Jeor formula; adjust daily calories accordingly.
+- On training days increase carbohydrates slightly (10-15%); on rest days reduce them proportionally and increase fats.
+- If the user takes a protein supplement, you may reduce protein from whole foods slightly in post-workout meals (the supplement covers the remainder).
 - ${langInstruction}
 - Return ONLY the JSON array, nothing else.`;
 
