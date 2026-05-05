@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Loader2, AlertCircle, Pencil, Check } from "lucide-react";
-import { submitOnboarding, logHealthValidation, type OnboardingFormData } from "@/lib/onboarding-service";
+import { submitOnboarding, logInfoShown, logWarningShown, logBlocked, logWarningAccepted, type HealthLogSnapshot, type OnboardingFormData } from "@/lib/onboarding-service";
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
 import { useT, useLanguage } from "@/lib/language";
@@ -88,6 +88,29 @@ function getIMCTier(imc: number): "underweight" | "normal" | "overweight" | "obe
   if (imc < 30)   return "overweight";
   if (imc < 35)   return "obese1";
   return "obese2";
+}
+
+function tierToCategory(tier: ReturnType<typeof getIMCTier>): HealthLogSnapshot["imc_category"] {
+  const map = { underweight: "low_weight", normal: "normal", overweight: "overweight", obese1: "obesity_1", obese2: "obesity_2_plus" } as const;
+  return map[tier];
+}
+
+function buildHealthSnapshot(
+  data: OnboardingFormData,
+  imc: number,
+  tier: ReturnType<typeof getIMCTier>,
+): HealthLogSnapshot {
+  return {
+    weight_kg:       data.weightKg,
+    height_cm:       data.heightCm,
+    age:             data.age,
+    biological_sex:  data.sex,
+    imc:             Math.round(imc * 10) / 10,
+    imc_category:    tierToCategory(tier),
+    goal_selected:   data.goalType,
+    target_weight_kg: data.targetWeightKg ?? null,
+    activity_level:  data.trainingLevel ?? null,
+  };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -509,42 +532,42 @@ export default function Onboarding() {
     (isOldAge && (!ageCheckbox1 || !ageCheckbox2))
   );
 
+  const tierCategory = tierToCategory(tier);
+  const imcTriggerReason = `${tierCategory}_${goalKey}` as const;
+
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (currentStep !== 1 || !matrixEntry) return;
-    logHealthValidation({
-      eventType: tone === "block" ? "blocked" : tone === "warn" ? "warning_shown" : tone === "caution" ? "warning_shown" : "info_shown",
-      triggerReason: `imc_${tier}_goal_${goalKey}`,
-      userDataSnapshot: {
-        weightKg: formData.weightKg,
-        heightCm: formData.heightCm,
-        age: formData.age,
-        sex: formData.sex,
-        goalType: goalKey,
-        imc: Math.round(imcVal * 10) / 10,
-        imcTier: tier,
-      },
-    });
+    if (currentStep !== 1) return;
+    const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+
+    // Age >65 warning — fires independently of IMC tier
+    if (isOldAge) {
+      logWarningShown(`age_over_65_${goalKey}`, snapshot);
+    }
+
+    // IMC-based event
+    if (!matrixEntry) return;
+    if (tone === "block") {
+      logBlocked(imcTriggerReason, snapshot, `${tierCategory}_${goalKey}_blocked`);
+    } else if (tone === "warn" || tone === "caution") {
+      logWarningShown(imcTriggerReason, snapshot);
+    } else {
+      logInfoShown(imcTriggerReason, snapshot);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, tone, formData.goalType]);
+  }, [currentStep, tone, formData.goalType, isOldAge]);
 
   async function handleNextStep() {
     if (currentStep < STEPS.length - 1) {
-      if (currentStep === 1 && matrixEntry && tone !== "info" && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
-        await logHealthValidation({
-          eventType: "warning_accepted",
-          triggerReason: `imc_${tier}_goal_${goalKey}`,
-          userDataSnapshot: {
-            weightKg: formData.weightKg,
-            heightCm: formData.heightCm,
-            age: formData.age,
-            sex: formData.sex,
-            goalType: goalKey,
-            imc: Math.round(imcVal * 10) / 10,
-            imcTier: tier,
-          },
-          actionTaken: "user_accepted_checkboxes",
-        });
+      // Log acceptance when user ticks both checkboxes and presses Continue
+      if (currentStep === 1 && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
+        const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+        await logWarningAccepted(imcTriggerReason, snapshot);
+      }
+      // Also log age acceptance if age >65 checkboxes were ticked
+      if (currentStep === 1 && isOldAge && ageCheckbox1 && ageCheckbox2) {
+        const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+        await logWarningAccepted(`age_over_65_${goalKey}`, snapshot);
       }
       setCurrentStep(s => s + 1);
     } else {

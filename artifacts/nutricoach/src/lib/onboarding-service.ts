@@ -455,31 +455,96 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
 
 // ─── Health Validation Logging ────────────────────────────────────────────────
 
-export async function logHealthValidation(params: {
-  eventType: "info_shown" | "warning_shown" | "blocked" | "warning_accepted";
-  triggerReason: string;
-  userDataSnapshot: {
-    weightKg: number;
-    heightCm: number;
-    age: number;
-    sex: string;
-    goalType: string;
-    imc: number;
-    imcTier: string;
-  };
-  actionTaken?: string;
+// In-memory dedup set: prevents duplicate info_shown / warning_shown / blocked
+// events when the user changes objectives multiple times in the same session.
+// warning_accepted is always inserted (intentional user action).
+const _loggedKeys = new Set<string>();
+
+export interface HealthLogSnapshot {
+  weight_kg: number;
+  height_cm: number;
+  age: number;
+  biological_sex: string;
+  imc: number;
+  imc_category: "low_weight" | "normal" | "overweight" | "obesity_1" | "obesity_2_plus";
+  goal_selected: string;
+  target_weight_kg: number | null;
+  activity_level: string | null;
+}
+
+async function _insertLog(payload: {
+  user_id: string;
+  event_type: string;
+  trigger_reason: string;
+  user_data_snapshot: HealthLogSnapshot;
+  action_taken: string;
 }): Promise<void> {
+  const { error } = await supabase.from("health_validation_logs").insert(payload);
+  if (error) {
+    console.error("[health_validation_logs] insert failed, retrying in 1s…", error);
+    await new Promise(r => setTimeout(r, 1000));
+    const { error: e2 } = await supabase.from("health_validation_logs").insert(payload);
+    if (e2) {
+      console.error("[health_validation_logs] retry also failed — record lost:", e2);
+    }
+  }
+}
+
+async function _getUser(): Promise<string | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("health_validation_logs").insert({
-      user_id: user.id,
-      event_type: params.eventType,
-      trigger_reason: params.triggerReason,
-      user_data_snapshot: params.userDataSnapshot,
-      action_taken: params.actionTaken ?? null,
-    });
-  } catch (e) {
-    console.warn("[health_validation_logs] insert failed (non-critical):", e);
+    return user?.id ?? null;
+  } catch {
+    return null;
   }
+}
+
+/** Call when the IMC/goal info box (green/blue) is displayed — no action required from user. */
+export async function logInfoShown(
+  triggerReason: string,
+  snapshot: HealthLogSnapshot,
+): Promise<void> {
+  const key = `info_shown:${triggerReason}`;
+  if (_loggedKeys.has(key)) return;
+  _loggedKeys.add(key);
+  const userId = await _getUser();
+  if (!userId) return;
+  await _insertLog({ user_id: userId, event_type: "info_shown", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: "viewed" });
+}
+
+/** Call when a yellow warning with mandatory checkboxes is displayed. */
+export async function logWarningShown(
+  triggerReason: string,
+  snapshot: HealthLogSnapshot,
+): Promise<void> {
+  const key = `warning_shown:${triggerReason}`;
+  if (_loggedKeys.has(key)) return;
+  _loggedKeys.add(key);
+  const userId = await _getUser();
+  if (!userId) return;
+  await _insertLog({ user_id: userId, event_type: "warning_shown", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: "displayed" });
+}
+
+/** Call when the Continue button is fully blocked (no checkboxes, hard stop). */
+export async function logBlocked(
+  triggerReason: string,
+  snapshot: HealthLogSnapshot,
+  blockReason: string,
+): Promise<void> {
+  const key = `blocked:${triggerReason}`;
+  if (_loggedKeys.has(key)) return;
+  _loggedKeys.add(key);
+  const userId = await _getUser();
+  if (!userId) return;
+  await _insertLog({ user_id: userId, event_type: "blocked", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: blockReason });
+}
+
+/** Call when the user ticks both checkboxes and presses Continue — always inserted, no dedup. */
+export async function logWarningAccepted(
+  triggerReason: string,
+  snapshot: HealthLogSnapshot,
+): Promise<void> {
+  const userId = await _getUser();
+  if (!userId) return;
+  await _insertLog({ user_id: userId, event_type: "warning_accepted", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: "accepted_and_continued" });
 }
