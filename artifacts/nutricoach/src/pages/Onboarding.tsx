@@ -113,6 +113,26 @@ function buildHealthSnapshot(
   };
 }
 
+// Tone values extracted from HEALTH_MATRIX so the useEffect can run before any
+// early return and keep the hook count stable across all renders.
+type ToneValue = "info" | "caution" | "warn" | "block";
+type GoalKey   = "lose_fat" | "gain_muscle" | "maintain" | "recomposition";
+interface MatrixEntry {
+  tone: ToneValue;
+  msgES: string;
+  msgEN: string;
+  check1ES?: string; check1EN?: string;
+  check2ES?: string; check2EN?: string;
+}
+
+const TONE_LOOKUP: Record<string, Record<GoalKey, ToneValue>> = {
+  underweight: { lose_fat: "block",   gain_muscle: "info",    maintain: "caution", recomposition: "info" },
+  normal:      { lose_fat: "caution", gain_muscle: "info",    maintain: "info",    recomposition: "info" },
+  overweight:  { lose_fat: "info",    gain_muscle: "caution", maintain: "caution", recomposition: "info" },
+  obese1:      { lose_fat: "info",    gain_muscle: "warn",    maintain: "warn",    recomposition: "info" },
+  obese2:      { lose_fat: "warn",    gain_muscle: "warn",    maintain: "block",   recomposition: "warn" },
+};
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
@@ -284,6 +304,26 @@ export default function Onboarding() {
       setIsSubmitting(false);
     }
   };
+
+  // ── IMC core values — must live before any early return so hook count is stable ──
+  const imcVal       = calcIMC(formData.weightKg, formData.heightCm);
+  const tier         = getIMCTier(imcVal);
+  const isOldAge     = formData.age >= 65;
+  const goalKey      = formData.goalType as GoalKey;
+  const tone         = TONE_LOOKUP[tier]?.[goalKey] ?? ("info" as ToneValue);
+  const tierCategory = tierToCategory(tier);
+  const imcTriggerReason = `${tierCategory}_${goalKey}`;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (currentStep !== 1) return;
+    const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+    if (isOldAge) logWarningShown(`age_over_65_${goalKey}`, snapshot);
+    if (tone === "block")                           logBlocked(imcTriggerReason, snapshot, `${tierCategory}_${goalKey}_blocked`);
+    else if (tone === "warn" || tone === "caution") logWarningShown(imcTriggerReason, snapshot);
+    else                                            logInfoShown(imcTriggerReason, snapshot);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStep, tone, formData.goalType, isOldAge]);
 
   // ── Loading state ─────────────────────────────────────────────────────────
   if (prefilling) {
@@ -463,21 +503,9 @@ export default function Onboarding() {
     { key: "aggressive", labelES: "🏃 Agresivo",  labelEN: "🏃 Aggressive", badgeES: "−1 kg/sem · déficit 1000 kcal",  badgeEN: "−1 kg/week · 1000 kcal deficit" },
   ];
 
-  // ── IMC / Health Validation ─────────────────────────────────────────────────
-  const imcVal  = calcIMC(formData.weightKg, formData.heightCm);
-  const wMin    = calcWeightMin(formData.heightCm);
-  const wMax    = calcWeightMax(formData.heightCm);
-  const tier    = getIMCTier(imcVal);
-  const isOldAge = formData.age >= 65;
-
-  type GoalKey = "lose_fat" | "gain_muscle" | "maintain" | "recomposition";
-  type MatrixEntry = {
-    tone: "info" | "caution" | "warn" | "block";
-    msgES: string;
-    msgEN: string;
-    check1ES?: string; check1EN?: string;
-    check2ES?: string; check2EN?: string;
-  };
+  // ── IMC display values (imcVal / tier / tone / goalKey already computed above) ──
+  const wMin = calcWeightMin(formData.heightCm);
+  const wMax = calcWeightMax(formData.heightCm);
 
   const HEALTH_MATRIX: Record<string, Record<GoalKey, MatrixEntry>> = {
     underweight: {
@@ -512,9 +540,7 @@ export default function Onboarding() {
     },
   };
 
-  const goalKey = formData.goalType as GoalKey;
   const matrixEntry: MatrixEntry | null = HEALTH_MATRIX[tier]?.[goalKey] ?? null;
-  const tone = matrixEntry?.tone ?? "info";
   const msgText = matrixEntry ? (isES ? matrixEntry.msgES : matrixEntry.msgEN) : null;
 
   const imcCategory = isES
@@ -531,31 +557,6 @@ export default function Onboarding() {
     (tone === "caution" && matrixEntry?.check1ES && (!healthCheckbox1 || !healthCheckbox2)) ||
     (isOldAge && (!ageCheckbox1 || !ageCheckbox2))
   );
-
-  const tierCategory = tierToCategory(tier);
-  const imcTriggerReason = `${tierCategory}_${goalKey}` as const;
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    if (currentStep !== 1) return;
-    const snapshot = buildHealthSnapshot(formData, imcVal, tier);
-
-    // Age >65 warning — fires independently of IMC tier
-    if (isOldAge) {
-      logWarningShown(`age_over_65_${goalKey}`, snapshot);
-    }
-
-    // IMC-based event
-    if (!matrixEntry) return;
-    if (tone === "block") {
-      logBlocked(imcTriggerReason, snapshot, `${tierCategory}_${goalKey}_blocked`);
-    } else if (tone === "warn" || tone === "caution") {
-      logWarningShown(imcTriggerReason, snapshot);
-    } else {
-      logInfoShown(imcTriggerReason, snapshot);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentStep, tone, formData.goalType, isOldAge]);
 
   async function handleNextStep() {
     if (currentStep < STEPS.length - 1) {
