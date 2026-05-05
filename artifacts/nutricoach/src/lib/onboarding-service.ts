@@ -455,28 +455,91 @@ export async function submitOnboarding(data: OnboardingFormData): Promise<void> 
 
 // ─── Health Validation Logging ────────────────────────────────────────────────
 
-// In-memory dedup set: prevents duplicate info_shown / warning_shown / blocked
-// events when the user changes objectives multiple times in the same session.
-// warning_accepted is always inserted (intentional user action).
-const _loggedKeys = new Set<string>();
+// ── Types ────────────────────────────────────────────────────────────────────
 
-export interface HealthLogSnapshot {
-  weight_kg: number;
-  height_cm: number;
-  age: number;
-  biological_sex: string;
-  imc: number;
-  imc_category: "low_weight" | "normal" | "overweight" | "obesity_1" | "obesity_2_plus";
-  goal_selected: string;
+/** WHO BMI classification. "obesity_2" = 35–39.9, "obesity_3" = 40+. */
+export type ImcCategory =
+  | "underweight"
+  | "normal"
+  | "overweight"
+  | "obesity_1"
+  | "obesity_2"
+  | "obesity_3";
+
+/** Restricts logBlocked action_taken to a fixed, queryable set of values. */
+export type BlockReason =
+  | "auto_blocked_low_imc"       // underweight + goal that would worsen it
+  | "auto_blocked_high_imc"      // obesity II/III + goal unsafe at that weight
+  | "auto_blocked_unsafe_goal"   // generic unsafe combination
+  | "auto_blocked_other";        // fallback for future cases
+
+/** Single source of truth for the user_data_snapshot JSONB column. All keys snake_case. */
+export interface UserDataSnapshot {
+  age:              number;
+  biological_sex:   string;
+  height_cm:        number;
+  weight_kg:        number;
+  imc:              number;
+  imc_category:     ImcCategory;
+  goal_selected:    string;
   target_weight_kg: number | null;
-  activity_level: string | null;
+  activity_level:   string | null;
 }
+
+// ── Pure helpers ──────────────────────────────────────────────────────────────
+
+/** Maps a numeric BMI value to the canonical ImcCategory string. */
+export function imcToCategory(imc: number): ImcCategory {
+  if (imc < 18.5) return "underweight";
+  if (imc < 25)   return "normal";
+  if (imc < 30)   return "overweight";
+  if (imc < 35)   return "obesity_1";
+  if (imc < 40)   return "obesity_2";
+  return "obesity_3";
+}
+
+/**
+ * Builds the canonical UserDataSnapshot from in-memory form data.
+ * Does NOT query Supabase — data is consumed from component state because
+ * during onboarding the profile has not been persisted yet.
+ */
+export function buildUserDataSnapshot(params: {
+  weightKg:       number;
+  heightCm:       number;
+  age:            number;
+  sex:            string;
+  goalType:       string;
+  targetWeightKg: number | null;
+  trainingLevel:  string | null;
+}): UserDataSnapshot {
+  const imc = params.heightCm > 0
+    ? params.weightKg / Math.pow(params.heightCm / 100, 2)
+    : 0;
+  return {
+    age:              params.age,
+    biological_sex:   params.sex,
+    height_cm:        params.heightCm,
+    weight_kg:        params.weightKg,
+    imc:              Math.round(imc * 10) / 10,
+    imc_category:     imcToCategory(imc),
+    goal_selected:    params.goalType,
+    target_weight_kg: params.targetWeightKg ?? null,
+    activity_level:   params.trainingLevel ?? null,
+  };
+}
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+// In-memory dedup set — prevents duplicate info_shown / warning_shown / blocked
+// when the user switches objectives multiple times in one session.
+// warning_accepted is always inserted (intentional user action, not deduplicated).
+const _loggedKeys = new Set<string>();
 
 async function _insertLog(payload: {
   user_id: string;
   event_type: string;
   trigger_reason: string;
-  user_data_snapshot: HealthLogSnapshot;
+  user_data_snapshot: UserDataSnapshot;
   action_taken: string;
 }): Promise<void> {
   const { error } = await supabase.from("health_validation_logs").insert(payload);
@@ -499,10 +562,12 @@ async function _getUser(): Promise<string | null> {
   }
 }
 
-/** Call when the IMC/goal info box (green/blue) is displayed — no action required from user. */
+// ── Public log functions ──────────────────────────────────────────────────────
+
+/** Shown when the IMC/goal combination is fine — green/blue informational box. */
 export async function logInfoShown(
   triggerReason: string,
-  snapshot: HealthLogSnapshot,
+  snapshot: UserDataSnapshot,
 ): Promise<void> {
   const key = `info_shown:${triggerReason}`;
   if (_loggedKeys.has(key)) return;
@@ -512,10 +577,10 @@ export async function logInfoShown(
   await _insertLog({ user_id: userId, event_type: "info_shown", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: "viewed" });
 }
 
-/** Call when a yellow warning with mandatory checkboxes is displayed. */
+/** Shown when an amber warning with mandatory checkboxes appears. */
 export async function logWarningShown(
   triggerReason: string,
-  snapshot: HealthLogSnapshot,
+  snapshot: UserDataSnapshot,
 ): Promise<void> {
   const key = `warning_shown:${triggerReason}`;
   if (_loggedKeys.has(key)) return;
@@ -525,11 +590,11 @@ export async function logWarningShown(
   await _insertLog({ user_id: userId, event_type: "warning_shown", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: "displayed" });
 }
 
-/** Call when the Continue button is fully blocked (no checkboxes, hard stop). */
+/** Shown when the Continue button is hard-blocked — no checkboxes, user cannot proceed. */
 export async function logBlocked(
   triggerReason: string,
-  snapshot: HealthLogSnapshot,
-  blockReason: string,
+  snapshot: UserDataSnapshot,
+  blockReason: BlockReason,
 ): Promise<void> {
   const key = `blocked:${triggerReason}`;
   if (_loggedKeys.has(key)) return;
@@ -539,10 +604,10 @@ export async function logBlocked(
   await _insertLog({ user_id: userId, event_type: "blocked", trigger_reason: triggerReason, user_data_snapshot: snapshot, action_taken: blockReason });
 }
 
-/** Call when the user ticks both checkboxes and presses Continue — always inserted, no dedup. */
+/** User ticked both checkboxes and pressed Continue — always inserted, not deduplicated. */
 export async function logWarningAccepted(
   triggerReason: string,
-  snapshot: HealthLogSnapshot,
+  snapshot: UserDataSnapshot,
 ): Promise<void> {
   const userId = await _getUser();
   if (!userId) return;

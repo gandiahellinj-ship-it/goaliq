@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Loader2, AlertCircle, Pencil, Check } from "lucide-react";
-import { submitOnboarding, logInfoShown, logWarningShown, logBlocked, logWarningAccepted, type HealthLogSnapshot, type OnboardingFormData } from "@/lib/onboarding-service";
+import { submitOnboarding, logInfoShown, logWarningShown, logBlocked, logWarningAccepted, buildUserDataSnapshot, imcToCategory, type UserDataSnapshot, type BlockReason, type ImcCategory, type OnboardingFormData } from "@/lib/onboarding-service";
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
 import { useT, useLanguage } from "@/lib/language";
@@ -82,36 +82,6 @@ function calcWeightMax(heightCm: number): number {
   return Math.round(24.9 * Math.pow(heightCm / 100, 2) * 10) / 10;
 }
 
-function getIMCTier(imc: number): "underweight" | "normal" | "overweight" | "obese1" | "obese2" {
-  if (imc < 18.5) return "underweight";
-  if (imc < 25)   return "normal";
-  if (imc < 30)   return "overweight";
-  if (imc < 35)   return "obese1";
-  return "obese2";
-}
-
-function tierToCategory(tier: ReturnType<typeof getIMCTier>): HealthLogSnapshot["imc_category"] {
-  const map = { underweight: "low_weight", normal: "normal", overweight: "overweight", obese1: "obesity_1", obese2: "obesity_2_plus" } as const;
-  return map[tier];
-}
-
-function buildHealthSnapshot(
-  data: OnboardingFormData,
-  imc: number,
-  tier: ReturnType<typeof getIMCTier>,
-): HealthLogSnapshot {
-  return {
-    weight_kg:       data.weightKg,
-    height_cm:       data.heightCm,
-    age:             data.age,
-    biological_sex:  data.sex,
-    imc:             Math.round(imc * 10) / 10,
-    imc_category:    tierToCategory(tier),
-    goal_selected:   data.goalType,
-    target_weight_kg: data.targetWeightKg ?? null,
-    activity_level:  data.trainingLevel ?? null,
-  };
-}
 
 // Tone values extracted from HEALTH_MATRIX so the useEffect can run before any
 // early return and keep the hook count stable across all renders.
@@ -125,12 +95,13 @@ interface MatrixEntry {
   check2ES?: string; check2EN?: string;
 }
 
-const TONE_LOOKUP: Record<string, Record<GoalKey, ToneValue>> = {
+const TONE_LOOKUP: Record<ImcCategory, Record<GoalKey, ToneValue>> = {
   underweight: { lose_fat: "block",   gain_muscle: "info",    maintain: "caution", recomposition: "info" },
   normal:      { lose_fat: "caution", gain_muscle: "info",    maintain: "info",    recomposition: "info" },
   overweight:  { lose_fat: "info",    gain_muscle: "caution", maintain: "caution", recomposition: "info" },
-  obese1:      { lose_fat: "info",    gain_muscle: "warn",    maintain: "warn",    recomposition: "info" },
-  obese2:      { lose_fat: "warn",    gain_muscle: "warn",    maintain: "block",   recomposition: "warn" },
+  obesity_1:   { lose_fat: "info",    gain_muscle: "warn",    maintain: "warn",    recomposition: "info" },
+  obesity_2:   { lose_fat: "warn",    gain_muscle: "warn",    maintain: "block",   recomposition: "warn" },
+  obesity_3:   { lose_fat: "warn",    gain_muscle: "warn",    maintain: "block",   recomposition: "warn" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -306,22 +277,37 @@ export default function Onboarding() {
   };
 
   // ── IMC core values — must live before any early return so hook count is stable ──
-  const imcVal       = calcIMC(formData.weightKg, formData.heightCm);
-  const tier         = getIMCTier(imcVal);
-  const isOldAge     = formData.age >= 65;
-  const goalKey      = formData.goalType as GoalKey;
-  const tone         = TONE_LOOKUP[tier]?.[goalKey] ?? ("info" as ToneValue);
-  const tierCategory = tierToCategory(tier);
-  const imcTriggerReason = `${tierCategory}_${goalKey}`;
+  const imcVal          = calcIMC(formData.weightKg, formData.heightCm);
+  const imcCategory     = imcToCategory(imcVal);           // canonical DB key from service
+  const isOldAge        = formData.age >= 65;
+  const goalKey         = formData.goalType as GoalKey;
+  const tone            = TONE_LOOKUP[imcCategory]?.[goalKey] ?? ("info" as ToneValue);
+  const imcTriggerReason = `${imcCategory}_${goalKey}`;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (currentStep !== 1) return;
-    const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+    const snapshot = buildUserDataSnapshot({
+      weightKg:       formData.weightKg,
+      heightCm:       formData.heightCm,
+      age:            formData.age,
+      sex:            formData.sex,
+      goalType:       goalKey,
+      targetWeightKg: formData.targetWeightKg ?? null,
+      trainingLevel:  formData.trainingLevel ?? null,
+    });
     if (isOldAge) logWarningShown(`age_over_65_${goalKey}`, snapshot);
-    if (tone === "block")                           logBlocked(imcTriggerReason, snapshot, `${tierCategory}_${goalKey}_blocked`);
-    else if (tone === "warn" || tone === "caution") logWarningShown(imcTriggerReason, snapshot);
-    else                                            logInfoShown(imcTriggerReason, snapshot);
+    if (tone === "block") {
+      const blockReason: BlockReason =
+        imcCategory === "underweight"                        ? "auto_blocked_low_imc"
+        : imcCategory === "obesity_2" || imcCategory === "obesity_3" ? "auto_blocked_high_imc"
+        : "auto_blocked_unsafe_goal";
+      logBlocked(imcTriggerReason, snapshot, blockReason);
+    } else if (tone === "warn" || tone === "caution") {
+      logWarningShown(imcTriggerReason, snapshot);
+    } else {
+      logInfoShown(imcTriggerReason, snapshot);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, tone, formData.goalType, isOldAge]);
 
@@ -503,11 +489,11 @@ export default function Onboarding() {
     { key: "aggressive", labelES: "🏃 Agresivo",  labelEN: "🏃 Aggressive", badgeES: "−1 kg/sem · déficit 1000 kcal",  badgeEN: "−1 kg/week · 1000 kcal deficit" },
   ];
 
-  // ── IMC display values (imcVal / tier / tone / goalKey already computed above) ──
+  // ── IMC display values (imcVal / imcCategory / tone / goalKey already computed above) ──
   const wMin = calcWeightMin(formData.heightCm);
   const wMax = calcWeightMax(formData.heightCm);
 
-  const HEALTH_MATRIX: Record<string, Record<GoalKey, MatrixEntry>> = {
+  const HEALTH_MATRIX: Record<ImcCategory, Record<GoalKey, MatrixEntry>> = {
     underweight: {
       lose_fat:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. Perder más peso puede ser perjudicial para tu salud. Tu peso mínimo saludable es ${wMin} kg.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Losing more weight may harm your health. Your minimum healthy weight is ${wMin} kg.` },
       gain_muscle:   { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica bajo peso. Ganar músculo te ayudará a alcanzar un peso saludable. Ideal para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates underweight. Building muscle will help you reach a healthy weight. This is ideal for you.` },
@@ -526,26 +512,34 @@ export default function Onboarding() {
       maintain:      { tone: "caution", msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. Mantener tu peso actual puede no ser lo más beneficioso para tu salud a largo plazo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Maintaining your current weight may not be most beneficial long-term.`, check1ES: "Entiendo que mi IMC está por encima del rango saludable", check1EN: "I understand my BMI is above the healthy range", check2ES: "Quiero mantener mi peso actual de forma orientativa", check2EN: "I want to maintain my current weight on an informational basis" },
       recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica sobrepeso. La recomposición (perder grasa y ganar músculo) es ideal para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates overweight. Recomposition (losing fat and gaining muscle) is ideal for you.` },
     },
-    obese1: {
+    obesity_1: {
       lose_fat:      { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Perder peso es muy beneficioso para tu salud.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Losing weight is very beneficial for your health.` },
       gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Te recomendamos combinar ganancia muscular con pérdida de grasa. Este plan es orientativo — consulta con un profesional sanitario.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. We recommend combining muscle gain with fat loss. This plan is informational — consult a healthcare professional.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye consejo médico", check2EN: "I understand this plan is informational and does not replace medical advice" },
       maintain:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. Mantener tu peso actual puede aumentar riesgos de salud. Este plan es orientativo — consulta con un profesional sanitario.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Maintaining your current weight may increase health risks. This plan is informational — consult a healthcare professional.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye consejo médico", check2EN: "I understand this plan is informational and does not replace medical advice" },
       recomposition: { tone: "info",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado I. La recomposición corporal es un buen primer objetivo para ti.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade I obesity. Body recomposition is a good first goal for you.` },
     },
-    obese2: {
-      lose_fat:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Perder peso es importante, pero te recomendamos encarecidamente hacerlo con supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Losing weight is important, but we strongly recommend doing so with medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
-      gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Recomendamos priorizar primero la pérdida de grasa bajo supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. We recommend prioritising fat loss first under medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
-      maintain:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. Mantener el peso actual puede suponer riesgos serios para tu salud. Por tu seguridad, no podemos generar un plan de mantenimiento. Consulta con un médico.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Maintaining your current weight may pose serious health risks. For your safety, we cannot generate a maintenance plan. Please consult a doctor.` },
-      recomposition: { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II o superior. La recomposición puede ser beneficiosa, pero te recomendamos supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II+ obesity. Recomposition can be beneficial, but we recommend medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+    obesity_2: {
+      lose_fat:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II. Perder peso es importante — te recomendamos hacerlo con supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II obesity. Losing weight is important — we strongly recommend doing so with medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+      gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II. Recomendamos priorizar primero la pérdida de grasa bajo supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II obesity. We recommend prioritising fat loss first under medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+      maintain:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II. Mantener el peso actual puede suponer riesgos serios. Por tu seguridad, no podemos generar un plan de mantenimiento. Consulta con un médico.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II obesity. Maintaining your current weight may pose serious health risks. For your safety, we cannot generate a maintenance plan. Please consult a doctor.` },
+      recomposition: { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado II. La recomposición puede ser beneficiosa, pero te recomendamos supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade II obesity. Recomposition can be beneficial, but we recommend medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica", check2EN: "I understand this plan is informational and does not replace medical supervision" },
+    },
+    obesity_3: {
+      lose_fat:      { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado III (mórbida). Perder peso es prioritario para tu salud — te recomendamos supervisión médica estricta. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade III (morbid) obesity. Losing weight is a health priority — we strongly recommend strict medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica especializada", check2EN: "I understand this plan is informational and does not replace specialist medical supervision" },
+      gain_muscle:   { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado III. Recomendamos priorizar la pérdida de grasa con supervisión médica antes de enfocarse en ganancia muscular. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade III obesity. We recommend prioritising fat loss under medical supervision before focusing on muscle gain. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica especializada", check2EN: "I understand this plan is informational and does not replace specialist medical supervision" },
+      maintain:      { tone: "block",   msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado III (mórbida). Mantener el peso actual supone riesgos graves para tu salud. Por tu seguridad, no podemos generar un plan de mantenimiento. Consulta urgentemente con un médico.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade III (morbid) obesity. Maintaining your current weight poses serious health risks. For your safety, we cannot generate a maintenance plan. Please consult a doctor urgently.` },
+      recomposition: { tone: "warn",    msgES: `Tu IMC (${imcVal.toFixed(1)}) indica obesidad grado III. La recomposición puede ser un punto de partida, pero requiere supervisión médica. Este plan es orientativo.`, msgEN: `Your BMI (${imcVal.toFixed(1)}) indicates grade III obesity. Recomposition can be a starting point, but requires medical supervision. This plan is informational.`, check1ES: "He leído la recomendación y quiero continuar con este objetivo", check1EN: "I have read the recommendation and want to continue with this goal", check2ES: "Entiendo que este plan es orientativo y no sustituye supervisión médica especializada", check2EN: "I understand this plan is informational and does not replace specialist medical supervision" },
     },
   };
 
-  const matrixEntry: MatrixEntry | null = HEALTH_MATRIX[tier]?.[goalKey] ?? null;
+  const matrixEntry: MatrixEntry | null = HEALTH_MATRIX[imcCategory]?.[goalKey] ?? null;
   const msgText = matrixEntry ? (isES ? matrixEntry.msgES : matrixEntry.msgEN) : null;
 
-  const imcCategory = isES
-    ? tier === "underweight" ? "Bajo peso" : tier === "normal" ? "Peso normal" : tier === "overweight" ? "Sobrepeso" : tier === "obese1" ? "Obesidad I" : "Obesidad II+"
-    : tier === "underweight" ? "Underweight" : tier === "normal" ? "Normal weight" : tier === "overweight" ? "Overweight" : tier === "obese1" ? "Obesity I" : "Obesity II+";
+  const imcCategoryLabel = isES
+    ? imcCategory === "underweight" ? "Bajo peso"    : imcCategory === "normal"    ? "Peso normal"  : imcCategory === "overweight" ? "Sobrepeso"
+    : imcCategory === "obesity_1"   ? "Obesidad I"   : imcCategory === "obesity_2" ? "Obesidad II"  : "Obesidad III"
+    : imcCategory === "underweight" ? "Underweight"  : imcCategory === "normal"    ? "Normal weight": imcCategory === "overweight" ? "Overweight"
+    : imcCategory === "obesity_1"   ? "Obesity I"    : imcCategory === "obesity_2" ? "Obesity II"   : "Obesity III";
 
   const boxBg    = tone === "block"   ? "rgba(255,68,68,0.07)"   : tone === "warn"    ? "rgba(255,170,0,0.07)"  : tone === "caution" ? "rgba(59,130,246,0.07)"  : "rgba(136,238,34,0.05)";
   const boxBorder= tone === "block"   ? "rgba(255,68,68,0.25)"   : tone === "warn"    ? "rgba(255,170,0,0.25)"  : tone === "caution" ? "rgba(59,130,246,0.25)"   : "rgba(136,238,34,0.15)";
@@ -562,12 +556,12 @@ export default function Onboarding() {
     if (currentStep < STEPS.length - 1) {
       // Log acceptance when user ticks both checkboxes and presses Continue
       if (currentStep === 1 && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
-        const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+        const snapshot = buildUserDataSnapshot({ weightKg: formData.weightKg, heightCm: formData.heightCm, age: formData.age, sex: formData.sex, goalType: goalKey, targetWeightKg: formData.targetWeightKg ?? null, trainingLevel: formData.trainingLevel ?? null });
         await logWarningAccepted(imcTriggerReason, snapshot);
       }
       // Also log age acceptance if age >65 checkboxes were ticked
       if (currentStep === 1 && isOldAge && ageCheckbox1 && ageCheckbox2) {
-        const snapshot = buildHealthSnapshot(formData, imcVal, tier);
+        const snapshot = buildUserDataSnapshot({ weightKg: formData.weightKg, heightCm: formData.heightCm, age: formData.age, sex: formData.sex, goalType: goalKey, targetWeightKg: formData.targetWeightKg ?? null, trainingLevel: formData.trainingLevel ?? null });
         await logWarningAccepted(`age_over_65_${goalKey}`, snapshot);
       }
       setCurrentStep(s => s + 1);
@@ -701,7 +695,7 @@ export default function Onboarding() {
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               {[
                 { label: isES ? "IMC" : "BMI",              value: imcVal.toFixed(1) },
-                { label: isES ? "Categoría" : "Category",    value: imcCategory },
+                { label: isES ? "Categoría" : "Category",    value: imcCategoryLabel },
                 { label: isES ? "Rango sano" : "Healthy range", value: `${wMin}–${wMax} kg` },
               ].map(stat => (
                 <div key={stat.label} style={{ flex: 1, background: "#111", border: "1px solid #1f1f1f", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
