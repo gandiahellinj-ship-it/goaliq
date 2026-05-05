@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Loader2, AlertCircle, Pencil, Check } from "lucide-react";
+import { Loader2, AlertCircle, Pencil, Check, AlertTriangle, LogOut } from "lucide-react";
 import { submitOnboarding, logInfoShown, logWarningShown, logBlocked, logWarningAccepted, buildUserDataSnapshot, imcToCategory, type UserDataSnapshot, type BlockReason, type ImcCategory, type OnboardingFormData } from "@/lib/onboarding-service";
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
@@ -26,6 +26,57 @@ const EMPTY_FORM: OnboardingFormData = {
   targetWeightKg: null,
   supplements: [],
 };
+
+// ─── Health screening (Step 0) ────────────────────────────────────────────────
+
+type HealthConditionKey =
+  | "pregnancy_lactation"
+  | "eating_disorder"
+  | "diabetes"
+  | "cardiovascular"
+  | "kidney_liver"
+  | "on_medication"
+  | "physical_limitations"
+  | "minor_age"
+  | "severe_allergies";
+
+const BLOCKING_CONDITIONS: HealthConditionKey[] = [
+  "pregnancy_lactation",
+  "eating_disorder",
+  "diabetes",
+  "cardiovascular",
+  "kidney_liver",
+  "on_medication",
+  "physical_limitations",
+  "minor_age",
+];
+
+const CONDITION_LABELS: Record<HealthConditionKey, { es: string; en: string }> = {
+  pregnancy_lactation:  { es: "Estoy embarazada o en periodo de lactancia",            en: "I am pregnant or breastfeeding" },
+  eating_disorder:      { es: "Tengo o he tenido un trastorno alimentario",            en: "I have or have had an eating disorder" },
+  diabetes:             { es: "Tengo diabetes (tipo 1 o 2)",                           en: "I have diabetes (type 1 or 2)" },
+  cardiovascular:       { es: "Tengo una condición cardiovascular diagnosticada",      en: "I have a diagnosed cardiovascular condition" },
+  kidney_liver:         { es: "Tengo problemas renales o hepáticos",                   en: "I have kidney or liver problems" },
+  on_medication:        { es: "Estoy bajo medicación que afecta a alimentación o ejercicio", en: "I am on medication that affects diet or exercise" },
+  physical_limitations: { es: "Tengo lesiones o limitaciones físicas significativas",  en: "I have significant injuries or physical limitations" },
+  minor_age:            { es: "Soy menor de 18 años",                                  en: "I am under 18 years old" },
+  severe_allergies:     { es: "Tengo alergias o intolerancias graves",                 en: "I have severe allergies or intolerances" },
+};
+
+const BLOCK_REASON_LABELS: Record<string, { es: string; en: string }> = {
+  pregnancy_lactation:  { es: "embarazo o lactancia",                                  en: "pregnancy or breastfeeding" },
+  eating_disorder:      { es: "trastornos alimentarios",                               en: "eating disorders" },
+  diabetes:             { es: "diabetes",                                              en: "diabetes" },
+  cardiovascular:       { es: "condiciones cardiovasculares",                          en: "cardiovascular conditions" },
+  kidney_liver:         { es: "problemas renales o hepáticos",                         en: "kidney or liver conditions" },
+  on_medication:        { es: "medicación que afecta a tu alimentación o ejercicio",   en: "medication affecting diet or exercise" },
+  physical_limitations: { es: "limitaciones físicas significativas",                   en: "significant physical limitations" },
+  minor_age:            { es: "menores de 18 años",                                    en: "minors under 18" },
+  multiple:             { es: "varias condiciones de salud",                           en: "several health conditions" },
+};
+
+const PROFESSIONAL_LOOKUP_URL =
+  "https://www.consejodietistasnutricionistas.com/encuentra-tu-dietista-nutricionista/";
 
 // ─── Goal detail data ─────────────────────────────────────────────────────────
 
@@ -138,9 +189,30 @@ export default function Onboarding() {
   const [ageCheckbox1, setAgeCheckbox1] = useState(false);
   const [ageCheckbox2, setAgeCheckbox2] = useState(false);
 
-  const STEPS = ["sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
-  const STEP_NAMES_ES = ["Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
-  const STEP_NAMES_EN = ["About you", "Your goal", "Your diet", "Training", "Supplements", "Summary"];
+  // ── Health screening (Step 0) ──────────────────────────────────────────
+  const [conditions, setConditions] = useState<Record<HealthConditionKey, boolean>>({
+    pregnancy_lactation: false,
+    eating_disorder: false,
+    diabetes: false,
+    cardiovascular: false,
+    kidney_liver: false,
+    on_medication: false,
+    physical_limitations: false,
+    minor_age: false,
+    severe_allergies: false,
+  });
+  const [declaredNoConditions, setDeclaredNoConditions] = useState(false);
+  const [allergiesAcknowledged, setAllergiesAcknowledged] = useState(false);
+  const [screeningCheckLoading, setScreeningCheckLoading] = useState(!isEditMode);
+  const [screeningSubmitting, setScreeningSubmitting] = useState(false);
+  const [screeningError, setScreeningError] = useState<string | null>(null);
+  const [showBlockedView, setShowBlockedView] = useState(false);
+  const [showAllergiesWarning, setShowAllergiesWarning] = useState(false);
+  const [blockReason, setBlockReason] = useState<string | null>(null);
+
+  const STEPS = ["salud", "sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
+  const STEP_NAMES_ES = ["Salud", "Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
+  const STEP_NAMES_EN = ["Health", "About you", "Your goal", "Your diet", "Training", "Supplements", "Summary"];
 
   // ── Prefill in edit mode ──────────────────────────────────────────────────
   useEffect(() => {
@@ -226,6 +298,145 @@ export default function Onboarding() {
     })();
   }, [isEditMode]);
 
+  // ── Initial health screening check ───────────────────────────────────────
+  // Runs once on mount. Decides whether to show the questionnaire (step 0),
+  // skip straight to step 1 (sobre ti), or render the blocked view.
+  useEffect(() => {
+    if (isEditMode) {
+      // Editing an existing onboarding implies the screening already passed.
+      setCurrentStep(1);
+      return;
+    }
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLocation("/");
+        return;
+      }
+      const { data } = await supabase
+        .from("health_screenings")
+        .select("screening_result, block_reason")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data?.screening_result === "blocked") {
+        setBlockReason(data.block_reason ?? null);
+        setShowBlockedView(true);
+      } else if (data?.screening_result === "passed" || data?.screening_result === "allergies_only") {
+        setCurrentStep(1);
+      }
+      setScreeningCheckLoading(false);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Health screening helpers ─────────────────────────────────────────────
+  function toggleCondition(key: HealthConditionKey) {
+    setConditions(prev => ({ ...prev, [key]: !prev[key] }));
+    // Marking any condition clears the "none of the above" choice.
+    setDeclaredNoConditions(false);
+    setScreeningError(null);
+  }
+
+  function toggleNoConditions() {
+    const next = !declaredNoConditions;
+    setDeclaredNoConditions(next);
+    if (next) {
+      // Clear all conditions when user chooses "none of the above".
+      setConditions({
+        pregnancy_lactation: false,
+        eating_disorder: false,
+        diabetes: false,
+        cardiovascular: false,
+        kidney_liver: false,
+        on_medication: false,
+        physical_limitations: false,
+        minor_age: false,
+        severe_allergies: false,
+      });
+    }
+    setScreeningError(null);
+  }
+
+  const anyConditionMarked = Object.values(conditions).some(Boolean);
+  const screeningContinueDisabled = !anyConditionMarked && !declaredNoConditions;
+
+  function buildScreeningPayload(allergiesAck: boolean) {
+    return {
+      pregnancy_lactation:    conditions.pregnancy_lactation,
+      eating_disorder:        conditions.eating_disorder,
+      diabetes:               conditions.diabetes,
+      cardiovascular:         conditions.cardiovascular,
+      kidney_liver:           conditions.kidney_liver,
+      on_medication:          conditions.on_medication,
+      physical_limitations:   conditions.physical_limitations,
+      minor_age:              conditions.minor_age,
+      severe_allergies:       conditions.severe_allergies,
+      declared_no_conditions: declaredNoConditions,
+      allergies_acknowledged: allergiesAck,
+    };
+  }
+
+  async function callValidateScreening(allergiesAck: boolean) {
+    setScreeningSubmitting(true);
+    setScreeningError(null);
+    try {
+      const { data, error: invokeErr } = await supabase.functions.invoke(
+        "validate-health-screening",
+        { body: buildScreeningPayload(allergiesAck) },
+      );
+      if (invokeErr || !data) {
+        throw new Error(invokeErr?.message ?? "No response");
+      }
+      const result = (data as { result?: string }).result;
+      const reason = (data as { block_reason?: string | null }).block_reason ?? null;
+      if (result === "blocked") {
+        setBlockReason(reason);
+        setShowAllergiesWarning(false);
+        setShowBlockedView(true);
+      } else if (result === "passed" || result === "allergies_only") {
+        setShowAllergiesWarning(false);
+        setCurrentStep(1);
+      } else {
+        throw new Error("Unexpected response");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      setScreeningError(
+        lang === "en"
+          ? `Couldn't validate your answers. Please try again. (${msg})`
+          : `No pudimos validar tus respuestas. Inténtalo de nuevo. (${msg})`,
+      );
+    } finally {
+      setScreeningSubmitting(false);
+    }
+  }
+
+  // Step 0 main action.
+  // - If any blocking condition is marked → call EF immediately (will return blocked).
+  // - Else if only severe_allergies → show AllergiesWarningView locally (no EF call yet).
+  // - Else (declared_no_conditions only) → call EF (will return passed).
+  async function handleScreeningContinue() {
+    if (screeningContinueDisabled || screeningSubmitting) return;
+    const hasBlocking = BLOCKING_CONDITIONS.some(k => conditions[k]);
+    const onlyAllergies = !hasBlocking && conditions.severe_allergies;
+    if (onlyAllergies) {
+      setShowAllergiesWarning(true);
+      return;
+    }
+    await callValidateScreening(false);
+  }
+
+  function resetAllergiesWarningToQuestionnaire() {
+    setShowAllergiesWarning(false);
+    setAllergiesAcknowledged(false);
+    setScreeningError(null);
+  }
+
+  async function handleAllergiesAcknowledge() {
+    setAllergiesAcknowledged(true);
+    await callValidateScreening(true);
+  }
+
   const update = (patch: Partial<OnboardingFormData>) =>
     setFormData(prev => ({ ...prev, ...patch }));
 
@@ -286,7 +497,7 @@ export default function Onboarding() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (currentStep !== 1) return;
+    if (currentStep !== 2) return;
     const snapshot = buildUserDataSnapshot({
       weightKg:       formData.weightKg,
       heightCm:       formData.heightCm,
@@ -311,8 +522,10 @@ export default function Onboarding() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, tone, formData.goalType, isOldAge]);
 
+  const isES = lang !== "en";
+
   // ── Loading state ─────────────────────────────────────────────────────────
-  if (prefilling) {
+  if (prefilling || screeningCheckLoading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4">
         <Logo />
@@ -324,7 +537,21 @@ export default function Onboarding() {
     );
   }
 
-  const isES = lang !== "en";
+  // ── Health screening blocked / allergies warning ─────────────────────────
+  if (showBlockedView) {
+    return <HealthBlockedView blockReason={blockReason} isES={isES} onLogout={async () => { await supabase.auth.signOut(); setLocation("/"); }} />;
+  }
+  if (showAllergiesWarning) {
+    return (
+      <AllergiesWarningView
+        isES={isES}
+        submitting={screeningSubmitting}
+        error={screeningError}
+        onBack={resetAllergiesWarningToQuestionnaire}
+        onAcknowledge={handleAllergiesAcknowledge}
+      />
+    );
+  }
 
   const SUPPLEMENT_VARIANTS: Record<string, Array<{ name: string; info: string }>> = {
     proteina_polvo: [
@@ -545,7 +772,7 @@ export default function Onboarding() {
   const boxBorder= tone === "block"   ? "rgba(255,68,68,0.25)"   : tone === "warn"    ? "rgba(255,170,0,0.25)"  : tone === "caution" ? "rgba(59,130,246,0.25)"   : "rgba(136,238,34,0.15)";
   const boxColor = tone === "block"   ? "#ff4444"                : tone === "warn"    ? "#ffaa00"               : tone === "caution" ? "#60a5fa"                  : "#88ee22";
 
-  const step2Blocked = currentStep === 1 && (
+  const step2Blocked = currentStep === 2 && (
     (tone === "block") ||
     (tone === "warn"    && (!healthCheckbox1 || !healthCheckbox2)) ||
     (tone === "caution" && matrixEntry?.check1ES && (!healthCheckbox1 || !healthCheckbox2)) ||
@@ -555,12 +782,12 @@ export default function Onboarding() {
   async function handleNextStep() {
     if (currentStep < STEPS.length - 1) {
       // Log acceptance when user ticks both checkboxes and presses Continue
-      if (currentStep === 1 && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
+      if (currentStep === 2 && (tone === "caution" || tone === "warn") && healthCheckbox1 && healthCheckbox2) {
         const snapshot = buildUserDataSnapshot({ weightKg: formData.weightKg, heightCm: formData.heightCm, age: formData.age, sex: formData.sex, goalType: goalKey, targetWeightKg: formData.targetWeightKg ?? null, trainingLevel: formData.trainingLevel ?? null });
         await logWarningAccepted(imcTriggerReason, snapshot);
       }
       // Also log age acceptance if age >65 checkboxes were ticked
-      if (currentStep === 1 && isOldAge && ageCheckbox1 && ageCheckbox2) {
+      if (currentStep === 2 && isOldAge && ageCheckbox1 && ageCheckbox2) {
         const snapshot = buildUserDataSnapshot({ weightKg: formData.weightKg, heightCm: formData.heightCm, age: formData.age, sex: formData.sex, goalType: goalKey, targetWeightKg: formData.targetWeightKg ?? null, trainingLevel: formData.trainingLevel ?? null });
         await logWarningAccepted(`age_over_65_${goalKey}`, snapshot);
       }
@@ -613,8 +840,75 @@ export default function Onboarding() {
 
         <div className="space-y-3 pb-4">
 
-          {/* ── Step 0: Sobre ti ────────────────────────────────────────── */}
-          {currentStep === 0 && <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
+          {/* ── Step 0: Cuestionario médico de exclusión ────────────────── */}
+          {currentStep === 0 && (
+            <>
+              {/* Emphasis banner — same palette as the >65 warning for visual coherence */}
+              <div style={{ background: "rgba(255,170,0,0.07)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "#ffaa00", marginTop: 2 }} />
+                <p style={{ fontSize: 12, color: "#ffaa00", lineHeight: 1.5, margin: 0, fontWeight: 600 }}>
+                  {isES
+                    ? "Cuestionario médico obligatorio — necesitamos confirmar que GoalIQ es seguro para ti."
+                    : "Mandatory health questionnaire — we need to confirm GoalIQ is safe for you."}
+                </p>
+              </div>
+
+              <SectionCard emoji="🩺" title={isES ? "Cuestionario médico" : "Health questionnaire"}>
+                <div>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8e8", margin: 0, marginBottom: 6 }}>
+                    {isES ? "Antes de configurar tu plan" : "Before setting up your plan"}
+                  </h2>
+                  <p style={{ fontSize: 12, color: "#888", lineHeight: 1.5, margin: 0 }}>
+                    {isES
+                      ? "Marca las opciones que apliquen a tu situación de salud actual:"
+                      : "Check the options that apply to your current health situation:"}
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {(Object.keys(CONDITION_LABELS) as HealthConditionKey[]).map(key => {
+                    const checked = conditions[key];
+                    return (
+                      <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: checked ? "rgba(255,170,0,0.06)" : "#111", border: `1px solid ${checked ? "rgba(255,170,0,0.3)" : "#1f1f1f"}`, transition: "all 0.15s" }}>
+                        <div
+                          onClick={() => toggleCondition(key)}
+                          style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#ffaa00" : "#333"}`, background: checked ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                        >
+                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        </div>
+                        <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }} onClick={() => toggleCondition(key)}>
+                          {isES ? CONDITION_LABELS[key].es : CONDITION_LABELS[key].en}
+                        </span>
+                      </label>
+                    );
+                  })}
+
+                  {/* "None of the above" — mutually exclusive with everything else */}
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: declaredNoConditions ? "rgba(136,238,34,0.07)" : "#111", border: `1px solid ${declaredNoConditions ? "rgba(136,238,34,0.3)" : "#1f1f1f"}`, transition: "all 0.15s", marginTop: 4 }}>
+                    <div
+                      onClick={toggleNoConditions}
+                      style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${declaredNoConditions ? "#88ee22" : "#333"}`, background: declaredNoConditions ? "#88ee22" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                    >
+                      {declaredNoConditions && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5, fontWeight: 600 }} onClick={toggleNoConditions}>
+                      {isES ? "Ninguna de las anteriores" : "None of the above"}
+                    </span>
+                  </label>
+                </div>
+
+                {screeningError && (
+                  <div style={{ marginTop: 4, display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.25)", borderRadius: 10, padding: "10px 12px" }}>
+                    <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#ff4444", marginTop: 1 }} />
+                    <p style={{ fontSize: 12, color: "#ff7777", lineHeight: 1.5, margin: 0 }}>{screeningError}</p>
+                  </div>
+                )}
+              </SectionCard>
+            </>
+          )}
+
+          {/* ── Step 1: Sobre ti ────────────────────────────────────────── */}
+          {currentStep === 1 && <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
             <Field label={t("what_call_you")} hint={t("personalise_hint")}>
               <input
                 type="text"
@@ -688,7 +982,8 @@ export default function Onboarding() {
             </Field>
           </SectionCard>}
 
-          {currentStep === 1 && <>
+          {/* ── Step 2: Tu objetivo ─────────────────────────────────────── */}
+          {currentStep === 2 && <>
           <SectionCard emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
 
             {/* ── IMC stats row ───────────────────────────────────────── */}
@@ -985,8 +1280,8 @@ export default function Onboarding() {
 
           </>}
 
-          {/* ── Step 2: Tu dieta ────────────────────────────────────────── */}
-          {currentStep === 2 && <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+          {/* ── Step 3: Tu dieta ────────────────────────────────────────── */}
+          {currentStep === 3 && <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
             <Field label={t("diet_type_question")}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {[
@@ -1039,8 +1334,8 @@ export default function Onboarding() {
             </Field>
           </SectionCard>}
 
-          {/* ── Step 3: Entrenamiento ───────────────────────────────────── */}
-          {currentStep === 3 && <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+          {/* ── Step 4: Entrenamiento ───────────────────────────────────── */}
+          {currentStep === 4 && <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
             <Field label={t("fitness_level")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
@@ -1097,8 +1392,8 @@ export default function Onboarding() {
             </Field>
           </SectionCard>}
 
-          {/* ── Step 4: Suplementos ─────────────────────────────────────── */}
-          {currentStep === 4 && <SectionCard
+          {/* ── Step 5: Suplementos ─────────────────────────────────────── */}
+          {currentStep === 5 && <SectionCard
             emoji="💊"
             title={isES ? "Suplementos" : "Supplements"}
             badge={isES ? "opcional" : "optional"}
@@ -1314,8 +1609,8 @@ export default function Onboarding() {
             </div>
           </SectionCard>}
 
-          {/* ── Step 5: Resumen ─────────────────────────────────────────── */}
-          {currentStep === 5 && <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
+          {/* ── Step 6: Resumen ─────────────────────────────────────────── */}
+          {currentStep === 6 && <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
             <div className="flex flex-col gap-2">
               {[
                 { icon: "🍽️", name: isES ? "Plan de comidas 7 días" : "7-day meal plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a tus preferencias" : "Breakfast, lunch, dinner and snacks adapted to your preferences" },
@@ -1357,19 +1652,32 @@ export default function Onboarding() {
               </div>
             </div>
           )}
-          <button
-            onClick={handleNextStep}
-            disabled={isSubmitting || step2Blocked}
-            style={{ width: "100%", background: step2Blocked ? "#333" : "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: step2Blocked ? "#555" : "#0a0a0a", cursor: step2Blocked ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: isSubmitting ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
-          >
-            {isSubmitting
-              ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Creando tu plan..." : "Creating your plan..."}</>
-              : currentStep < STEPS.length - 1
-                ? (isES ? "Continuar →" : "Continue →")
-                : (isEditMode ? t("save_regenerate") : (isES ? "🚀 Crear mi plan" : "🚀 Create my plan"))
-            }
-          </button>
-          {currentStep > 0 && (
+          {(() => {
+            const onStep0 = currentStep === 0;
+            const structurallyDisabled = onStep0
+              ? screeningContinueDisabled
+              : step2Blocked;
+            const inFlight = onStep0 ? screeningSubmitting : isSubmitting;
+            return (
+              <button
+                onClick={onStep0 ? handleScreeningContinue : handleNextStep}
+                disabled={structurallyDisabled || inFlight}
+                style={{ width: "100%", background: structurallyDisabled ? "#333" : "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: structurallyDisabled ? "#555" : "#0a0a0a", cursor: structurallyDisabled ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: inFlight ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
+              >
+                {onStep0
+                  ? (screeningSubmitting
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Validando..." : "Validating..."}</>
+                      : (isES ? "Continuar →" : "Continue →"))
+                  : (isSubmitting
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Creando tu plan..." : "Creating your plan..."}</>
+                      : currentStep < STEPS.length - 1
+                        ? (isES ? "Continuar →" : "Continue →")
+                        : (isEditMode ? t("save_regenerate") : (isES ? "🚀 Crear mi plan" : "🚀 Create my plan")))
+                }
+              </button>
+            );
+          })()}
+          {currentStep > 1 && (
             <button
               onClick={() => setCurrentStep(s => s - 1)}
               style={{ background: "none", border: "none", fontSize: 13, color: "#e8e8e8", cursor: "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600 }}
@@ -1559,4 +1867,162 @@ function goalCardClass(active: boolean) {
       ? "border-[#AAFF45] bg-[#AAFF45]/10 text-[#AAFF45]"
       : "border-[#2A2A2A] bg-[#111111] text-[#555555] hover:border-[#3A3A3A]"
   }`;
+}
+
+// ─── Health screening views ───────────────────────────────────────────────────
+
+function HealthBlockedView({ blockReason, isES, onLogout }: { blockReason: string | null; isES: boolean; onLogout: () => void | Promise<void> }) {
+  const [secondsLeft, setSecondsLeft] = useState(8);
+  const calledRef = useRef(false);
+
+  function fire() {
+    if (calledRef.current) return;
+    calledRef.current = true;
+    void onLogout();
+  }
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setSecondsLeft(s => {
+        if (s <= 1) {
+          clearInterval(id);
+          fire();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const reason = blockReason && BLOCK_REASON_LABELS[blockReason]
+    ? (isES ? BLOCK_REASON_LABELS[blockReason].es : BLOCK_REASON_LABELS[blockReason].en)
+    : (isES ? "tu situación de salud actual" : "your current health situation");
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+      <div style={{ width: "100%", maxWidth: 480 }}>
+        <div className="flex justify-center mb-6">
+          <Logo />
+        </div>
+        <div style={{ background: "#141414", border: "2px solid rgba(255,68,68,0.3)", borderRadius: 16, padding: "24px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <AlertTriangle style={{ width: 32, height: 32, color: "#ff4444" }} />
+            </div>
+          </div>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: "#e8e8e8", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
+            {isES ? "GoalIQ no es la herramienta adecuada para tu situación actual" : "GoalIQ is not the right tool for your current situation"}
+          </h1>
+          <p style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, textAlign: "center", margin: 0, marginBottom: 16 }}>
+            {isES
+              ? `Las personas con ${reason} necesitan un seguimiento profesional individualizado que una app generalista no puede proporcionar.`
+              : `People with ${reason} need personalized professional follow-up that a general-purpose app cannot provide.`}
+          </p>
+          <div style={{ background: "rgba(255,170,0,0.08)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+            <p style={{ fontSize: 12, color: "#ffcc66", lineHeight: 1.5, margin: 0, fontWeight: 600, marginBottom: 8 }}>
+              {isES
+                ? "Te recomendamos encarecidamente acudir a un dietista-nutricionista colegiado o a tu médico."
+                : "We strongly recommend you consult a registered dietitian-nutritionist or your doctor."}
+            </p>
+            <a
+              href={PROFESSIONAL_LOOKUP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "inline-block", fontSize: 12, color: "#88ee22", fontWeight: 700, textDecoration: "underline" }}
+            >
+              {isES ? "Buscar profesional sanitario →" : "Find a healthcare professional →"}
+            </a>
+          </div>
+          <p style={{ fontSize: 12, color: "#888", textAlign: "center", margin: 0, marginBottom: 14 }}>
+            {isES
+              ? `Tu sesión se cerrará automáticamente en ${secondsLeft} ${secondsLeft === 1 ? "segundo" : "segundos"}`
+              : `Your session will close automatically in ${secondsLeft} ${secondsLeft === 1 ? "second" : "seconds"}`}
+          </p>
+          <button
+            onClick={fire}
+            style={{ width: "100%", background: "#88ee22", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: "#0a0a0a", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+          >
+            <LogOut className="w-4 h-4" />
+            {isES ? "Cerrar sesión ahora" : "Sign out now"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AllergiesWarningView({ isES, submitting, error, onBack, onAcknowledge }: { isES: boolean; submitting: boolean; error: string | null; onBack: () => void; onAcknowledge: () => void | Promise<void> }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+      <div style={{ width: "100%", maxWidth: 480 }}>
+        <div className="flex justify-center mb-6">
+          <Logo />
+        </div>
+        <div style={{ background: "#141414", border: "2px solid rgba(255,170,0,0.3)", borderRadius: 16, padding: "24px 22px" }}>
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,170,0,0.1)", border: "1px solid rgba(255,170,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <AlertTriangle style={{ width: 26, height: 26, color: "#ffaa00" }} />
+            </div>
+          </div>
+          <h1 style={{ fontSize: 17, fontWeight: 800, color: "#e8e8e8", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
+            {isES ? "Importante sobre tus alergias" : "Important about your allergies"}
+          </h1>
+          <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.65, marginBottom: 16 }}>
+            <p style={{ margin: 0, marginBottom: 10 }}>
+              {isES
+                ? "GoalIQ puede ayudarte, pero ES TU RESPONSABILIDAD:"
+                : "GoalIQ can help you, but IT IS YOUR RESPONSIBILITY TO:"}
+            </p>
+            <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+              <li>{isES ? "Indicar tus alergias específicas en Preferencias." : "Specify your particular allergies in Preferences."}</li>
+              <li>{isES ? "Revisar SIEMPRE los ingredientes de cada receta antes de cocinarla." : "ALWAYS check the ingredients of every recipe before cooking it."}</li>
+              <li>{isES ? "Detener el uso si tienes cualquier reacción." : "Stop using the app if you have any reaction."}</li>
+            </ol>
+          </div>
+
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "12px 14px", borderRadius: 10, background: acknowledged ? "rgba(255,170,0,0.08)" : "#0e0e0e", border: `1px solid ${acknowledged ? "rgba(255,170,0,0.35)" : "#1f1f1f"}`, marginBottom: 14, transition: "all 0.15s" }}>
+            <div
+              onClick={() => setAcknowledged(v => !v)}
+              style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${acknowledged ? "#ffaa00" : "#333"}`, background: acknowledged ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+            >
+              {acknowledged && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+            <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }} onClick={() => setAcknowledged(v => !v)}>
+              {isES
+                ? "Entiendo que debo revisar siempre los ingredientes y soy responsable de evitar los alimentos a los que soy alérgico/a."
+                : "I understand I must always check ingredients and am responsible for avoiding foods I'm allergic to."}
+            </span>
+          </label>
+
+          {error && (
+            <div style={{ marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.25)", borderRadius: 10, padding: "10px 12px" }}>
+              <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#ff4444", marginTop: 1 }} />
+              <p style={{ fontSize: 12, color: "#ff7777", lineHeight: 1.5, margin: 0 }}>{error}</p>
+            </div>
+          )}
+
+          <button
+            onClick={onAcknowledge}
+            disabled={!acknowledged || submitting}
+            style={{ width: "100%", background: !acknowledged ? "#333" : "#88ee22", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: !acknowledged ? "#555" : "#0a0a0a", cursor: !acknowledged ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: submitting ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
+          >
+            {submitting
+              ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Validando..." : "Validating..."}</>
+              : (isES ? "Continuar →" : "Continue →")}
+          </button>
+          <button
+            onClick={onBack}
+            disabled={submitting}
+            style={{ background: "none", border: "none", fontSize: 13, color: "#e8e8e8", cursor: submitting ? "not-allowed" : "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600, opacity: submitting ? 0.5 : 1 }}
+          >
+            ← {isES ? "Volver" : "Back"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
