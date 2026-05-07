@@ -420,7 +420,7 @@ entrypoint = "./functions/validate-health-screening/index.ts"
 
 [functions.cleanup-blocked-accounts]
 enabled = true
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/cleanup-blocked-accounts/deno.json"
 # Uncomment to specify a custom file path to the entrypoint.
 # Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
