@@ -1,21 +1,5 @@
-/*
-SUPABASE MIGRATION — Run in Supabase SQL editor:
-
-CREATE TABLE IF NOT EXISTS public.health_validation_logs (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL CHECK (event_type IN ('info_shown','warning_shown','blocked','warning_accepted')),
-  trigger_reason TEXT NOT NULL,
-  user_data_snapshot JSONB NOT NULL,
-  action_taken TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-ALTER TABLE public.health_validation_logs ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Users can insert own health logs" ON public.health_validation_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can read own health logs" ON public.health_validation_logs FOR SELECT USING (auth.uid() = user_id);
-*/
-
 import { supabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/supabase-queries";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,16 +23,9 @@ export interface OnboardingFormData {
   fastingProtocol?: string | null;
 }
 
-// ─── Week Helpers ─────────────────────────────────────────────────────────────
-
-function getWeekStart(): string {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  return monday.toISOString().split("T")[0];
-}
+// ─── Legacy week / menu / workout helpers ─────────────────────────────────────
+// (no longer used by submitOnboarding — the server-side endpoint generates
+// plans via AI. Kept temporarily; scheduled for removal in a follow-up cleanup.)
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 
@@ -397,60 +374,53 @@ function getWorkoutForDay(
 // ─── Main Submit Function ─────────────────────────────────────────────────────
 
 export async function submitOnboarding(data: OnboardingFormData): Promise<void> {
-  const { data: { user }, error: userErr } = await supabase.auth.getUser();
-  if (userErr || !user) throw new Error("Not authenticated");
+  const token = await getAccessToken();
 
-  const userId = user.id;
-  const weekStart = getWeekStart();
+  const body = {
+    displayName: data.displayName.trim(),
+    age: data.age,
+    sex: data.sex,
+    heightCm: data.heightCm,
+    weightKg: data.weightKg,
+    targetWeightKg: data.targetWeightKg ?? null,
+    goalType: data.goalType,
+    goalPace: data.goalPace ?? null,
+    fastingProtocol: data.fastingProtocol ?? null,
+    dietType: data.dietType,
+    allergies: data.allergies,
+    likedFoods: data.likedFoods,
+    dislikedFoods: data.dislikedFoods,
+    trainingLevel: data.trainingLevel,
+    trainingLocation: data.trainingLocation,
+    trainingDaysPerWeek: data.trainingDaysPerWeek,
+    supplements: data.supplements ?? [],
+  };
 
-  // 1. Save to profiles
-  const { error: profileErr } = await supabase.from("profiles").upsert(
-    {
-      id: userId,
-      full_name: data.displayName.trim() || user.user_metadata?.full_name || user.user_metadata?.first_name || null,
-      age: data.age,
-      sex: data.sex,
-      height_cm: data.heightCm,
-      weight_kg: data.weightKg,
-      target_weight_kg: data.targetWeightKg ?? null,
-      goal: data.goalType,
-      goal_pace: data.goalPace ?? "moderate",
-      fasting_protocol: data.fastingProtocol ?? null,
-      diet_type: data.dietType,
-      training_level: data.trainingLevel,
-      training_location: data.trainingLocation,
-      training_days_per_week: data.trainingDaysPerWeek,
-    },
-    { onConflict: "id" },
-  );
-  if (profileErr) throw new Error(`Failed to save profile: ${profileErr.message}`);
-
-  // 2. Save to food_preferences
-  const { error: prefErr } = await supabase.from("food_preferences").upsert(
-    {
-      user_id: userId,
-      liked_foods: data.likedFoods,
-      disliked_foods: data.dislikedFoods,
-      allergies: data.allergies,
-      intolerances: [],
-    },
-    { onConflict: "user_id" },
-  );
-  if (prefErr) throw new Error(`Failed to save food preferences: ${prefErr.message}`);
-
-  // 2b. Save supplements selection (graceful — column may not exist yet)
-  if (data.supplements && data.supplements.length > 0) {
-    await supabase.from("food_preferences").upsert(
-      { user_id: userId, supplements: data.supplements },
-      { onConflict: "user_id" },
-    ).then(() => {}); // swallow error if column doesn't exist
+  let res: Response;
+  try {
+    res = await fetch("/api/onboarding", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
   }
 
-  // 3. Delete any existing plans for this week — AI generation will create fresh ones
-  await Promise.all([
-    supabase.from("meal_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
-    supabase.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
-  ]);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 401) {
+      throw new Error("Tu sesión ha caducado. Inicia sesión de nuevo.");
+    }
+    if (res.status === 400 && Array.isArray(err?.issues) && err.issues.length > 0) {
+      // Backend ranks Zod issues in parse order — show the first.
+      throw new Error(err.issues[0].message);
+    }
+    throw new Error(err?.error ?? `Error del servidor (HTTP ${res.status}).`);
+  }
 }
 
 // ─── Health Validation Logging ────────────────────────────────────────────────

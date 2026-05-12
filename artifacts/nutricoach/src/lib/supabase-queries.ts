@@ -1168,7 +1168,7 @@ export function useGenerateMealPlan() {
 
 // ─── Flex Days ──────────────────────────────────────────────────────────────
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) return session.access_token;
 
