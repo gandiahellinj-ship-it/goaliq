@@ -11,8 +11,10 @@ export type OnboardingProfileDietType =
 
 export const OnboardingProfileDietType = {
   balanced: "balanced",
+  mediterranean: "mediterranean",
   keto: "keto",
   vegan: "vegan",
   vegetarian: "vegetarian",
   high_protein: "high_protein",
+  gluten_free: "gluten_free",
 } as const;

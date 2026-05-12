@@ -42,13 +42,15 @@ export const GetOnboardingResponse = zod.object({
   sex: zod.enum(["male", "female", "other"]),
   heightCm: zod.number(),
   weightKg: zod.number(),
-  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle"]),
+  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle", "recomposition"]),
   dietType: zod.enum([
     "balanced",
+    "mediterranean",
     "keto",
     "vegan",
     "vegetarian",
     "high_protein",
+    "gluten_free",
   ]),
   allergies: zod.array(zod.string()),
   likedFoods: zod.array(zod.string()),
@@ -60,27 +62,59 @@ export const GetOnboardingResponse = zod.object({
     .min(1)
     .max(getOnboardingResponseTrainingDaysPerWeekMax),
   targetWeightKg: zod.number().nullish(),
-  createdAt: zod.string(),
-  updatedAt: zod.string(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
 });
 
 /**
  * @summary Save user onboarding profile
  */
+export const saveOnboardingBodyDisplayNameMax = 100;
+
+export const saveOnboardingBodyAgeMin = 18;
+export const saveOnboardingBodyAgeMax = 80;
+
+export const saveOnboardingBodyHeightCmMin = 120;
+export const saveOnboardingBodyHeightCmMax = 220;
+
+export const saveOnboardingBodyWeightKgMin = 35;
+export const saveOnboardingBodyWeightKgMax = 250;
+
 export const saveOnboardingBodyTrainingDaysPerWeekMax = 7;
 
+export const saveOnboardingBodyTargetWeightKgMin = 35;
+export const saveOnboardingBodyTargetWeightKgMax = 250;
+
+export const saveOnboardingBodySupplementsItemTimingIndexMin = 0;
+
+export const saveOnboardingBodySupplementsItemVariantIndexMin = 0;
+
+export const saveOnboardingBodySupplementsItemNotificationTimeRegExp =
+  new RegExp("^([01][0-9]|2[0-3]):[0-5][0-9]$");
+
 export const SaveOnboardingBody = zod.object({
-  age: zod.number(),
+  displayName: zod.string().min(1).max(saveOnboardingBodyDisplayNameMax),
+  age: zod.number().min(saveOnboardingBodyAgeMin).max(saveOnboardingBodyAgeMax),
   sex: zod.enum(["male", "female", "other"]),
-  heightCm: zod.number(),
-  weightKg: zod.number(),
-  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle"]),
+  heightCm: zod
+    .number()
+    .min(saveOnboardingBodyHeightCmMin)
+    .max(saveOnboardingBodyHeightCmMax),
+  weightKg: zod
+    .number()
+    .min(saveOnboardingBodyWeightKgMin)
+    .max(saveOnboardingBodyWeightKgMax),
+  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle", "recomposition"]),
+  goalPace: zod.enum(["gentle", "moderate", "aggressive"]).nullish(),
+  fastingProtocol: zod.enum(["12:12", "16:8", "18:6", "20:4", "5:2"]).nullish(),
   dietType: zod.enum([
     "balanced",
+    "mediterranean",
     "keto",
     "vegan",
     "vegetarian",
     "high_protein",
+    "gluten_free",
   ]),
   allergies: zod.array(zod.string()),
   likedFoods: zod.array(zod.string()),
@@ -91,7 +125,28 @@ export const SaveOnboardingBody = zod.object({
     .number()
     .min(1)
     .max(saveOnboardingBodyTrainingDaysPerWeekMax),
-  targetWeightKg: zod.number().nullish(),
+  targetWeightKg: zod
+    .number()
+    .min(saveOnboardingBodyTargetWeightKgMin)
+    .max(saveOnboardingBodyTargetWeightKgMax)
+    .nullish(),
+  supplements: zod
+    .array(
+      zod.object({
+        id: zod.string().min(1),
+        timingIndex: zod
+          .number()
+          .min(saveOnboardingBodySupplementsItemTimingIndexMin),
+        variantIndex: zod
+          .number()
+          .min(saveOnboardingBodySupplementsItemVariantIndexMin)
+          .optional(),
+        notificationTime: zod
+          .string()
+          .regex(saveOnboardingBodySupplementsItemNotificationTimeRegExp),
+      }),
+    )
+    .optional(),
 });
 
 export const saveOnboardingResponseTrainingDaysPerWeekMax = 7;
@@ -103,13 +158,15 @@ export const SaveOnboardingResponse = zod.object({
   sex: zod.enum(["male", "female", "other"]),
   heightCm: zod.number(),
   weightKg: zod.number(),
-  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle"]),
+  goalType: zod.enum(["lose_fat", "maintain", "gain_muscle", "recomposition"]),
   dietType: zod.enum([
     "balanced",
+    "mediterranean",
     "keto",
     "vegan",
     "vegetarian",
     "high_protein",
+    "gluten_free",
   ]),
   allergies: zod.array(zod.string()),
   likedFoods: zod.array(zod.string()),
@@ -121,8 +178,8 @@ export const SaveOnboardingResponse = zod.object({
     .min(1)
     .max(saveOnboardingResponseTrainingDaysPerWeekMax),
   targetWeightKg: zod.number().nullish(),
-  createdAt: zod.string(),
-  updatedAt: zod.string(),
+  createdAt: zod.date(),
+  updatedAt: zod.date(),
 });
 
 /**
@@ -131,7 +188,7 @@ export const SaveOnboardingResponse = zod.object({
 export const GetMealPlanResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  weekStart: zod.string(),
+  weekStart: zod.date(),
   days: zod.array(
     zod.object({
       day: zod.enum([
@@ -175,7 +232,7 @@ export const GetMealPlanResponse = zod.object({
       ),
     }),
   ),
-  generatedAt: zod.string(),
+  generatedAt: zod.date(),
 });
 
 /**
@@ -184,7 +241,7 @@ export const GetMealPlanResponse = zod.object({
 export const GenerateMealPlanResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  weekStart: zod.string(),
+  weekStart: zod.date(),
   days: zod.array(
     zod.object({
       day: zod.enum([
@@ -228,22 +285,25 @@ export const GenerateMealPlanResponse = zod.object({
       ),
     }),
   ),
-  generatedAt: zod.string(),
+  generatedAt: zod.date(),
 });
 
 /**
  * @summary Replace a specific ingredient in a meal
  */
 export const ReplaceIngredientBody = zod.object({
-  mealPlanId: zod.union([zod.number(), zod.string()]),
-  dayOfWeek: zod.string(),
-  mealType: zod.string(),
+  mealPlanId: zod.number(),
+  dayOfWeek: zod.enum([
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ]),
+  mealId: zod.string(),
   ingredientName: zod.string(),
-  chosenReplacement: zod.object({
-    name: zod.string(),
-    amount: zod.string(),
-  }).optional(),
-  lang: zod.enum(["es", "en"]).optional(),
 });
 
 export const ReplaceIngredientResponse = zod.object({
@@ -281,7 +341,7 @@ export const ReplaceIngredientResponse = zod.object({
 export const GetWorkoutPlanResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  weekStart: zod.string(),
+  weekStart: zod.date(),
   days: zod.array(
     zod.object({
       day: zod.enum([
@@ -306,7 +366,7 @@ export const GetWorkoutPlanResponse = zod.object({
       ),
     }),
   ),
-  generatedAt: zod.string(),
+  generatedAt: zod.date(),
 });
 
 /**
@@ -315,7 +375,7 @@ export const GetWorkoutPlanResponse = zod.object({
 export const GenerateWorkoutPlanResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  weekStart: zod.string(),
+  weekStart: zod.date(),
   days: zod.array(
     zod.object({
       day: zod.enum([
@@ -340,7 +400,7 @@ export const GenerateWorkoutPlanResponse = zod.object({
       ),
     }),
   ),
-  generatedAt: zod.string(),
+  generatedAt: zod.date(),
 });
 
 /**
@@ -356,7 +416,7 @@ export const GetCalendarResponse = zod.object({
     zod.object({
       id: zod.number(),
       userId: zod.string(),
-      date: zod.string(),
+      date: zod.date(),
       eventType: zod.enum(["workout", "rest"]),
       workoutType: zod.string().nullish(),
       isCompleted: zod.boolean(),
@@ -370,14 +430,14 @@ export const GetCalendarResponse = zod.object({
  * @summary Mark a workout as completed or uncompleted
  */
 export const MarkWorkoutCompleteBody = zod.object({
-  date: zod.string(),
+  date: zod.date(),
   isCompleted: zod.boolean(),
 });
 
 export const MarkWorkoutCompleteResponse = zod.object({
   id: zod.number(),
   userId: zod.string(),
-  date: zod.string(),
+  date: zod.date(),
   eventType: zod.enum(["workout", "rest"]),
   workoutType: zod.string().nullish(),
   isCompleted: zod.boolean(),
@@ -396,7 +456,7 @@ export const GetProgressResponse = zod.object({
   totalWorkoutsThisWeek: zod.number(),
   weightHistory: zod.array(
     zod.object({
-      date: zod.string(),
+      date: zod.date(),
       weightKg: zod.number(),
     }),
   ),
@@ -418,7 +478,7 @@ export const UpdateProgressResponse = zod.object({
   totalWorkoutsThisWeek: zod.number(),
   weightHistory: zod.array(
     zod.object({
-      date: zod.string(),
+      date: zod.date(),
       weightKg: zod.number(),
     }),
   ),

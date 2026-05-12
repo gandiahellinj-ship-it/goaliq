@@ -6,17 +6,39 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { OnboardingProfileInputDietType } from "./onboardingProfileInputDietType";
+import type { OnboardingProfileInputFastingProtocol } from "./onboardingProfileInputFastingProtocol";
+import type { OnboardingProfileInputGoalPace } from "./onboardingProfileInputGoalPace";
 import type { OnboardingProfileInputGoalType } from "./onboardingProfileInputGoalType";
 import type { OnboardingProfileInputSex } from "./onboardingProfileInputSex";
+import type { OnboardingProfileInputSupplementsItem } from "./onboardingProfileInputSupplementsItem";
 import type { OnboardingProfileInputTrainingLevel } from "./onboardingProfileInputTrainingLevel";
 import type { OnboardingProfileInputTrainingLocation } from "./onboardingProfileInputTrainingLocation";
 
 export interface OnboardingProfileInput {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  displayName: string;
+  /**
+   * @minimum 18
+   * @maximum 80
+   */
   age: number;
   sex: OnboardingProfileInputSex;
+  /**
+   * @minimum 120
+   * @maximum 220
+   */
   heightCm: number;
+  /**
+   * @minimum 35
+   * @maximum 250
+   */
   weightKg: number;
   goalType: OnboardingProfileInputGoalType;
+  goalPace?: OnboardingProfileInputGoalPace;
+  fastingProtocol?: OnboardingProfileInputFastingProtocol;
   dietType: OnboardingProfileInputDietType;
   allergies: string[];
   likedFoods: string[];
@@ -28,5 +50,10 @@ export interface OnboardingProfileInput {
    * @maximum 7
    */
   trainingDaysPerWeek: number;
+  /**
+   * @minimum 35
+   * @maximum 250
+   */
   targetWeightKg?: number | null;
+  supplements?: OnboardingProfileInputSupplementsItem[];
 }

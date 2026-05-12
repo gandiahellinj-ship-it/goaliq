@@ -41,6 +41,7 @@ export const OnboardingProfileGoalType = {
   lose_fat: "lose_fat",
   maintain: "maintain",
   gain_muscle: "gain_muscle",
+  recomposition: "recomposition",
 } as const;
 
 export type OnboardingProfileDietType =
@@ -48,10 +49,12 @@ export type OnboardingProfileDietType =
 
 export const OnboardingProfileDietType = {
   balanced: "balanced",
+  mediterranean: "mediterranean",
   keto: "keto",
   vegan: "vegan",
   vegetarian: "vegetarian",
   high_protein: "high_protein",
+  gluten_free: "gluten_free",
 } as const;
 
 export type OnboardingProfileTrainingLevel =
@@ -112,6 +115,29 @@ export const OnboardingProfileInputGoalType = {
   lose_fat: "lose_fat",
   maintain: "maintain",
   gain_muscle: "gain_muscle",
+  recomposition: "recomposition",
+} as const;
+
+export type OnboardingProfileInputGoalPace =
+  | (typeof OnboardingProfileInputGoalPace)[keyof typeof OnboardingProfileInputGoalPace]
+  | null;
+
+export const OnboardingProfileInputGoalPace = {
+  gentle: "gentle",
+  moderate: "moderate",
+  aggressive: "aggressive",
+} as const;
+
+export type OnboardingProfileInputFastingProtocol =
+  | (typeof OnboardingProfileInputFastingProtocol)[keyof typeof OnboardingProfileInputFastingProtocol]
+  | null;
+
+export const OnboardingProfileInputFastingProtocol = {
+  "12:12": "12:12",
+  "16:8": "16:8",
+  "18:6": "18:6",
+  "20:4": "20:4",
+  "5:2": "5:2",
 } as const;
 
 export type OnboardingProfileInputDietType =
@@ -119,10 +145,12 @@ export type OnboardingProfileInputDietType =
 
 export const OnboardingProfileInputDietType = {
   balanced: "balanced",
+  mediterranean: "mediterranean",
   keto: "keto",
   vegan: "vegan",
   vegetarian: "vegetarian",
   high_protein: "high_protein",
+  gluten_free: "gluten_free",
 } as const;
 
 export type OnboardingProfileInputTrainingLevel =
@@ -143,12 +171,42 @@ export const OnboardingProfileInputTrainingLocation = {
   outdoor: "outdoor",
 } as const;
 
+export type OnboardingProfileInputSupplementsItem = {
+  /** @minLength 1 */
+  id: string;
+  /** @minimum 0 */
+  timingIndex: number;
+  /** @minimum 0 */
+  variantIndex?: number;
+  /** @pattern ^([01][0-9]|2[0-3]):[0-5][0-9]$ */
+  notificationTime: string;
+};
+
 export interface OnboardingProfileInput {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  displayName: string;
+  /**
+   * @minimum 18
+   * @maximum 80
+   */
   age: number;
   sex: OnboardingProfileInputSex;
+  /**
+   * @minimum 120
+   * @maximum 220
+   */
   heightCm: number;
+  /**
+   * @minimum 35
+   * @maximum 250
+   */
   weightKg: number;
   goalType: OnboardingProfileInputGoalType;
+  goalPace?: OnboardingProfileInputGoalPace;
+  fastingProtocol?: OnboardingProfileInputFastingProtocol;
   dietType: OnboardingProfileInputDietType;
   allergies: string[];
   likedFoods: string[];
@@ -160,7 +218,12 @@ export interface OnboardingProfileInput {
    * @maximum 7
    */
   trainingDaysPerWeek: number;
+  /**
+   * @minimum 35
+   * @maximum 250
+   */
   targetWeightKg?: number | null;
+  supplements?: OnboardingProfileInputSupplementsItem[];
 }
 
 export type IngredientCategory =

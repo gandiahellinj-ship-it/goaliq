@@ -13,4 +13,5 @@ export const OnboardingProfileGoalType = {
   lose_fat: "lose_fat",
   maintain: "maintain",
   gain_muscle: "gain_muscle",
+  recomposition: "recomposition",
 } as const;

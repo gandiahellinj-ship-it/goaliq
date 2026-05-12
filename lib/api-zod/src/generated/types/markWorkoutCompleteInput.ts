@@ -7,6 +7,6 @@
  */
 
 export interface MarkWorkoutCompleteInput {
-  date: string;
+  date: Date;
   isCompleted: boolean;
 }
