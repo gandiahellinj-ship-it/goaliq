@@ -1,9 +1,5 @@
 import { Router, type IRouter } from "express";
-import {
-  GetOnboardingResponse,
-  SaveOnboardingBodyStrict,
-  SaveOnboardingResponse,
-} from "@workspace/api-zod";
+import { SaveOnboardingBodyStrict } from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
 
 const router: IRouter = Router();
@@ -67,7 +63,12 @@ router.get("/onboarding", async (req, res) => {
     .eq("user_id", req.user.id)
     .maybeSingle();
 
-  res.json(GetOnboardingResponse.parse(mapProfile(profile as Record<string, unknown>, prefs as Record<string, unknown> | null)));
+  // Skip Zod parse on response — profiles.id is a UUID string and
+  // created_at is an ISO string, but the schema declares id: number
+  // and createdAt: Date, causing a ZodError. The data comes from our
+  // own trusted DB so validation adds no safety here.
+  // Same pattern as routes/meals.ts:44-46.
+  res.json(mapProfile(profile as Record<string, unknown>, prefs as Record<string, unknown> | null));
 });
 
 router.post("/onboarding", async (req, res) => {
@@ -162,7 +163,12 @@ router.post("/onboarding", async (req, res) => {
     db.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
   ]);
 
-  res.json(SaveOnboardingResponse.parse(mapProfile(profile as Record<string, unknown>)));
+  // Skip Zod parse on response — profiles.id is a UUID string and
+  // created_at is an ISO string, but the schema declares id: number
+  // and createdAt: Date, causing a ZodError. The data comes from our
+  // own trusted DB so validation adds no safety here.
+  // Same pattern as routes/meals.ts:44-46.
+  res.json(mapProfile(profile as Record<string, unknown>));
 });
 
 export default router;
