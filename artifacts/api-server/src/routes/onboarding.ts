@@ -1,8 +1,22 @@
 import { Router, type IRouter } from "express";
-import { GetOnboardingResponse, SaveOnboardingBody, SaveOnboardingResponse } from "@workspace/api-zod";
+import {
+  GetOnboardingResponse,
+  SaveOnboardingBodyStrict,
+  SaveOnboardingResponse,
+} from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
 
 const router: IRouter = Router();
+
+// Mirrors getWeekStart() in artifacts/nutricoach/src/lib/onboarding-service.ts.
+// Same pattern used in routes/strength.ts:38-44.
+function getWeekStart(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d.toISOString().slice(0, 10);
+}
 
 function mapProfile(
   p: Record<string, unknown>,
@@ -61,24 +75,44 @@ router.post("/onboarding", async (req, res) => {
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const body = SaveOnboardingBody.parse(req.body);
-  const db = createUserClient(req.supabaseToken!);
 
+  const parsed = SaveOnboardingBodyStrict.safeParse(req.body);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => ({
+      path: i.path,
+      message: i.message,
+    }));
+    res.status(400).json({
+      error: "Datos de onboarding no válidos",
+      issues,
+    });
+    return;
+  }
+  const body = parsed.data;
+
+  const db = createUserClient(req.supabaseToken!);
+  const userId = req.user.id;
+  const weekStart = getWeekStart();
+
+  // 1) profiles — full parity with submitOnboarding (frontend).
   const { data: profile, error: profileErr } = await db
     .from("profiles")
     .upsert(
       {
-        id: req.user.id,
+        id: userId,
+        full_name: body.displayName.trim() || null,
         age: body.age,
         sex: body.sex,
         height_cm: body.heightCm,
         weight_kg: body.weightKg,
+        target_weight_kg: body.targetWeightKg ?? null,
         goal: body.goalType,
+        goal_pace: body.goalPace ?? "moderate",
+        fasting_protocol: body.fastingProtocol ?? null,
         diet_type: body.dietType,
         training_level: body.trainingLevel,
         training_location: body.trainingLocation,
         training_days_per_week: body.trainingDaysPerWeek,
-        target_weight_kg: body.targetWeightKg ?? null,
       },
       { onConflict: "id" },
     )
@@ -87,22 +121,46 @@ router.post("/onboarding", async (req, res) => {
 
   if (profileErr || !profile) {
     req.log.error({ error: profileErr }, "Failed to save onboarding profile");
-    res.status(500).json({ error: "Failed to save profile" });
+    res.status(500).json({ error: "No se pudo guardar el perfil" });
     return;
   }
 
-  await db
-    .from("food_preferences")
-    .upsert(
-      {
-        user_id: req.user.id,
-        liked_foods: body.likedFoods,
-        disliked_foods: body.dislikedFoods,
-        allergies: body.allergies,
-        intolerances: [],
-      },
-      { onConflict: "user_id" },
-    );
+  // 2) food_preferences — critical, 500 if it fails.
+  const { error: prefErr } = await db.from("food_preferences").upsert(
+    {
+      user_id: userId,
+      liked_foods: body.likedFoods,
+      disliked_foods: body.dislikedFoods,
+      allergies: body.allergies,
+      intolerances: [],
+    },
+    { onConflict: "user_id" },
+  );
+  if (prefErr) {
+    req.log.error({ error: prefErr }, "Failed to save food preferences");
+    res.status(500).json({ error: "No se pudieron guardar las preferencias alimentarias" });
+    return;
+  }
+
+  // 3) supplements — graceful: column may not exist yet, swallow.
+  if (body.supplements && body.supplements.length > 0) {
+    const { error: supErr } = await db
+      .from("food_preferences")
+      .upsert(
+        { user_id: userId, supplements: body.supplements },
+        { onConflict: "user_id" },
+      );
+    if (supErr) {
+      req.log.warn({ error: supErr }, "Supplements upsert failed (non-fatal)");
+    }
+  }
+
+  // 4) Wipe stale plans for the current week — generation mutations will recreate.
+  // Swallow errors: if delete fails we don't want to abort the onboarding save.
+  await Promise.all([
+    db.from("meal_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
+    db.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
+  ]);
 
   res.json(SaveOnboardingResponse.parse(mapProfile(profile as Record<string, unknown>)));
 });
