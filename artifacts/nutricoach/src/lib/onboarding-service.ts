@@ -90,10 +90,11 @@ export type ImcCategory =
 
 /** Restricts logBlocked action_taken to a fixed, queryable set of values. */
 export type BlockReason =
-  | "auto_blocked_low_imc"       // underweight + goal that would worsen it
-  | "auto_blocked_high_imc"      // obesity II/III + goal unsafe at that weight
-  | "auto_blocked_unsafe_goal"   // generic unsafe combination
-  | "auto_blocked_other";        // fallback for future cases
+  | "auto_blocked_low_imc"        // underweight + goal that would worsen it
+  | "auto_blocked_high_imc"       // obesity II/III + goal unsafe at that weight
+  | "auto_blocked_unsafe_goal"    // generic unsafe combination
+  | "auto_blocked_post_drift"     // post-onboarding weight drift produces blocking IMC × goal
+  | "auto_blocked_other";         // fallback for future cases
 
 /** Single source of truth for the user_data_snapshot JSONB column. All keys snake_case. */
 export interface UserDataSnapshot {

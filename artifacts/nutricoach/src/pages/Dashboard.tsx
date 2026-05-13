@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { ArrowRight, CheckCircle2, Flame, Zap, Star, Target, Sunrise, Sprout, Gift, Clock, Utensils, ShoppingCart, Play } from "lucide-react";
 import { motion } from "framer-motion";
 import { WeeklyCheckin } from "@/components/WeeklyCheckin";
+import { HealthAlertBanner } from "@/components/HealthAlertBanner";
 import { ShareProgressButton } from "@/components/ShareProgressCard";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -633,6 +634,8 @@ export default function Dashboard() {
 
   return (
     <div className="px-3 py-4 sm:p-7 lg:p-10 max-w-4xl mx-auto space-y-4 overflow-x-hidden">
+
+      <HealthAlertBanner />
 
       <WeeklyCheckin />
 
