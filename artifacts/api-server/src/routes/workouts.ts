@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { generateWorkoutPlanForUser } from "../lib/aiGenerators";
+import { generateWorkoutPlanModerated } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
 import pg from "pg";
 
@@ -113,14 +113,56 @@ router.post("/workouts", async (req, res) => {
 
   let workoutDays: any[];
   try {
-    workoutDays = await generateWorkoutPlanForUser({
+    // Mejora 6: numeric moderation against weekly volume thresholds.
+    // Returns ok=false after a reinforced retry — when that happens we
+    // emit 422 and DO NOT touch the DB, so any previous plan is preserved.
+    const outcome = await generateWorkoutPlanModerated({
       goalType: profileData.goal,
       goalPace: profileData.goal_pace ?? "moderate",
       fastingProtocol: profileData.fasting_protocol ?? null,
       trainingLevel: profileData.training_level,
       trainingDaysPerWeek: profileData.training_days_per_week ?? 3,
       trainingLocation: profileData.training_location ?? "home",
-    }, lang) as any[];
+    }, lang, req.log);
+    if (!outcome.ok) {
+      const r = outcome.result;
+      const trigger =
+        r.reason === "excessive_volume"  ? "plan_moderation_volume"
+      : r.reason === "force_fail_test"   ? "plan_moderation_force_fail_test"
+      :                                    "plan_moderation_incomplete";
+      const message =
+        r.reason === "excessive_volume"
+          ? "El plan de entrenamiento supera las recomendaciones de volumen semanal. Revisa tu nivel."
+      : r.reason === "force_fail_test"
+          ? "No pudimos generar un plan completo. Inténtalo de nuevo en unos minutos."
+      :   "No pudimos generar un plan seguro. Por favor, inténtalo de nuevo.";
+
+      await db
+        .from("health_validation_logs")
+        .insert({
+          user_id: req.user.id,
+          event_type: "blocked",
+          trigger_reason: trigger,
+          user_data_snapshot: {
+            attempts:             outcome.attempts,
+            reason:               r.reason ?? null,
+            weekly_minutes:       r.details?.weeklyMinutes ?? null,
+            weekly_exercises:     r.details?.weeklyExercises ?? null,
+            days_count:           r.details?.daysCount ?? null,
+            max_weekly_minutes:   r.details?.maxWeeklyMinutes ?? null,
+            max_weekly_exercises: r.details?.maxWeeklyExercises ?? null,
+          },
+          action_taken: "auto_blocked_ai_moderation",
+        })
+        .then(({ error }) => {
+          if (error) req.log.warn({ error }, "health_validation_logs insert failed (non-fatal)");
+        });
+
+      req.log.warn({ trigger, attempts: outcome.attempts, details: r.details }, "[workouts] moderation rejected plan — returning 422");
+      res.status(422).json({ error: message, reason: r.reason });
+      return;
+    }
+    workoutDays = outcome.plan as any[];
   } catch (aiErr) {
     req.log.error({ aiErr }, "[workouts] AI generation failed");
     res.status(500).json({ error: "Workout plan generation failed. Please try again." });

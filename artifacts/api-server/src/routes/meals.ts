@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { GetMealPlanResponse, ReplaceIngredientBody, ReplaceIngredientResponse } from "@workspace/api-zod";
-import { generateMealPlanForUser, replaceIngredientInMeal } from "../lib/aiGenerators";
+import { generateMealPlanModerated, replaceIngredientInMeal } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
 import pg from "pg";
 
@@ -126,7 +126,53 @@ router.post("/meals", async (req, res) => {
   req.log.info({ userId: req.user.id, lang }, "[meals] Starting AI meal plan generation");
   let days: unknown[];
   try {
-    days = await generateMealPlanForUser(profile as any, lang);
+    // Mejora 6: numeric moderation against medical safety thresholds.
+    // Returns ok=false after a reinforced retry — when that happens we
+    // emit 422 and DO NOT touch the DB, so any previous plan is preserved.
+    const outcome = await generateMealPlanModerated(profile as any, lang, req.log);
+    if (!outcome.ok) {
+      const r = outcome.result;
+      const trigger =
+        r.reason === "too_low"          ? "plan_moderation_calories_low"
+      : r.reason === "too_high"         ? "plan_moderation_calories_high"
+      : r.reason === "incomplete_data"  ? "plan_moderation_incomplete"
+      : r.reason === "force_fail_test"  ? "plan_moderation_force_fail_test"
+      :                                   "plan_moderation_incomplete";
+      const message =
+        r.reason === "too_low"
+          ? "El plan generado contiene menos calorías de las recomendadas para tu perfil. Revisa tus objetivos o consulta a un profesional sanitario."
+      : r.reason === "too_high"
+          ? "El plan generado supera las calorías máximas recomendadas. Revisa tus objetivos."
+      : r.reason === "incomplete_data" || r.reason === "force_fail_test"
+          ? "No pudimos generar un plan completo. Inténtalo de nuevo en unos minutos."
+      :   "No pudimos generar un plan seguro. Por favor, inténtalo de nuevo.";
+
+      await db
+        .from("health_validation_logs")
+        .insert({
+          user_id: req.user.id,
+          event_type: "blocked",
+          trigger_reason: trigger,
+          user_data_snapshot: {
+            attempts:           outcome.attempts,
+            reason:             r.reason ?? null,
+            worst_day:          r.details?.worstDay ?? null,
+            worst_day_calories: r.details?.worstDayCalories ?? null,
+            min_required:       r.details?.minRequired ?? null,
+            max_allowed:        r.details?.maxAllowed ?? null,
+            profile_sex:        r.details?.sexUsed ?? null,
+          },
+          action_taken: "auto_blocked_ai_moderation",
+        })
+        .then(({ error }) => {
+          if (error) req.log.warn({ error }, "health_validation_logs insert failed (non-fatal)");
+        });
+
+      req.log.warn({ trigger, attempts: outcome.attempts, details: r.details }, "[meals] moderation rejected plan — returning 422");
+      res.status(422).json({ error: message, reason: r.reason });
+      return;
+    }
+    days = outcome.plan;
   } catch (aiErr: any) {
     req.log.error({
       aiErrMessage: aiErr?.message,

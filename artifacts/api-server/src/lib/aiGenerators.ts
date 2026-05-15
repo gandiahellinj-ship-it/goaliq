@@ -1,6 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonrepair } from "jsonrepair";
 import { loadWorkoutXCache, getExercisesByLocationAndLevel } from "./workoutx-cache";
+import {
+  moderateMealPlan,
+  moderateWorkoutPlan,
+  MAX_CALORIES,
+  type MealModerationResult,
+  type WorkoutModerationResult,
+} from "./plan-moderation";
+
+interface MinimalLogger {
+  warn: (obj: unknown, msg: string) => void;
+  info?: (obj: unknown, msg: string) => void;
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -329,7 +341,7 @@ export async function generateMealPlanForUser(profile: {
   dislikedFoods: string[];
   trainingDaysPerWeek: number;
   [key: string]: unknown;
-}, lang: "es" | "en" = "es") {
+}, lang: "es" | "en" = "es", reinforcementFeedback?: string) {
   const allergies = (profile.allergies as string[]).filter(Boolean);
   const dislikedFoods = (profile.dislikedFoods as string[]).filter(Boolean);
   const likedFoods = (profile.likedFoods as string[]).filter(Boolean);
@@ -432,9 +444,12 @@ ${hasSnacks
   // All 3 run in parallel; wall-clock time is the slowest chunk (~8-12s total).
   const chunk1Total = 3 * mealsPerDay;
   const chunk3Total = 1 * mealsPerDay;
-  const prompt1 = `Create meals for ${dayNames.chunk1} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk1}.\n${schemaInstructions}`;
-  const prompt2 = `Create meals for ${dayNames.chunk2} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk2}.\n${schemaInstructions}`;
-  const prompt3 = `Create meals for ${dayNames.chunk3} (1 day × ${mealsPerDay} meals = ${chunk3Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk3Total} objects covering ONLY ${dayNames.chunk3}.\n${schemaInstructions}`;
+  // Inject moderation feedback at the very top so it dominates the model's
+  // attention. Empty string when this is the first attempt.
+  const reinforcementBlock = reinforcementFeedback ? `\n${reinforcementFeedback}\n\n` : "";
+  const prompt1 = `${reinforcementBlock}Create meals for ${dayNames.chunk1} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk1}.\n${schemaInstructions}`;
+  const prompt2 = `${reinforcementBlock}Create meals for ${dayNames.chunk2} (3 days × ${mealsPerDay} meals = ${chunk1Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk1Total} objects covering ONLY ${dayNames.chunk2}.\n${schemaInstructions}`;
+  const prompt3 = `${reinforcementBlock}Create meals for ${dayNames.chunk3} (1 day × ${mealsPerDay} meals = ${chunk3Total} objects) for this person:\n${personContext}\n\nReturn a JSON array with exactly ${chunk3Total} objects covering ONLY ${dayNames.chunk3}.\n${schemaInstructions}`;
 
   const makeChunkValidator = (min: number) => (val: unknown): val is any[] =>
     Array.isArray(val) && val.length >= min;
@@ -471,7 +486,7 @@ export async function generateWorkoutPlanForUser(profile: {
   trainingDaysPerWeek: number;
   trainingLocation: string;
   [key: string]: unknown;
-}, lang: "es" | "en" = "es") {
+}, lang: "es" | "en" = "es", reinforcementFeedback?: string) {
   const trainingDays = profile.trainingDaysPerWeek;
   const location = (profile.trainingLocation ?? "gym").toLowerCase();
   const level = profile.trainingLevel ?? "intermediate";
@@ -522,7 +537,10 @@ export async function generateWorkoutPlanForUser(profile: {
   };
   const structure = sessionStructure[trainingDays] ?? sessionStructure[3];
 
-  const prompt = `You are organizing a ${trainingDays}-day workout plan. The exercises are PRE-SELECTED — DO NOT change or invent exercise names or IDs.
+  // Inject moderation feedback at the top of the workout prompt when retrying.
+  const reinforcementBlock = reinforcementFeedback ? `${reinforcementFeedback}\n\n` : "";
+
+  const prompt = `${reinforcementBlock}You are organizing a ${trainingDays}-day workout plan. The exercises are PRE-SELECTED — DO NOT change or invent exercise names or IDs.
 
 USER:
 - Goal: ${goalKey.replace(/_/g, " ")} — ${goalGuidance}
@@ -591,6 +609,123 @@ Return ONLY the JSON array, nothing else.`;
 
   // Safety net: fill in any missing exercise_ids from the pool
   return reconcileExerciseIds(processedDays, wxMap, wxNameMap);
+}
+
+// ─── Moderated wrappers (Mejora 6) ────────────────────────────────────────────
+
+export type MealModerationOutcome =
+  | { ok: true;  plan: unknown[]; attempts: number }
+  | { ok: false; result: MealModerationResult; attempts: number };
+
+export type WorkoutModerationOutcome =
+  | { ok: true;  plan: unknown[]; attempts: number }
+  | { ok: false; result: WorkoutModerationResult; attempts: number };
+
+function buildMealFeedback(check: MealModerationResult): string {
+  const d = check.details;
+  if (check.reason === "too_low" && d?.worstDay && d.worstDayCalories != null && d.minRequired != null) {
+    return `MODERATION FEEDBACK — CRITICAL: El plan anterior tenía solo ${d.worstDayCalories} kcal el ${d.worstDay}, ` +
+      `lo que es INSUFICIENTE médicamente. El mínimo requerido para esta persona (sexo: ${d.sexUsed}) es ${d.minRequired} kcal/día. ` +
+      `Aumenta porciones de carbohidratos y proteínas para que TODOS los días superen claramente ${d.minRequired} kcal. ` +
+      `No reduzcas ningún día por debajo de ese mínimo bajo ninguna circunstancia.`;
+  }
+  if (check.reason === "too_high" && d?.worstDay && d.worstDayCalories != null) {
+    return `MODERATION FEEDBACK — CRITICAL: El plan anterior tenía ${d.worstDayCalories} kcal el ${d.worstDay}, ` +
+      `lo que SUPERA el máximo seguro de ${MAX_CALORIES} kcal/día. ` +
+      `Reduce las porciones para que NINGÚN día exceda ${MAX_CALORIES} kcal.`;
+  }
+  if (check.reason === "incomplete_data") {
+    const dayInfo = d?.worstDay ? ` (problema detectado el ${d.worstDay})` : "";
+    return `MODERATION FEEDBACK — CRITICAL: El plan anterior tenía meals sin calorías o días vacíos${dayInfo}. ` +
+      `ASEGÚRATE de incluir el campo calories_approx (número entero positivo) en TODOS los meals, sin excepción. ` +
+      `Cada día debe tener todos los meals requeridos.`;
+  }
+  return "";
+}
+
+function buildWorkoutFeedback(check: WorkoutModerationResult): string {
+  const d = check.details;
+  if (check.reason === "excessive_volume" && d) {
+    return `MODERATION FEEDBACK — CRITICAL: El plan anterior tenía ${d.weeklyMinutes} minutos totales y ${d.weeklyExercises} ejercicios en la semana, ` +
+      `lo que supera AMBOS umbrales de volumen seguro (máx ${d.maxWeeklyMinutes} min/sem Y ${d.maxWeeklyExercises} ejercicios/sem). ` +
+      `Reduce la duración por sesión o el número de ejercicios por día para mantenerse por debajo de al menos uno de los dos umbrales.`;
+  }
+  return "";
+}
+
+/**
+ * Generates a weekly meal plan and moderates it against medical safety
+ * thresholds. If the first attempt fails moderation, retries ONCE with
+ * reinforcement feedback specific to the failure mode. Returns
+ * { ok: false, result } when both attempts fail — caller is responsible
+ * for surfacing 422 to the user without writing to DB.
+ */
+export async function generateMealPlanModerated(
+  profile: {
+    age: number; sex: string; heightCm: number; weightKg: number;
+    targetWeightKg: number | null; goalType: string; dietType: string;
+    allergies: string[]; likedFoods: string[]; dislikedFoods: string[];
+    trainingDaysPerWeek: number; [key: string]: unknown;
+  },
+  lang: "es" | "en" = "es",
+  logger?: MinimalLogger,
+): Promise<MealModerationOutcome> {
+  const firstPlan = await generateMealPlanForUser(profile, lang);
+  const firstCheck = moderateMealPlan(firstPlan, profile);
+  if (firstCheck.ok) return { ok: true, plan: firstPlan, attempts: 1 };
+
+  const feedback = buildMealFeedback(firstCheck);
+  if (logger) {
+    logger.warn(
+      { reason: firstCheck.reason, details: firstCheck.details, feedback },
+      "[meal moderation] attempt 1 failed, retrying with reinforcement",
+    );
+  }
+
+  const secondPlan = await generateMealPlanForUser(profile, lang, feedback);
+  const secondCheck = moderateMealPlan(secondPlan, profile);
+  if (secondCheck.ok) return { ok: true, plan: secondPlan, attempts: 2 };
+
+  if (logger) {
+    logger.warn(
+      { reason: secondCheck.reason, details: secondCheck.details },
+      "[meal moderation] attempt 2 also failed — giving up",
+    );
+  }
+  return { ok: false, result: secondCheck, attempts: 2 };
+}
+
+export async function generateWorkoutPlanModerated(
+  profile: {
+    goalType: string; trainingLevel: string; trainingDaysPerWeek: number;
+    trainingLocation: string; [key: string]: unknown;
+  },
+  lang: "es" | "en" = "es",
+  logger?: MinimalLogger,
+): Promise<WorkoutModerationOutcome> {
+  const firstPlan = (await generateWorkoutPlanForUser(profile, lang)) as unknown[];
+  const firstCheck = moderateWorkoutPlan(firstPlan, profile);
+  if (firstCheck.ok) return { ok: true, plan: firstPlan, attempts: 1 };
+
+  const feedback = buildWorkoutFeedback(firstCheck);
+  if (logger) {
+    logger.warn(
+      { reason: firstCheck.reason, details: firstCheck.details, feedback },
+      "[workout moderation] attempt 1 failed, retrying with reinforcement",
+    );
+  }
+
+  const secondPlan = (await generateWorkoutPlanForUser(profile, lang, feedback)) as unknown[];
+  const secondCheck = moderateWorkoutPlan(secondPlan, profile);
+  if (secondCheck.ok) return { ok: true, plan: secondPlan, attempts: 2 };
+
+  if (logger) {
+    logger.warn(
+      { reason: secondCheck.reason, details: secondCheck.details },
+      "[workout moderation] attempt 2 also failed — giving up",
+    );
+  }
+  return { ok: false, result: secondCheck, attempts: 2 };
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────
