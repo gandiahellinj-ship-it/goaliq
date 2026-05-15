@@ -9,15 +9,28 @@ import {
   type GoalKey,
 } from "./health-matrix";
 
-// Strict wrapper around the generated SaveOnboardingBody that adds the
-// cross-field validations OpenAPI codegen cannot express:
-//   - BMI × goal medical blocking (BLOCKING_COMBINATIONS)
-//   - targetWeightKg direction must match goalType
-//   - |targetWeightKg − weightKg| sanity bound (50 kg)
-//   - "maintain" must not carry a goalPace
+// Shared shape consumed by the cross-validator. Kept loose so it can be
+// applied to both the full onboarding body and a merged "effective profile"
+// built from a partial PATCH plus DB values.
+export interface ProfileCrossValidationInput {
+  weightKg:       number;
+  heightCm:       number;
+  goalType:       string;
+  goalPace?:      string | null;
+  targetWeightKg?: number | null;
+}
+
+// Cross-field rules OpenAPI codegen cannot express:
+//   1. BMI × goal medical blocking
+//   2. targetWeightKg direction must match goalType
+//   3. |targetWeightKg − weightKg| sanity bound (50 kg)
+//   4. "maintain" must not carry a goalPace
 //
 // Spanish messages — the product is ES-primary.
-export const SaveOnboardingBodyStrict = SaveOnboardingBody.superRefine((data, ctx) => {
+export function applyProfileCrossValidations(
+  data: ProfileCrossValidationInput,
+  ctx: z.RefinementCtx,
+): void {
   const goal = data.goalType as GoalKey;
 
   // 1) BMI × goal blocking
@@ -67,6 +80,11 @@ export const SaveOnboardingBodyStrict = SaveOnboardingBody.superRefine((data, ct
       message: "El objetivo 'mantener' no admite ritmo (suave / moderado / agresivo).",
     });
   }
-});
+}
+
+// Strict wrapper around the generated SaveOnboardingBody. Delegates the
+// cross-field logic to the shared function so PATCH /api/profile can reuse
+// it on a merged input.
+export const SaveOnboardingBodyStrict = SaveOnboardingBody.superRefine(applyProfileCrossValidations);
 
 export type SaveOnboardingBodyStrictInput = z.infer<typeof SaveOnboardingBodyStrict>;

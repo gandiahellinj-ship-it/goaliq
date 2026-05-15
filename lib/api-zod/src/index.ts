@@ -4,3 +4,4 @@ export * from "./generated/api";
 export type { AuthUser } from "./generated/types/authUser";
 export * from "./health-matrix";
 export * from "./save-onboarding-strict";
+export * from "./patch-profile-strict";
