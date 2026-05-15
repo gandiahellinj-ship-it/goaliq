@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { SaveOnboardingBodyStrict } from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
+import {
+  checkProfileChangeCooldown,
+  recordProfileChange,
+  type ChangeField,
+} from "../lib/cooldown";
 
 const router: IRouter = Router();
 
@@ -95,6 +100,55 @@ router.post("/onboarding", async (req, res) => {
   const userId = req.user.id;
   const weekStart = getWeekStart();
 
+  // Mejora 5: detect whether this POST is an edit of an existing profile
+  // (vs the initial onboarding submission). Only edits trigger the 24h
+  // cooldown; first-time onboarding is always allowed.
+  const { data: existing } = await db
+    .from("profiles")
+    .select("weight_kg, goal")
+    .eq("id", userId)
+    .maybeSingle();
+  const isEdit = existing != null;
+  const existingProfile = (existing ?? null) as {
+    weight_kg: number | null;
+    goal:      string | null;
+  } | null;
+
+  if (isEdit) {
+    const cd = await checkProfileChangeCooldown(db, userId);
+    if (cd.blocked) {
+      await db
+        .from("health_validation_logs")
+        .insert({
+          user_id: userId,
+          event_type: "blocked",
+          trigger_reason: "profile_change_cooldown",
+          user_data_snapshot: {
+            events_in_last_24h: cd.eventsCount,
+            oldest_event_at:    cd.oldestAt,
+            hours_to_wait:      cd.hoursToWait,
+            source:             "onboarding_edit",
+          },
+          action_taken: "auto_blocked_cooldown",
+        })
+        .then(({ error }) => {
+          if (error) req.log.warn({ error }, "health_validation_logs insert failed (non-fatal)");
+        });
+
+      res.setHeader("Retry-After", String(cd.hoursToWait * 3600));
+      res.status(429).json({
+        error: "Cambios de perfil temporalmente bloqueados",
+        retryAfterHours: cd.hoursToWait,
+        message:
+          `Has cambiado tu perfil ${cd.eventsCount} veces en las últimas 24 horas. ` +
+          `Por tu seguridad, debes esperar aproximadamente ${cd.hoursToWait} ${cd.hoursToWait === 1 ? "hora" : "horas"} ` +
+          `antes de modificarlo de nuevo. Si tienes dudas sobre tus objetivos, te recomendamos ` +
+          `consultar a un profesional sanitario.`,
+      });
+      return;
+    }
+  }
+
   // 1) profiles — full parity with submitOnboarding (frontend).
   const { data: profile, error: profileErr } = await db
     .from("profiles")
@@ -162,6 +216,17 @@ router.post("/onboarding", async (req, res) => {
     db.from("meal_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
     db.from("workout_plans").delete().eq("user_id", userId).eq("week_start", weekStart),
   ]);
+
+  // Mejora 5: record the change for cooldown accounting. Only when this was
+  // an edit AND extreme fields (weight/goal) actually moved. First-time
+  // onboarding (isEdit=false) is never recorded — there is no "previous"
+  // value to compare against.
+  if (isEdit && existingProfile) {
+    const changedFields: ChangeField[] = [];
+    if (body.weightKg !== existingProfile.weight_kg) changedFields.push("weightKg");
+    if (body.goalType !== existingProfile.goal)      changedFields.push("goalType");
+    await recordProfileChange(db, userId, changedFields, "onboarding_edit", req.log);
+  }
 
   // Skip Zod parse on response — profiles.id is a UUID string and
   // created_at is an ISO string, but the schema declares id: number

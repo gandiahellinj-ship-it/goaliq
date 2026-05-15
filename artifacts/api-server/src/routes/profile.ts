@@ -5,6 +5,11 @@ import {
   applyProfileCrossValidations,
 } from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
+import {
+  checkProfileChangeCooldown,
+  recordProfileChange,
+  type ChangeField,
+} from "../lib/cooldown";
 
 const router: IRouter = Router();
 
@@ -55,6 +60,42 @@ router.patch("/profile", async (req, res) => {
 
   const db = createUserClient(req.supabaseToken!);
   const userId = req.user.id;
+
+  // Mejora 5: cooldown check before any DB write. PATCH is always an edit,
+  // so the gate is unconditional. Fail-open inside checkProfileChangeCooldown
+  // means this is a no-op until the profile_change_events table exists.
+  const cd = await checkProfileChangeCooldown(db, userId);
+  if (cd.blocked) {
+    await db
+      .from("health_validation_logs")
+      .insert({
+        user_id: userId,
+        event_type: "blocked",
+        trigger_reason: "profile_change_cooldown",
+        user_data_snapshot: {
+          events_in_last_24h: cd.eventsCount,
+          oldest_event_at:    cd.oldestAt,
+          hours_to_wait:      cd.hoursToWait,
+          source:             "profile_patch",
+        },
+        action_taken: "auto_blocked_cooldown",
+      })
+      .then(({ error }) => {
+        if (error) req.log.warn({ error }, "health_validation_logs insert failed (non-fatal)");
+      });
+
+    res.setHeader("Retry-After", String(cd.hoursToWait * 3600));
+    res.status(429).json({
+      error: "Cambios de perfil temporalmente bloqueados",
+      retryAfterHours: cd.hoursToWait,
+      message:
+        `Has cambiado tu perfil ${cd.eventsCount} veces en las últimas 24 horas. ` +
+        `Por tu seguridad, debes esperar aproximadamente ${cd.hoursToWait} ${cd.hoursToWait === 1 ? "hora" : "horas"} ` +
+        `antes de modificarlo de nuevo. Si tienes dudas sobre tus objetivos, te recomendamos ` +
+        `consultar a un profesional sanitario.`,
+    });
+    return;
+  }
 
   // 1) Load the current anchor values needed for cross-validation. Height
   // is never editable here so it always comes from the DB.
@@ -156,6 +197,14 @@ router.patch("/profile", async (req, res) => {
     res.status(500).json({ error: "No se pudo actualizar el perfil" });
     return;
   }
+
+  // Mejora 5: record the change so future cooldown checks see it. Only
+  // weight and goal count as "extreme"; edits limited to age/goalPace/
+  // targetWeightKg pass through without touching the cooldown counter.
+  const changedFields: ChangeField[] = [];
+  if (patch.weightKg !== undefined && patch.weightKg !== c.weight_kg) changedFields.push("weightKg");
+  if (patch.goalType !== undefined && patch.goalType !== c.goal)      changedFields.push("goalType");
+  await recordProfileChange(db, userId, changedFields, "profile_patch", req.log);
 
   // Intentionally NOT wiping meal_plans / workout_plans here — that's the
   // semantic difference between this lightweight PATCH and the full POST
