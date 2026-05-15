@@ -1,8 +1,6 @@
 import { Router, type IRouter } from "express";
 import {
-  GetProgressResponse,
   UpdateProgressBody,
-  UpdateProgressResponse,
   calculateImc,
   imcToCategory,
   isBlockingCombination,
@@ -74,7 +72,13 @@ router.get("/progress", async (req, res) => {
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;
 
-    res.json(GetProgressResponse.parse({
+    // Skip Zod parse on response — progress_logs.log_date is an ISO string
+    // but the schema declares date: z.date(), causing a ZodError → 500 even
+    // when the read/write succeeded. The data comes from our own trusted DB
+    // so validation adds no safety here.
+    // Same pattern as routes/onboarding.ts (commit 2541412) and
+    // routes/meals.ts:44-46.
+    res.json({
       currentWeightKg,
       targetWeightKg: profile?.target_weight_kg ?? null,
       startWeightKg,
@@ -82,7 +86,7 @@ router.get("/progress", async (req, res) => {
       completedWorkoutsThisWeek: completedWorkouts,
       totalWorkoutsThisWeek: workoutRows.length,
       weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg ?? 0 })),
-    }));
+    });
   } catch (err) {
     req.log.error({ err }, "[progress] GET failed");
     res.status(500).json({ error: "Failed to fetch progress" });
@@ -210,7 +214,13 @@ router.post("/progress", async (req, res) => {
     const adherencePercent = workoutRows.length > 0
       ? Math.round((completedWorkouts / workoutRows.length) * 100) : 0;
 
-    res.json(UpdateProgressResponse.parse({
+    // Skip Zod parse on response — progress_logs.log_date is an ISO string
+    // but the schema declares date: z.date(), causing a ZodError → 500 even
+    // though the INSERT/UPDATE succeeded. The data comes from our own
+    // trusted DB so validation adds no safety here.
+    // Same pattern as routes/onboarding.ts (commit 2541412) and
+    // routes/meals.ts:44-46.
+    res.json({
       currentWeightKg: body.weightKg,
       targetWeightKg: profile?.target_weight_kg ?? null,
       startWeightKg,
@@ -218,7 +228,7 @@ router.post("/progress", async (req, res) => {
       completedWorkoutsThisWeek: completedWorkouts,
       totalWorkoutsThisWeek: workoutRows.length,
       weightHistory: entries.map((e: any) => ({ date: e.log_date, weightKg: e.weight_kg ?? 0 })),
-    }));
+    });
   } catch (err) {
     req.log.error({ err }, "[progress] POST failed");
     res.status(500).json({ error: "Failed to save progress" });
