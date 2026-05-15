@@ -1,5 +1,16 @@
 import { Router, type IRouter } from "express";
-import { GetProgressResponse, UpdateProgressBody, UpdateProgressResponse } from "@workspace/api-zod";
+import {
+  GetProgressResponse,
+  UpdateProgressBody,
+  UpdateProgressResponse,
+  calculateImc,
+  imcToCategory,
+  isBlockingCombination,
+  GOAL_KEYS,
+  GOAL_LABELS_ES,
+  IMC_CATEGORY_LABELS_ES,
+  type GoalKey,
+} from "@workspace/api-zod";
 import { createUserClient } from "../lib/supabase";
 import pg from "pg";
 
@@ -88,6 +99,76 @@ router.post("/progress", async (req, res) => {
     const db = createUserClient(req.supabaseToken!);
     const pool = getPool();
     const today = new Date().toISOString().split("T")[0];
+
+    // ── Mejora 4 Eje 3: reject dangerous weight logs ─────────────────────
+    // Load enough of the profile to evaluate BMI × goal blocking against the
+    // weight the user is about to log. profiles.weight_kg is intentionally
+    // NOT touched here — Approach C preserves the onboarding anchor weight.
+    // Skip validation gracefully when height_cm is missing or goal is a
+    // legacy value not in GOAL_KEYS (avoids breaking existing users).
+    const { data: profileForCheck } = await db
+      .from("profiles")
+      .select("height_cm, goal, age, sex, target_weight_kg, training_level")
+      .eq("id", req.user.id)
+      .maybeSingle();
+    const pc = (profileForCheck ?? null) as {
+      height_cm:        number | null;
+      goal:             string | null;
+      age:              number | null;
+      sex:              string | null;
+      target_weight_kg: number | null;
+      training_level:   string | null;
+    } | null;
+
+    const goalAsKey: GoalKey | null =
+      pc && pc.goal && (GOAL_KEYS as readonly string[]).includes(pc.goal)
+        ? (pc.goal as GoalKey)
+        : null;
+
+    if (pc && pc.height_cm && pc.height_cm > 0 && goalAsKey) {
+      const imc = calculateImc(body.weightKg, pc.height_cm);
+      const cat = imcToCategory(imc);
+      if (isBlockingCombination(cat, goalAsKey)) {
+        // Audit log (best-effort — never blocks the 400 response).
+        await db
+          .from("health_validation_logs")
+          .insert({
+            user_id: req.user.id,
+            event_type: "blocked",
+            trigger_reason: "weight_log_imc_drift",
+            user_data_snapshot: {
+              age:              pc.age,
+              biological_sex:   pc.sex,
+              height_cm:        pc.height_cm,
+              weight_kg:        body.weightKg,
+              imc,
+              imc_category:     cat,
+              goal_selected:    pc.goal,
+              target_weight_kg: pc.target_weight_kg ?? null,
+              activity_level:   pc.training_level ?? null,
+            },
+            action_taken: "auto_blocked_post_drift",
+          })
+          .then(({ error }) => {
+            if (error) req.log.warn({ error }, "health_validation_logs insert failed (non-fatal)");
+          });
+
+        res.status(400).json({
+          error: "No puedes registrar este peso",
+          issues: [
+            {
+              path: ["weightKg"],
+              message:
+                `No puedes registrar este peso (${body.weightKg} kg). Con tu altura ` +
+                `(${pc.height_cm} cm), el IMC sería ${imc.toFixed(1)} (${IMC_CATEGORY_LABELS_ES[cat]}), ` +
+                `incompatible con tu objetivo "${GOAL_LABELS_ES[goalAsKey]}". ` +
+                `Actualiza tu perfil o tu objetivo antes de continuar.`,
+            },
+          ],
+        });
+        return;
+      }
+    }
 
     const { data: existing } = await db
       .from("progress_logs")
