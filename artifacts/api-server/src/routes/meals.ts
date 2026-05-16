@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { GetMealPlanResponse, ReplaceIngredientBody, ReplaceIngredientResponse } from "@workspace/api-zod";
 import { generateMealPlanModerated, replaceIngredientInMeal } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
+import { recordMealPlanVersion } from "../lib/plan-versioning";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -125,6 +126,8 @@ router.post("/meals", async (req, res) => {
 
   req.log.info({ userId: req.user.id, lang }, "[meals] Starting AI meal plan generation");
   let days: unknown[];
+  let aiModelUsed = "";
+  let aiAttempts = 1;
   try {
     // Mejora 6: numeric moderation against medical safety thresholds.
     // Returns ok=false after a reinforced retry — when that happens we
@@ -173,6 +176,8 @@ router.post("/meals", async (req, res) => {
       return;
     }
     days = outcome.plan;
+    aiModelUsed = outcome.modelUsed;
+    aiAttempts = outcome.attempts;
   } catch (aiErr: any) {
     req.log.error({
       aiErrMessage: aiErr?.message,
@@ -203,6 +208,32 @@ router.post("/meals", async (req, res) => {
     );
     savedId = rows[0]?.id ?? null;
     req.log.info({ userId: req.user.id, id: savedId, weekStart }, "[meals] Meal plan saved to DB");
+
+    // Mejora 7: append-only audit version (best-effort; never blocks the response)
+    recordMealPlanVersion(pool, {
+      userId: req.user.id,
+      weekStart,
+      planData: days,
+      profileSnapshot: {
+        age:                    profileData.age ?? null,
+        sex:                    profileData.sex ?? null,
+        height_cm:              profileData.height_cm ?? null,
+        weight_kg:              profileData.weight_kg ?? null,
+        target_weight_kg:       profileData.target_weight_kg ?? null,
+        goal:                   profileData.goal ?? null,
+        goal_pace:              profileData.goal_pace ?? null,
+        fasting_protocol:       profileData.fasting_protocol ?? null,
+        diet_type:              profileData.diet_type ?? null,
+        training_level:         profileData.training_level ?? null,
+        training_location:      profileData.training_location ?? null,
+        training_days_per_week: profileData.training_days_per_week ?? null,
+        allergies:              (prefsData?.allergies as string[]) ?? [],
+        liked_foods:            (prefsData?.liked_foods as string[]) ?? [],
+        disliked_foods:         (prefsData?.disliked_foods as string[]) ?? [],
+      },
+      aiModel: aiModelUsed,
+      moderation: { ok: true, attempts: aiAttempts, reason: null },
+    }, req.log).catch(() => { /* helper already logs internally */ });
   } catch (dbErr) {
     req.log.error({ dbErr }, "[meals] Failed to save meal plan to DB — returning data anyway");
   }

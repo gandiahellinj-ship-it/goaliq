@@ -462,7 +462,10 @@ ${hasSnacks
     callClaudeWithRetry(MEAL_SYSTEM, prompt3, chunk3Tokens, makeChunkValidator(chunk3Total), "claude-haiku-4-5-20251001"),
   ]);
 
-  return flatMealsToNestedDays([...chunk1, ...chunk2, ...chunk3]);
+  return {
+    days: flatMealsToNestedDays([...chunk1, ...chunk2, ...chunk3]),
+    model: "claude-haiku-4-5-20251001",
+  };
 }
 
 // ─── Workout plan ─────────────────────────────────────────────────────────────
@@ -608,18 +611,21 @@ Return ONLY the JSON array, nothing else.`;
   }));
 
   // Safety net: fill in any missing exercise_ids from the pool
-  return reconcileExerciseIds(processedDays, wxMap, wxNameMap);
+  return {
+    days: reconcileExerciseIds(processedDays, wxMap, wxNameMap),
+    model,
+  };
 }
 
 // ─── Moderated wrappers (Mejora 6) ────────────────────────────────────────────
 
 export type MealModerationOutcome =
-  | { ok: true;  plan: unknown[]; attempts: number }
-  | { ok: false; result: MealModerationResult; attempts: number };
+  | { ok: true;  plan: unknown[]; attempts: number; modelUsed: string }
+  | { ok: false; result: MealModerationResult; attempts: number; modelUsed: string };
 
 export type WorkoutModerationOutcome =
-  | { ok: true;  plan: unknown[]; attempts: number }
-  | { ok: false; result: WorkoutModerationResult; attempts: number };
+  | { ok: true;  plan: unknown[]; attempts: number; modelUsed: string }
+  | { ok: false; result: WorkoutModerationResult; attempts: number; modelUsed: string };
 
 function buildMealFeedback(check: MealModerationResult): string {
   const d = check.details;
@@ -670,9 +676,10 @@ export async function generateMealPlanModerated(
   lang: "es" | "en" = "es",
   logger?: MinimalLogger,
 ): Promise<MealModerationOutcome> {
-  const firstPlan = await generateMealPlanForUser(profile, lang);
-  const firstCheck = moderateMealPlan(firstPlan, profile);
-  if (firstCheck.ok) return { ok: true, plan: firstPlan, attempts: 1 };
+  const first = await generateMealPlanForUser(profile, lang);
+  const modelUsed = first.model;
+  const firstCheck = moderateMealPlan(first.days, profile);
+  if (firstCheck.ok) return { ok: true, plan: first.days, attempts: 1, modelUsed };
 
   const feedback = buildMealFeedback(firstCheck);
   if (logger) {
@@ -682,9 +689,9 @@ export async function generateMealPlanModerated(
     );
   }
 
-  const secondPlan = await generateMealPlanForUser(profile, lang, feedback);
-  const secondCheck = moderateMealPlan(secondPlan, profile);
-  if (secondCheck.ok) return { ok: true, plan: secondPlan, attempts: 2 };
+  const second = await generateMealPlanForUser(profile, lang, feedback);
+  const secondCheck = moderateMealPlan(second.days, profile);
+  if (secondCheck.ok) return { ok: true, plan: second.days, attempts: 2, modelUsed };
 
   if (logger) {
     logger.warn(
@@ -692,7 +699,7 @@ export async function generateMealPlanModerated(
       "[meal moderation] attempt 2 also failed — giving up",
     );
   }
-  return { ok: false, result: secondCheck, attempts: 2 };
+  return { ok: false, result: secondCheck, attempts: 2, modelUsed };
 }
 
 export async function generateWorkoutPlanModerated(
@@ -703,9 +710,11 @@ export async function generateWorkoutPlanModerated(
   lang: "es" | "en" = "es",
   logger?: MinimalLogger,
 ): Promise<WorkoutModerationOutcome> {
-  const firstPlan = (await generateWorkoutPlanForUser(profile, lang)) as unknown[];
+  const first = await generateWorkoutPlanForUser(profile, lang);
+  const modelUsed = first.model;
+  const firstPlan = first.days as unknown[];
   const firstCheck = moderateWorkoutPlan(firstPlan, profile);
-  if (firstCheck.ok) return { ok: true, plan: firstPlan, attempts: 1 };
+  if (firstCheck.ok) return { ok: true, plan: firstPlan, attempts: 1, modelUsed };
 
   const feedback = buildWorkoutFeedback(firstCheck);
   if (logger) {
@@ -715,9 +724,10 @@ export async function generateWorkoutPlanModerated(
     );
   }
 
-  const secondPlan = (await generateWorkoutPlanForUser(profile, lang, feedback)) as unknown[];
+  const second = await generateWorkoutPlanForUser(profile, lang, feedback);
+  const secondPlan = second.days as unknown[];
   const secondCheck = moderateWorkoutPlan(secondPlan, profile);
-  if (secondCheck.ok) return { ok: true, plan: secondPlan, attempts: 2 };
+  if (secondCheck.ok) return { ok: true, plan: secondPlan, attempts: 2, modelUsed };
 
   if (logger) {
     logger.warn(
@@ -725,7 +735,7 @@ export async function generateWorkoutPlanModerated(
       "[workout moderation] attempt 2 also failed — giving up",
     );
   }
-  return { ok: false, result: secondCheck, attempts: 2 };
+  return { ok: false, result: secondCheck, attempts: 2, modelUsed };
 }
 
 // ─── Replace single ingredient ─────────────────────────────────────────────────

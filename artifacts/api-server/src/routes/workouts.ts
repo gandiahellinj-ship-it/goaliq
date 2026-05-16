@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { generateWorkoutPlanModerated } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
+import { recordWorkoutPlanVersion } from "../lib/plan-versioning";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -93,7 +94,7 @@ router.post("/workouts", async (req, res) => {
 
   const { data: profileData } = await db
     .from("profiles")
-    .select("goal, goal_pace, fasting_protocol, training_level, training_location, training_days_per_week")
+    .select("age, sex, height_cm, weight_kg, target_weight_kg, goal, goal_pace, fasting_protocol, training_level, training_location, training_days_per_week")
     .eq("id", req.user.id)
     .maybeSingle();
 
@@ -112,6 +113,8 @@ router.post("/workouts", async (req, res) => {
   req.log.info({ userId: req.user.id, lang }, "[workouts] Starting AI workout plan generation");
 
   let workoutDays: any[];
+  let aiModelUsed = "";
+  let aiAttempts = 1;
   try {
     // Mejora 6: numeric moderation against weekly volume thresholds.
     // Returns ok=false after a reinforced retry — when that happens we
@@ -163,6 +166,8 @@ router.post("/workouts", async (req, res) => {
       return;
     }
     workoutDays = outcome.plan as any[];
+    aiModelUsed = outcome.modelUsed;
+    aiAttempts = outcome.attempts;
   } catch (aiErr) {
     req.log.error({ aiErr }, "[workouts] AI generation failed");
     res.status(500).json({ error: "Workout plan generation failed. Please try again." });
@@ -202,6 +207,28 @@ router.post("/workouts", async (req, res) => {
     );
     savedId = rows[0]?.id ?? null;
     req.log.info({ userId: req.user.id, id: savedId, weekStart }, "[workouts] Workout plan saved");
+
+    // Mejora 7: append-only audit version (best-effort; never blocks the response)
+    recordWorkoutPlanVersion(pool, {
+      userId: req.user.id,
+      weekStart,
+      planData: workoutRows,
+      profileSnapshot: {
+        age:                    profileData.age ?? null,
+        sex:                    profileData.sex ?? null,
+        height_cm:              profileData.height_cm ?? null,
+        weight_kg:              profileData.weight_kg ?? null,
+        target_weight_kg:       profileData.target_weight_kg ?? null,
+        goal:                   profileData.goal ?? null,
+        goal_pace:              profileData.goal_pace ?? null,
+        fasting_protocol:       profileData.fasting_protocol ?? null,
+        training_level:         profileData.training_level ?? null,
+        training_location:      profileData.training_location ?? null,
+        training_days_per_week: profileData.training_days_per_week ?? null,
+      },
+      aiModel: aiModelUsed,
+      moderation: { ok: true, attempts: aiAttempts, reason: null },
+    }, req.log).catch(() => { /* helper already logs internally */ });
   } catch (insertErr) {
     req.log.error({ insertErr }, "[workouts] Failed to save workout plan");
     res.status(500).json({ error: "Workout plan generated but could not be saved. Please try again." });
