@@ -35,6 +35,8 @@ router.use(strengthRouter);
 router.use(wgerRouter);
 router.use(workoutxRouter);
 router.use(qaRouter);
-router.use(qaE2eRouter);
+if (process.env.NODE_ENV !== "production") {
+  router.use(qaE2eRouter);
+}
 
 export default router;

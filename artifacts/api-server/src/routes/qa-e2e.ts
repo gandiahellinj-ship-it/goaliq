@@ -184,7 +184,10 @@ router.get("/qa/e2e", async (req, res) => {
       {
         method:  "POST",
         headers: { "Content-Type": "application/json", apikey: process.env.SUPABASE_ANON_KEY! },
-        body:    JSON.stringify({ email: "test-qa@goaliq.app", password: "TestQA2026!" }),
+        body:    JSON.stringify({
+          email:    process.env.TEST_QA_EMAIL || "test-qa@goaliq.app",
+          password: process.env.TEST_QA_PASSWORD || "",
+        }),
         timeoutMs: 10_000,
       },
     );
