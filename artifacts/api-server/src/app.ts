@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
@@ -31,6 +32,27 @@ app.post(
 );
 
 // ── Standard middleware (after webhook) ──────────────────────────────────────
+const isProduction = process.env.NODE_ENV === "production";
+
+// Helmet first: set security headers on every response.
+app.use(
+  helmet({
+    // CSP disabled: this server returns JSON, not HTML.
+    // The PWA carries its own CSP on the server that serves it.
+    contentSecurityPolicy: false,
+    // HSTS only in production; local HTTP dev must not be forced to HTTPS.
+    hsts: isProduction
+      ? { maxAge: 31536000, includeSubDomains: true, preload: false }
+      : false,
+    frameguard: { action: "deny" },
+    noSniff: true,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin" },
+    crossOriginResourcePolicy: { policy: "same-origin" },
+  }),
+);
+app.disable("x-powered-by");
+
 app.use(
   pinoHttp({
     logger,
@@ -50,8 +72,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
-
-const isProduction = process.env.NODE_ENV === "production";
 
 app.use(
   cors({
