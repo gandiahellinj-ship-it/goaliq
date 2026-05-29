@@ -1,9 +1,11 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { Request } from "express";
 
-// Helper: key por userId si está autenticado, fallback a IP
+// Helper: key por userId si está autenticado, fallback a IP (con soporte IPv6 correcto)
 const userOrIp = (req: Request): string => {
-  return (req as any).user?.id || req.ip || "anonymous";
+  const userId = (req as any).user?.id;
+  if (userId) return `user:${userId}`;
+  return `ip:${ipKeyGenerator(req.ip || "anonymous")}`;
 };
 
 // 🔴 IA Limiter — endpoints que llaman a Claude (caros)

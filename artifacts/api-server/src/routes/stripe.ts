@@ -21,7 +21,7 @@ router.get("/plans", publicLimiter, async (_req, res) => {
   }
 });
 
-router.get("/subscription", async (req: any, res) => {
+router.get("/subscription", stripeLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
