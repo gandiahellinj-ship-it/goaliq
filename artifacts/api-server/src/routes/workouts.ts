@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { generateWorkoutPlanModerated } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
 import { recordWorkoutPlanVersion } from "../lib/plan-versioning";
+import { aiLimiter, aiBurstLimiter, normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -34,7 +35,7 @@ function getDateForDay(weekStart: string, dayOfWeek: string) {
 // "days" is a JSONB array of workout day objects — same pattern as meal_plans
 
 // DELETE /api/workouts — remove the current week's plan so it can be regenerated fresh
-router.delete("/workouts", async (req, res) => {
+router.delete("/workouts", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -53,7 +54,7 @@ router.delete("/workouts", async (req, res) => {
   }
 });
 
-router.get("/workouts", async (req, res) => {
+router.get("/workouts", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -85,7 +86,7 @@ router.get("/workouts", async (req, res) => {
   }
 });
 
-router.post("/workouts", async (req, res) => {
+router.post("/workouts", aiBurstLimiter, aiLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { loadWorkoutXCache, findExerciseByName, getExerciseCache, getDbExerciseCount, clearDbExercises, resetWorkoutXCache } from "../lib/workoutx-cache";
+import { externalApiLimiter, publicLimiter, adminLimiter } from "../middlewares/rate-limiters";
 
 const router = Router();
 
@@ -212,7 +213,7 @@ async function searchByName(term: string): Promise<WxExerciseOut | null> {
 
 // ── GET /api/workoutx/exercise?name=X&lang=es ─────────────────────────────────
 
-router.get("/api/workoutx/exercise", async (req, res) => {
+router.get("/api/workoutx/exercise", publicLimiter, async (req, res) => {
   const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
   const lang = typeof req.query.lang === "string" ? req.query.lang : "en";
 
@@ -275,7 +276,7 @@ router.get("/api/workoutx/exercise", async (req, res) => {
 
 // ── GET /api/workoutx/gif/:id — proxy GIF with API key header ─────────────────
 
-router.get("/api/workoutx/gif/:id", async (req, res) => {
+router.get("/api/workoutx/gif/:id", externalApiLimiter, async (req, res) => {
   const { id } = req.params;
   const key = process.env.WORKOUTX_API_KEY ?? "";
 
@@ -301,7 +302,7 @@ router.get("/api/workoutx/gif/:id", async (req, res) => {
 
 // ── GET /api/workoutx/by-location?location=gym&limit=20 ──────────────────────
 
-router.get("/api/workoutx/by-location", async (req, res) => {
+router.get("/api/workoutx/by-location", publicLimiter, async (req, res) => {
   const location = typeof req.query.location === "string" ? req.query.location.trim().toLowerCase() : "gym";
   const limit = typeof req.query.limit === "string" ? Math.min(parseInt(req.query.limit, 10) || 20, 100) : 20;
 
@@ -339,7 +340,7 @@ router.get("/api/workoutx/by-location", async (req, res) => {
 
 // ── GET /api/workoutx/equipment?type=barbell&limit=20 ─────────────────────────
 
-router.get("/api/workoutx/equipment", async (req, res) => {
+router.get("/api/workoutx/equipment", publicLimiter, async (req, res) => {
   const type = typeof req.query.type === "string" ? req.query.type.trim() : "";
   const limit = typeof req.query.limit === "string" ? Math.min(parseInt(req.query.limit, 10) || 20, 100) : 20;
 
@@ -359,7 +360,7 @@ router.get("/api/workoutx/equipment", async (req, res) => {
 
 // ── GET /api/workoutx/muscle?target=biceps ────────────────────────────────────
 
-router.get("/api/workoutx/muscle", async (req, res) => {
+router.get("/api/workoutx/muscle", publicLimiter, async (req, res) => {
   const target = typeof req.query.target === "string" ? req.query.target.trim() : "";
 
   if (!target) {
@@ -388,7 +389,7 @@ router.get("/api/workoutx/muscle", async (req, res) => {
 
 // ── GET /api/workoutx/sync-status ─────────────────────────────────────────────
 
-router.get("/api/workoutx/sync-status", async (_req, res) => {
+router.get("/api/workoutx/sync-status", publicLimiter, async (_req, res) => {
   const cached = getExerciseCache().length;
   const db = await getDbExerciseCount();
   res.json({ cached, db });
@@ -396,7 +397,7 @@ router.get("/api/workoutx/sync-status", async (_req, res) => {
 
 // ── POST /api/workoutx/force-sync ─────────────────────────────────────────────
 
-router.post("/api/workoutx/force-sync", async (req, res) => {
+router.post("/api/workoutx/force-sync", adminLimiter, async (req, res) => {
   const adminKey = process.env.ADMIN_KEY;
   if (!adminKey || req.headers["x-admin-key"] !== adminKey) {
     res.status(403).json({ error: "Forbidden" });

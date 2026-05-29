@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { normalLimiter } from "../middlewares/rate-limiters";
 import {
   UpdateProgressBody,
   calculateImc,
@@ -34,7 +35,7 @@ function getWeekRange() {
   };
 }
 
-router.get("/progress", async (req, res) => {
+router.get("/progress", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -93,7 +94,7 @@ router.get("/progress", async (req, res) => {
   }
 });
 
-router.post("/progress", async (req, res) => {
+router.post("/progress", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

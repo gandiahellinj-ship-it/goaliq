@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -30,7 +31,7 @@ export async function ensureWorkoutHistoryTable(): Promise<void> {
 }
 
 // GET /api/workout-history?year=2026&month=4
-router.get("/workout-history", async (req, res) => {
+router.get("/workout-history", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -67,7 +68,7 @@ router.get("/workout-history", async (req, res) => {
 
 // POST /api/workout-history { date, workout_type, exercises, duration_minutes }  → save
 // POST /api/workout-history { date, remove: true }                              → delete
-router.post("/workout-history", async (req, res) => {
+router.post("/workout-history", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

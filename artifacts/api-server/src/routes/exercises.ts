@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { externalApiLimiter } from "../middlewares/rate-limiters";
 
 const router = Router();
 
@@ -128,7 +129,7 @@ function findBestMatch(index: ExerciseEntry[], query: string): ExerciseEntry | n
 // Cache: name key → { imageStart, imageEnd } | null
 const imageCache = new Map<string, ImageResult>();
 
-router.get("/exercises/gif", async (req, res) => {
+router.get("/exercises/gif", externalApiLimiter, async (req, res) => {
   const name = typeof req.query.name === "string" ? req.query.name.trim() : "";
   if (!name) {
     res.status(400).json({ error: "name query param required" });

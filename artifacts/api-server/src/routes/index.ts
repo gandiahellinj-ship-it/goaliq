@@ -34,8 +34,8 @@ router.use(workoutHistoryRouter);
 router.use(strengthRouter);
 router.use(wgerRouter);
 router.use(workoutxRouter);
-router.use(qaRouter);
 if (process.env.NODE_ENV !== "production") {
+  router.use(qaRouter);
   router.use(qaE2eRouter);
 }
 

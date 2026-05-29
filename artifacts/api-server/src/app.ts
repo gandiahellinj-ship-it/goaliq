@@ -10,6 +10,9 @@ import { WebhookHandlers } from "./webhookHandlers";
 
 const app: Express = express();
 
+// Trust proxy (Replit pone X-Forwarded-For) — necesario para rate limiting por IP correcto
+app.set("trust proxy", 1);
+
 // ── Stripe webhook MUST come before express.json() ──────────────────────────
 // Stripe needs the raw Buffer body for signature verification.
 app.post(

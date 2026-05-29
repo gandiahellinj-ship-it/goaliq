@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -36,7 +37,7 @@ function getWeekStart(dateStr: string): string {
 }
 
 // GET /api/flex-days?year=2026&month=4
-router.get("/flex-days", async (req, res) => {
+router.get("/flex-days", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -71,7 +72,7 @@ router.get("/flex-days", async (req, res) => {
 
 // POST /api/flex-days  { date: "2026-04-10" }          → mark
 // POST /api/flex-days  { date: "2026-04-10", remove: true } → unmark
-router.post("/flex-days", async (req, res) => {
+router.post("/flex-days", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -107,7 +108,7 @@ function musclesForGroup(groupKey: string): string[] {
 }
 
 // GET /api/strength?muscle=X
-router.get("/strength", async (req, res) => {
+router.get("/strength", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -140,7 +141,7 @@ router.get("/strength", async (req, res) => {
 // GET /api/strength/group?group=shoulders
 // Returns logs for all specific muscles belonging to the canonical group key,
 // shaped as { byMuscle: { [muscleName]: log[] }, muscles: string[] }
-router.get("/strength/group", async (req, res) => {
+router.get("/strength/group", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -184,7 +185,7 @@ router.get("/strength/group", async (req, res) => {
 });
 
 // GET /api/strength/muscles — distinct specific muscle names the user has logged
-router.get("/strength/muscles", async (req, res) => {
+router.get("/strength/muscles", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -206,7 +207,7 @@ router.get("/strength/muscles", async (req, res) => {
 
 // GET /api/strength/groups — distinct canonical GROUPS the user has data for
 // e.g. ["shoulders", "back"] instead of individual muscle names
-router.get("/strength/groups", async (req, res) => {
+router.get("/strength/groups", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -232,7 +233,7 @@ router.get("/strength/groups", async (req, res) => {
 });
 
 // POST /api/strength  { exerciseName, muscleGroup, weightKg, reps }
-router.post("/strength", async (req, res) => {
+router.post("/strength", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

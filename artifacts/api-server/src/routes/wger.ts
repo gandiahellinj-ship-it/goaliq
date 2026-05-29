@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { externalApiLimiter } from "../middlewares/rate-limiters";
 
 const router = Router();
 
@@ -226,7 +227,7 @@ async function searchWger(term: string): Promise<number | null> {
 
 // ── GET /api/exercises/search?q=squat&lang=es ─────────────────────────────────
 
-router.get("/exercises/search", async (req, res) => {
+router.get("/exercises/search", externalApiLimiter, async (req, res) => {
   const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
   const lang = typeof req.query.lang === "string" ? req.query.lang : "en";
 
@@ -281,7 +282,7 @@ router.get("/exercises/search", async (req, res) => {
 
 // ── GET /api/exercises/wger?muscle=10&lang=es ─────────────────────────────────
 
-router.get("/exercises/wger", async (req, res) => {
+router.get("/exercises/wger", externalApiLimiter, async (req, res) => {
   const muscleId = typeof req.query.muscle === "string" ? req.query.muscle : null;
   const lang = typeof req.query.lang === "string" ? req.query.lang : "en";
   const lc = langCode(lang);

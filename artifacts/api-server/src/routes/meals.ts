@@ -3,6 +3,7 @@ import { GetMealPlanResponse, ReplaceIngredientBody, ReplaceIngredientResponse }
 import { generateMealPlanModerated, replaceIngredientInMeal } from "../lib/aiGenerators";
 import { createUserClient } from "../lib/supabase";
 import { recordMealPlanVersion } from "../lib/plan-versioning";
+import { aiLimiter, aiBurstLimiter, normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -22,7 +23,7 @@ function getCurrentWeekStart() {
 }
 
 // GET — use pg pool to bypass RLS (same DB, just direct access)
-router.get("/meals", async (req, res) => {
+router.get("/meals", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -60,7 +61,7 @@ router.get("/meals", async (req, res) => {
   }
 });
 
-router.post("/meals", async (req, res) => {
+router.post("/meals", aiBurstLimiter, aiLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -241,7 +242,7 @@ router.post("/meals", async (req, res) => {
   res.json({ days, weekStart, id: savedId });
 });
 
-router.post("/meals/replace-ingredient", async (req, res) => {
+router.post("/meals/replace-ingredient", aiBurstLimiter, aiLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

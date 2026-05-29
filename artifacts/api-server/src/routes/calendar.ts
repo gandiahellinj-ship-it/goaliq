@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { GetCalendarQueryParams, GetCalendarResponse, MarkWorkoutCompleteBody, MarkWorkoutCompleteResponse } from "@workspace/api-zod";
+import { normalLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -28,7 +29,7 @@ function mapRow(row: Record<string, unknown>) {
   };
 }
 
-router.get("/calendar", async (req, res) => {
+router.get("/calendar", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -63,7 +64,7 @@ router.get("/calendar", async (req, res) => {
   }
 });
 
-router.post("/calendar/complete", async (req, res) => {
+router.post("/calendar/complete", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;

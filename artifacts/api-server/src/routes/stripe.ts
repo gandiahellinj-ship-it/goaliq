@@ -8,10 +8,11 @@ import {
   updateStripeUserIds,
 } from "../stripeStorage";
 import { getUncachableStripeClient } from "../stripeClient";
+import { stripeLimiter, stripeDebugLimiter, publicLimiter } from "../middlewares/rate-limiters";
 
 const router = Router();
 
-router.get("/plans", async (_req, res) => {
+router.get("/plans", publicLimiter, async (_req, res) => {
   try {
     const plans = await listPlansWithPrices();
     res.json({ plans });
@@ -33,7 +34,7 @@ router.get("/subscription", async (req: any, res) => {
   }
 });
 
-router.post("/subscribe", async (req: any, res) => {
+router.post("/subscribe", stripeLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -49,7 +50,7 @@ router.post("/subscribe", async (req: any, res) => {
   }
 });
 
-router.post("/checkout", async (req: any, res) => {
+router.post("/checkout", stripeLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -81,7 +82,7 @@ router.post("/checkout", async (req: any, res) => {
 
 // Called from the success page: immediately fetches the completed session from Stripe
 // and writes the confirmed subscription status to the DB — no webhook latency.
-router.get("/checkout/verify", async (req: any, res) => {
+router.get("/checkout/verify", stripeLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -147,7 +148,7 @@ router.get("/checkout/verify", async (req: any, res) => {
 // Debug endpoint — live Stripe audit for the logged-in user.
 // Shows what the DB has, what Stripe actually has, and which customer will be
 // used for the billing portal (live email-based lookup, not cached IDs).
-router.get("/debug", async (req: any, res) => {
+router.get("/debug", stripeDebugLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -262,7 +263,7 @@ router.get("/debug", async (req: any, res) => {
   }
 });
 
-router.post("/portal", async (req: any, res) => {
+router.post("/portal", stripeLimiter, async (req: any, res) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
