@@ -51,6 +51,8 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(
   cors({
     credentials: true,
@@ -61,9 +63,12 @@ app.use(
       // Check exact match in allowlist
       if (allowedOrigins.includes(origin)) return callback(null, true);
 
-      // Allow Replit preview domains (development)
-      if (origin.endsWith(".replit.dev")) return callback(null, true);
-      if (origin.endsWith(".repl.co")) return callback(null, true);
+      // Allow Replit preview domains in development only. These are shared,
+      // multi-tenant domains, so allowing them in production would let any
+      // Replit-hosted site make authenticated cross-origin requests.
+      if (!isProduction && (origin.endsWith(".replit.dev") || origin.endsWith(".repl.co"))) {
+        return callback(null, true);
+      }
 
       // Reject everything else
       callback(new Error(`CORS: Origin ${origin} not allowed`));
