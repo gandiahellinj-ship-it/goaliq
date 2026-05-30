@@ -318,9 +318,10 @@ router.get("/api/export-data", normalLimiter, async (req, res) => {
         [userId],
       ),
       pool.query("SELECT code, used_at FROM beta_invite_codes WHERE used_by_user_id = $1", [userId]),
-      // health_validation_logs: created manually in Supabase; no ORDER BY to avoid
-      // assuming a column that may not exist. LIMIT prevents huge exports.
-      pool.query("SELECT * FROM health_validation_logs WHERE user_id = $1 LIMIT 1000", [userId]),
+      pool.query(
+        "SELECT * FROM health_validation_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1000",
+        [userId],
+      ),
       // meal_plan_versions / workout_plan_versions use generated_at, not created_at
       // (see lib/plan-versioning.ts).
       pool.query(
