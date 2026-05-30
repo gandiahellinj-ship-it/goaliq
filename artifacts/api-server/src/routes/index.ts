@@ -16,6 +16,7 @@ import wgerRouter from "./wger";
 import workoutxRouter from "./workoutx";
 import qaRouter from "./qa";
 import qaE2eRouter from "./qa-e2e";
+import gdprRouter from "./gdpr";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ router.use(exercisesRouter);
 router.use(flexDaysRouter);
 router.use(workoutHistoryRouter);
 router.use(strengthRouter);
+router.use(gdprRouter);
 router.use(wgerRouter);
 router.use(workoutxRouter);
 if (process.env.NODE_ENV !== "production") {
