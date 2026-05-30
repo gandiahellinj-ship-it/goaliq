@@ -91,3 +91,16 @@ export const adminLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// 🟡 Beta Validate Limiter — protege contra brute force de códigos beta
+export const betaValidateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 10, // 10 intentos/min/IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "rate_limit_exceeded",
+    message: "Too many code validation attempts. Please try again later.",
+    retryAfter: 60,
+  },
+});

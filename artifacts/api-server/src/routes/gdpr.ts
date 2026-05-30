@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { normalLimiter, publicLimiter } from "../middlewares/rate-limiters";
+import { normalLimiter, publicLimiter, betaValidateLimiter } from "../middlewares/rate-limiters";
 import pg from "pg";
 
 const router: IRouter = Router();
@@ -45,12 +45,13 @@ router.post("/api/consent", normalLimiter, async (req, res) => {
   }
 
   const pool = getPool();
+  const client = await pool.connect();
 
   try {
-    await pool.query("BEGIN");
+    await client.query("BEGIN");
 
     // 1. Insert immutable consent log
-    await pool.query(
+    await client.query(
       `INSERT INTO consent_log (user_id, consent_type, consent_version, accepted, ip_address, user_agent)
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [userId, type, version, accepted, getClientIp(req), getUserAgent(req)],
@@ -66,19 +67,21 @@ router.post("/api/consent", normalLimiter, async (req, res) => {
       };
 
       const column = columnMap[type];
-      await pool.query(
+      await client.query(
         `UPDATE profiles SET ${column} = NOW(), consent_version = $1 WHERE id = $2`,
         [version, userId],
       );
     }
 
-    await pool.query("COMMIT");
+    await client.query("COMMIT");
 
     res.json({ success: true, type, accepted, timestamp: new Date().toISOString() });
   } catch (err) {
-    await pool.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("Consent registration error:", err);
     res.status(500).json({ error: "Failed to register consent" });
+  } finally {
+    client.release();
   }
 });
 
@@ -121,7 +124,7 @@ router.get("/api/consent", normalLimiter, async (req, res) => {
 // ============================================================
 // POST /api/beta/validate-code (PUBLIC)
 // ============================================================
-router.post("/api/beta/validate-code", publicLimiter, async (req, res) => {
+router.post("/api/beta/validate-code", betaValidateLimiter, async (req, res) => {
   const { code } = req.body;
 
   if (typeof code !== "string" || code.length === 0) {
@@ -181,12 +184,13 @@ router.post("/api/beta/claim-code", normalLimiter, async (req, res) => {
   }
 
   const pool = getPool();
+  const client = await pool.connect();
 
   try {
-    await pool.query("BEGIN");
+    await client.query("BEGIN");
 
     // 1. Atomic claim with conditions
-    const claim = await pool.query(
+    const claim = await client.query(
       `UPDATE beta_invite_codes
        SET used_by_user_id = $1, used_at = NOW()
        WHERE code = $2
@@ -197,24 +201,26 @@ router.post("/api/beta/claim-code", normalLimiter, async (req, res) => {
     );
 
     if (claim.rowCount === 0) {
-      await pool.query("ROLLBACK");
+      await client.query("ROLLBACK");
       res.json({ success: false, reason: "Invalid, used, or expired code" });
       return;
     }
 
     // 2. Update profile with code used
-    await pool.query(
+    await client.query(
       `UPDATE profiles SET beta_code_used = $1 WHERE id = $2`,
       [code.trim().toUpperCase(), userId],
     );
 
-    await pool.query("COMMIT");
+    await client.query("COMMIT");
 
     res.json({ success: true });
   } catch (err) {
-    await pool.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("Claim code error:", err);
     res.status(500).json({ success: false, reason: "Server error" });
+  } finally {
+    client.release();
   }
 });
 
@@ -291,6 +297,10 @@ router.get("/api/export-data", normalLimiter, async (req, res) => {
       strengthLogs,
       consents,
       betaCode,
+      healthLogs,
+      mealVersions,
+      workoutVersions,
+      profileEvents,
     ] = await Promise.all([
       pool.query("SELECT * FROM profiles WHERE id = $1", [userId]),
       pool.query("SELECT * FROM food_preferences WHERE user_id = $1", [userId]),
@@ -308,6 +318,23 @@ router.get("/api/export-data", normalLimiter, async (req, res) => {
         [userId],
       ),
       pool.query("SELECT code, used_at FROM beta_invite_codes WHERE used_by_user_id = $1", [userId]),
+      // health_validation_logs: created manually in Supabase; no ORDER BY to avoid
+      // assuming a column that may not exist. LIMIT prevents huge exports.
+      pool.query("SELECT * FROM health_validation_logs WHERE user_id = $1 LIMIT 1000", [userId]),
+      // meal_plan_versions / workout_plan_versions use generated_at, not created_at
+      // (see lib/plan-versioning.ts).
+      pool.query(
+        "SELECT * FROM meal_plan_versions WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 100",
+        [userId],
+      ),
+      pool.query(
+        "SELECT * FROM workout_plan_versions WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 100",
+        [userId],
+      ),
+      pool.query(
+        "SELECT * FROM profile_change_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100",
+        [userId],
+      ),
     ]);
 
     const exportData = {
@@ -328,6 +355,10 @@ router.get("/api/export-data", normalLimiter, async (req, res) => {
         strength_logs: strengthLogs.rows,
         consents_history: consents.rows,
         beta_code: betaCode.rows[0] || null,
+        health_validation_logs: healthLogs.rows,
+        meal_plan_versions: mealVersions.rows,
+        workout_plan_versions: workoutVersions.rows,
+        profile_change_events: profileEvents.rows,
       },
       notes: {
         gdpr_article: "Art. 20 (Right to data portability)",
