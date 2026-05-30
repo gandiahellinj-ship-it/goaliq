@@ -37,6 +37,11 @@ export function AuthModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  // Beta code + RGPD consent (signup only)
+  const [betaCode, setBetaCode] = useState("");
+  const [codeStatus, setCodeStatus] = useState<"idle" | "checking" | "valid" | "invalid">("idle");
+  const [codeError, setCodeError] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     registerLoginModal(() => {
@@ -47,6 +52,39 @@ export function AuthModal() {
     });
   }, []);
 
+  // Debounced beta code validation (signup only). Public endpoint, no auth.
+  useEffect(() => {
+    if (mode !== "signup") return;
+    const trimmed = betaCode.trim();
+    if (trimmed.length < 5) {
+      setCodeStatus("idle");
+      setCodeError("");
+      return;
+    }
+    setCodeStatus("checking");
+    const timeoutId = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/beta/validate-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: trimmed.toUpperCase() }),
+        });
+        const data = await res.json();
+        if (data.valid) {
+          setCodeStatus("valid");
+          setCodeError("");
+        } else {
+          setCodeStatus("invalid");
+          setCodeError(data.reason || "Código no válido");
+        }
+      } catch {
+        setCodeStatus("invalid");
+        setCodeError("Error al verificar código");
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [betaCode, mode]);
+
   const reset = () => {
     setEmail("");
     setPassword("");
@@ -54,6 +92,10 @@ export function AuthModal() {
     setError(null);
     setSuccess(null);
     setLoading(false);
+    setBetaCode("");
+    setCodeStatus("idle");
+    setCodeError("");
+    setAcceptedTerms(false);
   };
 
   const handleClose = () => {
@@ -74,7 +116,19 @@ export function AuthModal() {
     setSuccess(null);
 
     if (mode === "signup") {
-      const { error: err } = await supabase.auth.signUp({
+      // Pre-validation: beta code + RGPD consent are required
+      if (codeStatus !== "valid") {
+        setError("Necesitas un código de invitación válido");
+        setLoading(false);
+        return;
+      }
+      if (!acceptedTerms) {
+        setError("Debes aceptar los términos y la política de privacidad");
+        setLoading(false);
+        return;
+      }
+
+      const { data, error: err } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -84,8 +138,38 @@ export function AuthModal() {
       if (err) {
         setError(translateAuthError(err.message));
       } else {
-        setSuccess("¡Cuenta creada! Revisa tu correo para confirmarla y luego inicia sesión.");
-        setMode("login");
+        // Email confirmation disabled in Supabase → session is present in `data.session`.
+        const token = data?.session?.access_token;
+        if (token) {
+          const headers = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          };
+          const codeUpper = betaCode.trim().toUpperCase();
+          // Fire all 3 calls in parallel; failures are non-fatal (logged).
+          await Promise.all([
+            fetch("/api/beta/claim-code", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ code: codeUpper }),
+            }).catch((e) => console.error("Failed to claim beta code:", e)),
+            fetch("/api/consent", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ type: "terms_of_use", accepted: true }),
+            }).catch((e) => console.error("Failed to register terms consent:", e)),
+            fetch("/api/consent", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ type: "privacy_policy", accepted: true }),
+            }).catch((e) => console.error("Failed to register privacy consent:", e)),
+          ]);
+        } else {
+          console.error("No session after signup — claim-code and consent skipped");
+        }
+        setSuccess("¡Cuenta creada! Bienvenido a GoalIQ.");
+        // Landing auto-redirects to /dashboard when isAuthenticated becomes true.
+        handleClose();
       }
     } else {
       const { error: err } = await supabase.auth.signInWithPassword({ email, password });
@@ -203,6 +287,59 @@ export function AuthModal() {
                   </button>
                 </div>
               </div>
+
+              {mode === "signup" && (
+                <>
+                  <div>
+                    <label className="text-sm font-semibold text-[#A0A0A0] block mb-1.5">Código de invitación</label>
+                    <input
+                      type="text"
+                      required
+                      value={betaCode}
+                      onChange={e => setBetaCode(e.target.value.toUpperCase())}
+                      placeholder="GOALIQ-BETA-XXX"
+                      className={`${inputClass} ${
+                        codeStatus === "valid"
+                          ? "border-[#AAFF45] focus:border-[#AAFF45]"
+                          : codeStatus === "invalid"
+                            ? "border-[#FF4444] focus:border-[#FF4444]"
+                            : ""
+                      }`}
+                    />
+                    {codeStatus === "checking" && (
+                      <p className="text-xs text-[#A0A0A0] mt-1">Verificando código…</p>
+                    )}
+                    {codeStatus === "valid" && (
+                      <p className="text-xs text-[#AAFF45] mt-1">✓ Código válido</p>
+                    )}
+                    {codeStatus === "invalid" && codeError && (
+                      <p className="text-xs text-[#FF4444] mt-1">{codeError}</p>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      id="accept-terms"
+                      required
+                      checked={acceptedTerms}
+                      onChange={e => setAcceptedTerms(e.target.checked)}
+                      className="mt-1 accent-[#AAFF45]"
+                    />
+                    <label htmlFor="accept-terms" className="text-xs text-[#A0A0A0]">
+                      Acepto los{" "}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#AAFF45] hover:underline">
+                        Términos de Uso
+                      </a>{" "}
+                      y la{" "}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#AAFF45] hover:underline">
+                        Política de Privacidad
+                      </a>
+                      , incluyendo el tratamiento de mis datos personales conforme al RGPD.
+                    </label>
+                  </div>
+                </>
+              )}
 
               {error && (
                 <div className="text-sm text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-4 py-3">

@@ -9,6 +9,8 @@ import { LanguageProvider } from "@/lib/language";
 
 import Landing from "@/pages/Landing";
 import Pricing from "@/pages/Pricing";
+import Privacy from "@/pages/Privacy";
+import Terms from "@/pages/Terms";
 import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
@@ -39,6 +41,8 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/pricing" component={Pricing} />
+      <Route path="/privacy" component={Privacy} />
+      <Route path="/terms" component={Terms} />
       <Route path="/checkout/success" component={CheckoutSuccess} />
       <Route path="/onboarding" component={Onboarding} />
       
