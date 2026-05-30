@@ -6,6 +6,16 @@ import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
 import { useT, useLanguage } from "@/lib/language";
 import { useGenerateMealPlan, useGenerateWorkoutPlan } from "@/lib/supabase-queries";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -210,6 +220,12 @@ export default function Onboarding() {
   const [showAllergiesWarning, setShowAllergiesWarning] = useState(false);
   const [blockReason, setBlockReason] = useState<string | null>(null);
 
+  // ── RGPD consents (Step 0 medical + Step 6 AI disclosure) ──────────────
+  const [medicalConsentAccepted, setMedicalConsentAccepted] = useState(false);
+  const [medicalConsentSubmitting, setMedicalConsentSubmitting] = useState(false);
+  const [aiConsentDialogOpen, setAiConsentDialogOpen] = useState(false);
+  const [aiConsentSubmitting, setAiConsentSubmitting] = useState(false);
+
   const STEPS = ["salud", "sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
   const STEP_NAMES_ES = ["Salud", "Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
   const STEP_NAMES_EN = ["Health", "About you", "Your goal", "Your diet", "Training", "Supplements", "Summary"];
@@ -358,7 +374,7 @@ export default function Onboarding() {
   }
 
   const anyConditionMarked = Object.values(conditions).some(Boolean);
-  const screeningContinueDisabled = !anyConditionMarked && !declaredNoConditions;
+  const screeningContinueDisabled = (!anyConditionMarked && !declaredNoConditions) || !medicalConsentAccepted;
 
   function buildScreeningPayload(allergiesAck: boolean) {
     return {
@@ -455,6 +471,81 @@ export default function Onboarding() {
   function setTiming(id: string, idx: number) {
     setSelectedSupplements(prev => ({ ...prev, [id]: idx }));
   }
+
+  // ── RGPD consent helpers ───────────────────────────────────────────────
+  const registerMedicalConsent = async () => {
+    setMedicalConsentSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      await fetch("/api/consent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "medical_data_processing",
+          accepted: true,
+          version: "v1.0",
+        }),
+      });
+    } catch (err) {
+      // Fire-and-forget: log pero NO bloquear flujo
+      console.error("Failed to register medical consent:", err);
+    } finally {
+      setMedicalConsentSubmitting(false);
+    }
+  };
+
+  const handleMedicalConsentChange = (checked: boolean) => {
+    setMedicalConsentAccepted(checked);
+    if (checked) {
+      // Fire-and-forget: registra el consent en background
+      registerMedicalConsent();
+    }
+  };
+
+  const handleFinalSubmit = () => {
+    setAiConsentDialogOpen(true);
+  };
+
+  const handleAiConsentAndSubmit = async () => {
+    setAiConsentSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) {
+        throw new Error("No session");
+      }
+      // Estricto: AI consent debe registrarse antes de generar
+      const consentRes = await fetch("/api/consent", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          type: "ai_disclosure",
+          accepted: true,
+          version: "v1.0",
+        }),
+      });
+      if (!consentRes.ok) {
+        throw new Error("Failed to register AI consent");
+      }
+      setAiConsentDialogOpen(false);
+      await handleSubmit();
+    } catch (err) {
+      console.error("AI consent failed:", err);
+      setError(isES
+        ? "No se pudo registrar el consentimiento. Por favor, intenta de nuevo."
+        : "Could not register consent. Please try again.");
+    } finally {
+      setAiConsentSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!formData.displayName.trim()) {
@@ -793,7 +884,7 @@ export default function Onboarding() {
       }
       setCurrentStep(s => s + 1);
     } else {
-      handleSubmit();
+      handleFinalSubmit();
     }
   }
 
@@ -851,6 +942,64 @@ export default function Onboarding() {
                     ? "Cuestionario médico obligatorio — necesitamos confirmar que GoalIQ es seguro para ti."
                     : "Mandatory health questionnaire — we need to confirm GoalIQ is safe for you."}
                 </p>
+              </div>
+
+              {/* RGPD Art. 9 — Consentimiento explícito de datos médicos */}
+              <div className="mb-3 p-4 bg-[#1A1A1A] border border-[#AAFF45]/30 rounded-lg">
+                <h3 className="text-[#AAFF45] font-semibold mb-2 flex items-center gap-2">
+                  🛡️ {isES ? "Consentimiento de datos médicos (RGPD Art. 9)" : "Medical data consent (GDPR Art. 9)"}
+                </h3>
+                <p className="text-sm text-[#A0A0A0] mb-3 leading-relaxed">
+                  {isES ? (
+                    <>
+                      Para crear tus planes personalizados de forma segura, necesitamos procesar{" "}
+                      <strong className="text-white">datos médicos sensibles</strong> (alergias,
+                      condiciones médicas, medicamentos). Según el Reglamento General de Protección
+                      de Datos (RGPD), estos datos son categoría especial y requieren tu{" "}
+                      <strong className="text-white">consentimiento explícito</strong>.
+                    </>
+                  ) : (
+                    <>
+                      To safely create your personalized plans, we need to process{" "}
+                      <strong className="text-white">sensitive medical data</strong> (allergies,
+                      conditions, medications). Under the GDPR, this data is a special category and
+                      requires your <strong className="text-white">explicit consent</strong>.
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-[#808080] mb-3">
+                  {isES
+                    ? "Estos datos se almacenan cifrados, solo tú tienes acceso, y puedes solicitar su eliminación en cualquier momento desde tu cuenta. "
+                    : "This data is stored encrypted, only you have access, and you can request its deletion at any time from your account. "}
+                  <a href="/privacy" target="_blank" rel="noopener noreferrer"
+                     className="text-[#AAFF45] hover:underline">
+                    {isES ? "Ver Política de Privacidad" : "View Privacy Policy"}
+                  </a>
+                </p>
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={medicalConsentAccepted}
+                    onChange={(e) => handleMedicalConsentChange(e.target.checked)}
+                    className="mt-1 accent-[#AAFF45]"
+                    disabled={medicalConsentSubmitting}
+                  />
+                  <span className="text-sm text-white">
+                    {isES ? (
+                      <>
+                        <strong>Acepto el procesamiento de mis datos médicos</strong> conforme
+                        al Art. 9.2.a del RGPD (consentimiento explícito) para que GoalIQ pueda
+                        crear planes personalizados adaptados a mi salud.
+                      </>
+                    ) : (
+                      <>
+                        <strong>I consent to the processing of my medical data</strong> under
+                        GDPR Art. 9.2.a (explicit consent) so that GoalIQ can create personalized
+                        plans tailored to my health.
+                      </>
+                    )}
+                  </span>
+                </label>
               </div>
 
               <SectionCard emoji="🩺" title={isES ? "Cuestionario médico" : "Health questionnaire"}>
@@ -1687,6 +1836,92 @@ export default function Onboarding() {
           )}
         </div>
       </div>
+      {/* RGPD Art. 22 — AI disclosure consent (gate antes de enviar datos a Anthropic) */}
+      <AlertDialog open={aiConsentDialogOpen} onOpenChange={setAiConsentDialogOpen}>
+        <AlertDialogContent className="bg-[#1A1A1A] border-[#AAFF45]/30 text-white max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#AAFF45] flex items-center gap-2">
+              🤖 {isES ? "Generación de planes con IA" : "AI plan generation"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="text-[#A0A0A0] space-y-3 mt-3">
+              {isES ? (
+                <>
+                  <span className="block">
+                    Para crear tus planes personalizados, GoalIQ utiliza{" "}
+                    <strong className="text-white">Claude (Anthropic, Inc.)</strong>,
+                    un modelo de IA con servidores en Estados Unidos.
+                  </span>
+                  <span className="block">
+                    <strong className="text-white">Se enviarán tus datos a Anthropic:</strong>
+                  </span>
+                  <ul className="list-disc pl-5 text-sm space-y-1">
+                    <li>Tu perfil físico (edad, sexo, peso, altura)</li>
+                    <li>Tus datos médicos (alergias, condiciones, medicamentos)</li>
+                    <li>Tus preferencias y objetivos</li>
+                  </ul>
+                  <span className="block text-sm">
+                    Anthropic ofrece garantías contractuales bajo las Cláusulas Contractuales
+                    Tipo de la UE (SCC). Tus datos no se usan para entrenar modelos.
+                  </span>
+                  <span className="block text-sm">
+                    Puedes ver más detalles en nuestra{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer"
+                       className="text-[#AAFF45] hover:underline">
+                      Política de Privacidad
+                    </a>.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="block">
+                    To create your personalized plans, GoalIQ uses{" "}
+                    <strong className="text-white">Claude (Anthropic, Inc.)</strong>,
+                    an AI model with servers in the United States.
+                  </span>
+                  <span className="block">
+                    <strong className="text-white">Your data will be sent to Anthropic:</strong>
+                  </span>
+                  <ul className="list-disc pl-5 text-sm space-y-1">
+                    <li>Your physical profile (age, sex, weight, height)</li>
+                    <li>Your medical data (allergies, conditions, medications)</li>
+                    <li>Your preferences and goals</li>
+                  </ul>
+                  <span className="block text-sm">
+                    Anthropic provides contractual guarantees under EU Standard Contractual
+                    Clauses (SCC). Your data is not used to train models.
+                  </span>
+                  <span className="block text-sm">
+                    See more details in our{" "}
+                    <a href="/privacy" target="_blank" rel="noopener noreferrer"
+                       className="text-[#AAFF45] hover:underline">
+                      Privacy Policy
+                    </a>.
+                  </span>
+                </>
+              )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel
+              className="bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] border-[#3A3A3A]"
+              disabled={aiConsentSubmitting}
+            >
+              {isES ? "Volver" : "Back"}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAiConsentAndSubmit}
+              className="bg-[#AAFF45] text-black hover:bg-[#88DD22] font-semibold"
+              disabled={aiConsentSubmitting}
+            >
+              {aiConsentSubmitting
+                ? (isES ? "Procesando…" : "Processing…")
+                : (isES ? "Aceptar y crear plan" : "Accept and create plan")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
