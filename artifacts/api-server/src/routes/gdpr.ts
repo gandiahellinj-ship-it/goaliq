@@ -24,7 +24,7 @@ function getUserAgent(req: Request): string {
 // POST /api/consent
 // Body: { type, accepted, version? }
 // ============================================================
-router.post("/api/consent", normalLimiter, async (req, res) => {
+router.post("/consent", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -88,7 +88,7 @@ router.post("/api/consent", normalLimiter, async (req, res) => {
 // ============================================================
 // GET /api/consent
 // ============================================================
-router.get("/api/consent", normalLimiter, async (req, res) => {
+router.get("/consent", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -124,7 +124,7 @@ router.get("/api/consent", normalLimiter, async (req, res) => {
 // ============================================================
 // POST /api/beta/validate-code (PUBLIC)
 // ============================================================
-router.post("/api/beta/validate-code", betaValidateLimiter, async (req, res) => {
+router.post("/beta/validate-code", betaValidateLimiter, async (req, res) => {
   const { code } = req.body;
 
   if (typeof code !== "string" || code.length === 0) {
@@ -169,7 +169,7 @@ router.post("/api/beta/validate-code", betaValidateLimiter, async (req, res) => 
 // ============================================================
 // POST /api/beta/claim-code (AUTH)
 // ============================================================
-router.post("/api/beta/claim-code", normalLimiter, async (req, res) => {
+router.post("/beta/claim-code", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -230,7 +230,7 @@ router.post("/api/beta/claim-code", normalLimiter, async (req, res) => {
 // Auth model: Bearer JWT (no passport/session). Client must discard
 // its token after a successful response.
 // ============================================================
-router.delete("/api/account", normalLimiter, async (req, res) => {
+router.delete("/account", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -273,7 +273,7 @@ router.delete("/api/account", normalLimiter, async (req, res) => {
 // ============================================================
 // GET /api/export-data — GDPR Art. 20
 // ============================================================
-router.get("/api/export-data", normalLimiter, async (req, res) => {
+router.get("/export-data", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
