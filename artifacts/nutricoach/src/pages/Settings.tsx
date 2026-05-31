@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useT, useLanguage, type Lang } from "@/lib/language";
 import { type Theme, getStoredTheme, applyTheme } from "@/lib/theme";
@@ -268,8 +268,10 @@ export default function Settings() {
 
         {/* Links Privacy / Terms — read what you accepted */}
         <div className="space-y-2">
-          <Link
+          <a
             href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
             className="block py-2 px-3 rounded-lg text-sm transition-opacity hover:opacity-80"
             style={{
               backgroundColor: "var(--giq-bg-card)",
@@ -278,9 +280,11 @@ export default function Settings() {
             }}
           >
             {t("view_privacy_policy")}
-          </Link>
-          <Link
+          </a>
+          <a
             href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
             className="block py-2 px-3 rounded-lg text-sm transition-opacity hover:opacity-80"
             style={{
               backgroundColor: "var(--giq-bg-card)",
@@ -289,7 +293,7 @@ export default function Settings() {
             }}
           >
             {t("view_terms")}
-          </Link>
+          </a>
         </div>
 
         {/* Export — GDPR Art. 20 */}
