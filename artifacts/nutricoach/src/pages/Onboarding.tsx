@@ -225,6 +225,38 @@ export default function Onboarding() {
   const [medicalConsentSubmitting, setMedicalConsentSubmitting] = useState(false);
   const [aiConsentDialogOpen, setAiConsentDialogOpen] = useState(false);
   const [aiConsentSubmitting, setAiConsentSubmitting] = useState(false);
+  // Track whether medical consent already exists (pre-mark + skip duplicate POST)
+  const [medicalConsentAlreadyRegistered, setMedicalConsentAlreadyRegistered] = useState(false);
+  const [medicalConsentLoaded, setMedicalConsentLoaded] = useState(false);
+
+  // On mount: check if medical consent already exists → pre-fill checkbox + skip future inserts
+  useEffect(() => {
+    const checkExistingConsent = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        if (!token) {
+          setMedicalConsentLoaded(true);
+          return;
+        }
+        const res = await fetch("/api/consent", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.medical_consent_at) {
+            setMedicalConsentAccepted(true);
+            setMedicalConsentAlreadyRegistered(true);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check existing consent:", err);
+      } finally {
+        setMedicalConsentLoaded(true);
+      }
+    };
+    checkExistingConsent();
+  }, []);
 
   const STEPS = ["salud", "sobre-ti", "objetivo", "dieta", "entrenamiento", "suplementos", "resumen"];
   const STEP_NAMES_ES = ["Salud", "Sobre ti", "Tu objetivo", "Tu dieta", "Entrenamiento", "Suplementos", "Resumen"];
@@ -501,9 +533,11 @@ export default function Onboarding() {
 
   const handleMedicalConsentChange = (checked: boolean) => {
     setMedicalConsentAccepted(checked);
-    if (checked) {
-      // Fire-and-forget: registra el consent en background
+    // SKIP insert si: ya estaba registrado de una sesión previa, o está desmarcando.
+    if (checked && !medicalConsentAlreadyRegistered) {
       registerMedicalConsent();
+      // Tras el primer insert, marcar como registrado para no duplicar en sucesivos toggles.
+      setMedicalConsentAlreadyRegistered(true);
     }
   };
 
@@ -976,30 +1010,37 @@ export default function Onboarding() {
                     {isES ? "Ver Política de Privacidad" : "View Privacy Policy"}
                   </a>
                 </p>
-                <label className="flex items-start gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={medicalConsentAccepted}
-                    onChange={(e) => handleMedicalConsentChange(e.target.checked)}
-                    className="mt-1 accent-[#AAFF45]"
-                    disabled={medicalConsentSubmitting}
-                  />
-                  <span className="text-sm text-white">
-                    {isES ? (
-                      <>
-                        <strong>Acepto el procesamiento de mis datos médicos</strong> conforme
-                        al Art. 9.2.a del RGPD (consentimiento explícito) para que GoalIQ pueda
-                        crear planes personalizados adaptados a mi salud.
-                      </>
-                    ) : (
-                      <>
-                        <strong>I consent to the processing of my medical data</strong> under
-                        GDPR Art. 9.2.a (explicit consent) so that GoalIQ can create personalized
-                        plans tailored to my health.
-                      </>
-                    )}
-                  </span>
-                </label>
+                {!medicalConsentLoaded ? (
+                  <p className="text-sm text-[#A0A0A0] italic flex items-center gap-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    {isES ? "Verificando estado…" : "Checking status…"}
+                  </p>
+                ) : (
+                  <label className="flex items-start gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={medicalConsentAccepted}
+                      onChange={(e) => handleMedicalConsentChange(e.target.checked)}
+                      className="mt-1 accent-[#AAFF45]"
+                      disabled={medicalConsentSubmitting}
+                    />
+                    <span className="text-sm text-white">
+                      {isES ? (
+                        <>
+                          <strong>Acepto el procesamiento de mis datos médicos</strong> conforme
+                          al Art. 9.2.a del RGPD (consentimiento explícito) para que GoalIQ pueda
+                          crear planes personalizados adaptados a mi salud.
+                        </>
+                      ) : (
+                        <>
+                          <strong>I consent to the processing of my medical data</strong> under
+                          GDPR Art. 9.2.a (explicit consent) so that GoalIQ can create personalized
+                          plans tailored to my health.
+                        </>
+                      )}
+                    </span>
+                  </label>
+                )}
               </div>
 
               <SectionCard emoji="🩺" title={isES ? "Cuestionario médico" : "Health questionnaire"}>
