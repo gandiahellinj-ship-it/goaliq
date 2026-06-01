@@ -282,6 +282,18 @@ router.get("/export-data", normalLimiter, async (req, res) => {
   const userId = (req.user as any).id;
   const pool = getPool();
 
+  // NOTE: weight_entries and progress_logs tables don't exist in current Supabase schema.
+  // Removed from export to keep it resilient. Re-add when tables are created/migrated.
+  // Backup data may live in backup_progress_logs_legacy.
+  const safeQuery = async (sql: string, params: unknown[]): Promise<{ rows: unknown[] }> => {
+    try {
+      return await pool.query(sql, params);
+    } catch (err: any) {
+      console.warn(`[export] query failed: ${sql.slice(0, 60)}… — ${err?.message ?? err}`);
+      return { rows: [] };
+    }
+  };
+
   try {
     const [
       profile,
@@ -289,8 +301,6 @@ router.get("/export-data", normalLimiter, async (req, res) => {
       healthScreening,
       mealPlans,
       workoutPlans,
-      weightEntries,
-      progressLogs,
       calendarEvents,
       flexDays,
       workoutHistory,
@@ -302,37 +312,35 @@ router.get("/export-data", normalLimiter, async (req, res) => {
       workoutVersions,
       profileEvents,
     ] = await Promise.all([
-      pool.query("SELECT * FROM profiles WHERE id = $1", [userId]),
-      pool.query("SELECT * FROM food_preferences WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM health_screenings WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM meal_plans WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM workout_plans WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM weight_entries WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM progress_logs WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM calendar_events WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM flex_days WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM workout_history WHERE user_id = $1", [userId]),
-      pool.query("SELECT * FROM strength_logs WHERE user_id = $1", [userId]),
-      pool.query(
+      safeQuery("SELECT * FROM profiles WHERE id = $1", [userId]),
+      safeQuery("SELECT * FROM food_preferences WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM health_screenings WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM meal_plans WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM workout_plans WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM calendar_events WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM flex_days WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM workout_history WHERE user_id = $1", [userId]),
+      safeQuery("SELECT * FROM strength_logs WHERE user_id = $1", [userId]),
+      safeQuery(
         "SELECT consent_type, consent_version, accepted, created_at FROM consent_log WHERE user_id = $1 ORDER BY created_at DESC",
         [userId],
       ),
-      pool.query("SELECT code, used_at FROM beta_invite_codes WHERE used_by_user_id = $1", [userId]),
-      pool.query(
+      safeQuery("SELECT code, used_at FROM beta_invite_codes WHERE used_by_user_id = $1", [userId]),
+      safeQuery(
         "SELECT * FROM health_validation_logs WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1000",
         [userId],
       ),
       // meal_plan_versions / workout_plan_versions use generated_at, not created_at
       // (see lib/plan-versioning.ts).
-      pool.query(
+      safeQuery(
         "SELECT * FROM meal_plan_versions WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 100",
         [userId],
       ),
-      pool.query(
+      safeQuery(
         "SELECT * FROM workout_plan_versions WHERE user_id = $1 ORDER BY generated_at DESC LIMIT 100",
         [userId],
       ),
-      pool.query(
+      safeQuery(
         "SELECT * FROM profile_change_events WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100",
         [userId],
       ),
@@ -348,8 +356,6 @@ router.get("/export-data", normalLimiter, async (req, res) => {
         health_screening: healthScreening.rows[0] || null,
         meal_plans: mealPlans.rows,
         workout_plans: workoutPlans.rows,
-        weight_entries: weightEntries.rows,
-        progress_logs: progressLogs.rows,
         calendar_events: calendarEvents.rows,
         flex_days: flexDays.rows,
         workout_history: workoutHistory.rows,
