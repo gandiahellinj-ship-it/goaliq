@@ -1,5 +1,6 @@
 import { ArrowLeft, ShieldCheck, Utensils, Target, Heart, ThumbsDown, AlertTriangle, Info, Pencil, AlertCircle, User } from "lucide-react";
 import { Link } from "wouter";
+import { isBetaMode } from "@/lib/beta";
 import { useProfile, useFoodPreferences } from "@/lib/supabase-queries";
 import { useT } from "@/lib/language";
 
@@ -125,7 +126,7 @@ export default function UserProfile() {
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link
-          href="/billing"
+          href={isBetaMode() ? "/profile" : "/billing"}
           className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-[#555555] hover:text-white hover:border-[#3A3A3A] transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

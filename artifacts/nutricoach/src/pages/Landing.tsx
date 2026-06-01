@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
+import { isBetaMode } from "@/lib/beta";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Dumbbell, Utensils, TrendingUp } from "lucide-react";
 import { useEffect } from "react";
@@ -38,9 +39,11 @@ export default function Landing() {
           <GoalIQLogo size="md" className="hidden sm:block" />
         </>
         <div className="flex items-center gap-3">
-          <Link href="/pricing" className="text-sm font-medium text-[#A0A0A0] hover:text-white transition-colors hidden sm:block">
-            Precios
-          </Link>
+          {!isBetaMode() && (
+            <Link href="/pricing" className="text-sm font-medium text-[#A0A0A0] hover:text-white transition-colors hidden sm:block">
+              Precios
+            </Link>
+          )}
           <button
             onClick={login}
             className="text-sm font-semibold px-4 py-2 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-white hover:border-[#AAFF45] transition-colors"
@@ -81,12 +84,14 @@ export default function Landing() {
               Empezar prueba gratis
               <ArrowRight className="w-5 h-5" />
             </button>
-            <Link
-              href="/pricing"
-              className="px-8 py-4 rounded-lg font-semibold bg-transparent text-white border border-[#2A2A2A] hover:border-[#AAFF45] transition-colors text-base text-center"
-            >
-              Ver qué incluye
-            </Link>
+            {!isBetaMode() && (
+              <Link
+                href="/pricing"
+                className="px-8 py-4 rounded-lg font-semibold bg-transparent text-white border border-[#2A2A2A] hover:border-[#AAFF45] transition-colors text-base text-center"
+              >
+                Ver qué incluye
+              </Link>
+            )}
           </div>
 
           <p className="text-sm text-[#555555] font-medium mb-12">

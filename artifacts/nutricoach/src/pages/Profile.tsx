@@ -9,6 +9,7 @@ import {
 } from "@/lib/supabase-queries";
 import type { WorkoutHistoryRecord } from "@/lib/supabase-queries";
 import { useAuth } from "@/hooks/useAuth";
+import { isBetaMode } from "@/lib/beta";
 import { useSubscription } from "@/lib/subscription";
 import { useT } from "@/lib/language";
 import { supabase } from "@/lib/supabase";
@@ -450,16 +451,18 @@ export default function Profile() {
           <p className="text-sm truncate mt-0.5" style={{ color: "var(--giq-text-muted)" }}>
             {email}
           </p>
-          <span
-            className="inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-xs font-black tracking-widest uppercase"
-            style={
-              isPro
-                ? { backgroundColor: ACCENT_DIM, color: ACCENT, border: `1px solid ${ACCENT}` }
-                : { backgroundColor: "var(--giq-border)", color: "var(--giq-text-muted)", border: "1px solid var(--giq-border)" }
-            }
-          >
-            {isPro ? "PRO" : "FREE"}
-          </span>
+          {!isBetaMode() && (
+            <span
+              className="inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-xs font-black tracking-widest uppercase"
+              style={
+                isPro
+                  ? { backgroundColor: ACCENT_DIM, color: ACCENT, border: `1px solid ${ACCENT}` }
+                  : { backgroundColor: "var(--giq-border)", color: "var(--giq-text-muted)", border: "1px solid var(--giq-border)" }
+              }
+            >
+              {isPro ? "PRO" : "FREE"}
+            </span>
+          )}
         </div>
       </div>
 

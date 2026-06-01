@@ -1,5 +1,6 @@
 import { useLocation } from "wouter";
 import { Lock, Gift, Zap } from "lucide-react";
+import { isBetaMode } from "@/lib/beta";
 import { useTrialCopy } from "@/lib/i18n";
 import { useSubscription } from "@/lib/subscription";
 
@@ -18,6 +19,9 @@ export function UpgradeBanner({
   const [, navigate] = useLocation();
   const t = useTrialCopy();
   const { data: subData } = useSubscription();
+
+  // Beta mode: do not render upgrade prompts
+  if (isBetaMode()) return null;
 
   const hasUsedTrial = subData?.hasUsedTrial ?? false;
   const hasAccess = subData?.hasAccess ?? false;

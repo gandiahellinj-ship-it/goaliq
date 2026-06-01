@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useMealPlan, useWorkoutPlan, useProgressStats, useProfile, useFlexDays } from "@/lib/supabase-queries";
 import type { ProgressStats } from "@/lib/supabase-queries";
+import { isBetaMode } from "@/lib/beta";
 import { useSubscription } from "@/lib/subscription";
 import { UpgradeBanner } from "@/components/UpgradeBanner";
 import { useT, useLanguage, translateDay } from "@/lib/language";
@@ -249,6 +250,9 @@ function TrialStatusCard({ trialEndsAt }: { trialEndsAt: number | null }) {
     ? new Date(trialEndsAt * 1000).toLocaleDateString("es-ES", { day: "numeric", month: "short" })
     : null;
   const t = useT();
+
+  // Beta mode: no trial countdown widget
+  if (isBetaMode()) return null;
 
   return (
     <motion.div
@@ -705,13 +709,15 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ── Smart Insight (pro) ────────────────────────────────────────────── */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
-        {canViewInsights && feedback && stats ? (
-          <SmartInsightCard feedback={feedback} streak={stats.streak} />
-        ) : (
-          <UpgradeBanner feature="Smart Coaching Insights" requiredTier="premium" />
-        )}
-      </motion.div>
+      {!isBetaMode() && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.07 }}>
+          {canViewInsights && feedback && stats ? (
+            <SmartInsightCard feedback={feedback} streak={stats.streak} />
+          ) : (
+            <UpgradeBanner feature="Smart Coaching Insights" requiredTier="premium" />
+          )}
+        </motion.div>
+      )}
 
       {/* ── 3. Workout preview card ────────────────────────────────────────── */}
       {workoutPlan && (

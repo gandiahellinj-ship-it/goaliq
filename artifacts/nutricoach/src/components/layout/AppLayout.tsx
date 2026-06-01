@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useLocation, Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { isBetaMode } from "@/lib/beta";
 import { useSubscription } from "@/lib/subscription";
 import { useTrialCopy } from "@/lib/i18n";
 import { useT } from "@/lib/language";
@@ -374,7 +375,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   function NavLink({ item }: { item: typeof navItems[0] }) {
     const isActive = location === item.href;
-    const isLocked = item.gated && !hasAccess;
+    const isLocked = item.gated && !hasAccess && !isBetaMode();
 
     return (
       <Link
@@ -414,7 +415,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   function MobileNavItem({ item }: { item: typeof navItems[0] }) {
     const isActive = location === item.href;
-    const isLocked = item.gated && !hasAccess;
+    const isLocked = item.gated && !hasAccess && !isBetaMode();
 
     return (
       <Link
@@ -479,7 +480,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        {isTrialing ? (
+        {!isBetaMode() && (isTrialing ? (
           <div className="px-3 pb-3">
             <Link
               href="/billing"
@@ -518,7 +519,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {t.ctaStartFree}
             </Link>
           </div>
-        ) : null}
+        ) : null)}
 
         {/* QA Button — dev only */}
         {isDevEnv && (
@@ -599,13 +600,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     href="/profile"
                     onClick={() => setProfileMenuOpen(false)}
                   />
-                  <ProfileMenuItem
-                    icon={<CreditCard className="w-4 h-4" />}
-                    label={tl("billing")}
-                    href="/billing"
-                    onClick={() => setProfileMenuOpen(false)}
-                    bordered
-                  />
+                  {!isBetaMode() && (
+                    <ProfileMenuItem
+                      icon={<CreditCard className="w-4 h-4" />}
+                      label={tl("billing")}
+                      href="/billing"
+                      onClick={() => setProfileMenuOpen(false)}
+                      bordered
+                    />
+                  )}
                   <ProfileMenuItem
                     icon={<Settings className="w-4 h-4" />}
                     label={tl("nav_settings")}
@@ -730,13 +733,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       href="/profile"
                       onClick={() => setProfileMenuOpen(false)}
                     />
-                    <ProfileMenuItem
-                      icon={<CreditCard className="w-4 h-4" />}
-                      label={tl("billing")}
-                      href="/billing"
-                      onClick={() => setProfileMenuOpen(false)}
-                      bordered
-                    />
+                    {!isBetaMode() && (
+                      <ProfileMenuItem
+                        icon={<CreditCard className="w-4 h-4" />}
+                        label={tl("billing")}
+                        href="/billing"
+                        onClick={() => setProfileMenuOpen(false)}
+                        bordered
+                      />
+                    )}
                     <ProfileMenuItem
                       icon={<Settings className="w-4 h-4" />}
                       label={tl("nav_settings")}

@@ -1,4 +1,5 @@
 import { useLocation } from "wouter";
+import { isBetaMode } from "@/lib/beta";
 import { useSubscription, useCreateCheckout, checkoutErrorMessage } from "@/lib/subscription";
 import { useTrialCopy } from "@/lib/i18n";
 import { useT } from "@/lib/language";
@@ -28,6 +29,9 @@ export function TrialGate({ children, pageName, pageEmoji = "🎯" }: TrialGateP
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const tc = useTrialCopy();
   const t = useT();
+
+  // Beta mode: passthrough, no paywall
+  if (isBetaMode()) return <>{children}</>;
 
   if (subLoading) {
     return (
