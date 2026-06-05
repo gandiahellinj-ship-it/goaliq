@@ -229,6 +229,10 @@ router.post("/beta/claim-code", normalLimiter, async (req, res) => {
 // Body: { confirmation: "DELETE_MY_ACCOUNT" }
 // Auth model: Bearer JWT (no passport/session). Client must discard
 // its token after a successful response.
+//
+// Transactional: INSERT deletion_logs + DELETE auth.users atomic.
+// If either fails, both rollback. Log is always created BEFORE
+// the cascade to preserve audit trail (RGPD Art. 17 compliance).
 // ============================================================
 router.delete("/account", normalLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
@@ -237,6 +241,7 @@ router.delete("/account", normalLimiter, async (req, res) => {
   }
 
   const userId = (req.user as any).id;
+  const userEmail = (req.user as any).username; // username = email in this project
   const { confirmation } = req.body;
 
   if (confirmation !== "DELETE_MY_ACCOUNT") {
@@ -248,25 +253,69 @@ router.delete("/account", normalLimiter, async (req, res) => {
   }
 
   const pool = getPool();
+  const client = await pool.connect();
 
   try {
-    // Delete from auth.users — triggers FK CASCADE to all related public.* tables
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    // 1. Capture beta_code BEFORE delete (for metadata)
+    const profileResult = await client.query(
+      `SELECT beta_code_used, consent_version FROM profiles WHERE id = $1`,
+      [userId],
+    );
+    const betaCodeUsed = profileResult.rows[0]?.beta_code_used ?? null;
+    const consentVersion = profileResult.rows[0]?.consent_version ?? null;
+
+    // 2. Build metadata for audit trail
+    const metadata = {
+      version: "1.0",
+      ip_address: req.ip ?? null,
+      user_agent: req.headers["user-agent"] ?? null,
+      beta_code_released: betaCodeUsed,
+      consent_version_at_delete: consentVersion,
+    };
+
+    // 3. INSERT audit log FIRST (must persist even if cascade fails)
+    await client.query(
+      `INSERT INTO deletion_logs (
+        deleted_user_email,
+        deleted_user_id,
+        deletion_reason,
+        deletion_method,
+        metadata
+      ) VALUES ($1, $2, $3, $4, $5)`,
+      [
+        userEmail,
+        userId,
+        "rgpd_art_17_user_request",
+        "manual_user_initiated",
+        metadata,
+      ],
+    );
+
+    // 4. DELETE from auth.users — triggers FK CASCADE to all related public.* tables
+    const deleteResult = await client.query(
       `DELETE FROM auth.users WHERE id = $1 RETURNING id`,
       [userId],
     );
 
-    if (result.rowCount === 0) {
+    if (deleteResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       res.status(404).json({ error: "User not found" });
       return;
     }
+
+    await client.query("COMMIT");
 
     // Clear any legacy session cookie (harmless if not present)
     res.clearCookie("sid");
     res.json({ success: true, message: "Account deleted" });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Delete account error:", err);
     res.status(500).json({ error: "Failed to delete account" });
+  } finally {
+    client.release();
   }
 });
 
