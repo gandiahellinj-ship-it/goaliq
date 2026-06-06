@@ -364,10 +364,12 @@ export function useProgressStats() {
       const [{ data: profile }, { data: logs }, { data: workouts }] = await Promise.all([
         supabase.from("profiles").select("weight_kg, target_weight_kg, training_days_per_week").maybeSingle(),
         supabase.from("progress_logs").select("*").order("log_date", { ascending: true }),
-        supabase.from("workout_plans").select("day_name").eq("week_start", weekStart),
+        supabase.from("workout_plans").select("days").eq("week_start", weekStart).maybeSingle(),
       ]);
 
       const typedLogs = (logs || []) as ProgressLog[];
+      // Extract training days from JSONB column (one row per week post-M8)
+      const workoutDays = ((workouts as any)?.days ?? []) as Array<{ day_name: string }>;
 
       // This week: Monday to Sunday
       const weekStartDate = new Date(weekStart);
@@ -380,7 +382,8 @@ export function useProgressStats() {
       });
 
       const completedWorkoutsThisWeek = thisWeekLogs.filter(l => l.workout_completed).length;
-      const totalWorkoutsThisWeek = (workouts || []).length;
+      const trainingDaySet = new Set(workoutDays.map(d => (d.day_name ?? "").toLowerCase()));
+      const totalWorkoutsThisWeek = trainingDaySet.size;
 
       const weeklyAdherence =
         totalWorkoutsThisWeek > 0
@@ -394,8 +397,6 @@ export function useProgressStats() {
           : ((profile as any)?.weight_kg ?? null);
 
       // ─── Streak calculation ───────────────────────────────────────────────
-      // Use this week's training day names as reference for all weeks
-      const trainingDaySet = new Set((workouts || []).map((r: any) => r.day_name as string));
       const completionMap = new Map<string, boolean>();
       typedLogs.forEach(l => completionMap.set(l.log_date, l.workout_completed));
 
