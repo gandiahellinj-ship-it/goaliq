@@ -364,7 +364,7 @@ export function useProgressStats() {
       const [{ data: profile }, { data: logs }, { data: workouts }] = await Promise.all([
         supabase.from("profiles").select("weight_kg, target_weight_kg, training_days_per_week").maybeSingle(),
         supabase.from("progress_logs").select("*").order("log_date", { ascending: true }),
-        supabase.from("workout_plans").select("days").eq("week_start", weekStart).maybeSingle(),
+        supabase.from("workout_plans").select("days").order("generated_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       const typedLogs = (logs || []) as ProgressLog[];

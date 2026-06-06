@@ -60,19 +60,18 @@ router.get("/workouts", normalLimiter, async (req, res) => {
     return;
   }
   const pool = getPool();
-  const weekStart = getCurrentWeekStart();
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, user_id, week_start::text, days
+      `SELECT id, user_id, week_start::text, days, generated_at
        FROM public.workout_plans
-       WHERE user_id = $1 AND week_start = $2
-       ORDER BY id DESC
+       WHERE user_id = $1
+       ORDER BY generated_at DESC
        LIMIT 1`,
-      [req.user.id, weekStart],
+      [req.user.id],
     );
 
-    console.log("[workouts GET] user:", req.user?.id, "weekStart:", weekStart, "rows:", rows?.length, "hasDays:", rows[0]?.days?.length ?? 0);
+    console.log("[workouts GET] user:", req.user?.id, "rows:", rows?.length, "hasDays:", rows[0]?.days?.length ?? 0);
 
     if (rows.length === 0 || !rows[0].days || (rows[0].days as any[]).length === 0) {
       res.status(404).json({ error: "No workout plan found" });
