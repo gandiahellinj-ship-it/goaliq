@@ -554,10 +554,6 @@ router.get("/qa/e2e", async (req, res) => {
     await sbDelete("workout_plans", token, `user_id=eq.${userId}&week_start=eq.${weekStart}`);
     await sbDelete("calendar_events", token, `user_id=eq.${userId}&date=gte.${weekStart}`);
 
-    // Delete the progress entry we created (weightKg=75, created just now — last minute)
-    const oneMinAgo = new Date(Date.now() - 60_000).toISOString();
-    await sbDelete("weight_entries", token, `user_id=eq.${userId}&created_at=gte.${oneMinAgo}`);
-
     // Clean up flex days
     for (const date of [today(), daysAgo(1), daysAgo(2)]) {
       await safeFetch(`${base()}/api/flex-days`, {

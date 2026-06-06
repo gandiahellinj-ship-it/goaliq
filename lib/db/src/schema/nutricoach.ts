@@ -57,13 +57,3 @@ export const calendarEventsTable = pgTable("calendar_events", {
 });
 
 export type CalendarEvent = typeof calendarEventsTable.$inferSelect;
-
-export const weightEntriesTable = pgTable("weight_entries", {
-  id: serial("id").primaryKey(),
-  userId: text("user_id").notNull(),
-  date: date("date").notNull(),
-  weightKg: real("weight_kg").notNull(),
-  recordedAt: timestamp("recorded_at").notNull().defaultNow(),
-});
-
-export type WeightEntry = typeof weightEntriesTable.$inferSelect;

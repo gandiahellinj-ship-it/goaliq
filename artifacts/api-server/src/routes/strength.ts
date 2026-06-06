@@ -51,7 +51,6 @@ const MUSCLE_GROUPS: Record<string, string[]> = {
   piernas:  ["Cuádriceps", "Isquiotibiales", "Glúteos", "Gemelos", "Aductores"],
   pecho:    ["Pectoral superior", "Pectoral medio", "Pectoral inferior"],
   brazos:   ["Bíceps", "Tríceps", "Antebrazos"],
-  core:     ["Abdominales", "Oblicuos", "Lumbares"],
   shoulders: ["Anterior deltoid", "Lateral deltoid", "Posterior deltoid",
               "Deltoides anterior", "Deltoides lateral", "Deltoides posterior",
               "Delts", "Delt", "Deltoides", "Hombros"],
@@ -66,7 +65,7 @@ const MUSCLE_GROUPS: Record<string, string[]> = {
   arms:     ["Biceps", "Triceps", "Forearms",
              "Bíceps", "Tríceps", "Antebrazos"],
   core:     ["Abs", "Obliques", "Core",
-             "Abdominales", "Oblicuos"],
+             "Abdominales", "Oblicuos", "Lumbares"],
 };
 
 // Reverse map: specific muscle name (lowercase) → canonical group key
