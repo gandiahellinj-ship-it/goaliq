@@ -93,24 +93,24 @@ const PROFESSIONAL_LOOKUP_URL =
 const GOAL_DETAILS: Record<string, {
   description: string;
   descriptionEN: string;
-  paces?: { id: string; emoji: string; label: string; labelEN: string; desc: string; descEN: string; recommended?: boolean }[];
+  paces?: { id: string; emoji: string; label: string; labelEN: string; desc: string; descEN: string; badge: string; badgeEN: string; recommended?: boolean }[];
 }> = {
   lose_fat: {
     description: "Reduciremos las calorías de forma controlada para quemar grasa preservando el máximo músculo posible.",
     descriptionEN: "We'll reduce calories in a controlled way to burn fat while preserving as much muscle as possible.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Suave",    labelEN: "Gentle",     desc: "-0.25kg/sem · Preserva más músculo, ideal para atletas",  descEN: "-0.25kg/wk · Preserves more muscle, ideal for athletes" },
-      { id: "moderate",   emoji: "🚶", label: "Moderado", labelEN: "Moderate",   desc: "-0.5kg/sem · El ritmo más sostenible a largo plazo",       descEN: "-0.5kg/wk · The most sustainable pace long term",       recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Agresivo", labelEN: "Aggressive", desc: "-1kg/sem · Pérdida rápida, requiere mayor disciplina",      descEN: "-1kg/wk · Fast loss, requires more discipline" },
+      { id: "gentle",     emoji: "🐢", label: "Suave",    labelEN: "Gentle",     desc: "-0.25kg/sem · Preserva más músculo, ideal para atletas",  descEN: "-0.25kg/wk · Preserves more muscle, ideal for athletes",  badge: "−0.25 kg/sem · déficit 250 kcal", badgeEN: "−0.25 kg/week · 250 kcal deficit" },
+      { id: "moderate",   emoji: "🚶", label: "Moderado", labelEN: "Moderate",   desc: "-0.5kg/sem · El ritmo más sostenible a largo plazo",       descEN: "-0.5kg/wk · The most sustainable pace long term",        badge: "−0.5 kg/sem · déficit 500 kcal",  badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Agresivo", labelEN: "Aggressive", desc: "-1kg/sem · Pérdida rápida, requiere mayor disciplina",      descEN: "-1kg/wk · Fast loss, requires more discipline",          badge: "−1 kg/sem · déficit 1000 kcal",   badgeEN: "−1 kg/week · 1000 kcal deficit" },
     ],
   },
   gain_muscle: {
     description: "Aumentaremos las calorías estratégicamente para maximizar la ganancia muscular con mínima grasa.",
     descriptionEN: "We'll increase calories strategically to maximise muscle gain with minimal fat.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Volumen limpio",    labelEN: "Clean bulk",     desc: "+0.25kg/sem · Mínima grasa, máxima calidad muscular",        descEN: "+0.25kg/wk · Minimal fat, maximum muscle quality" },
-      { id: "moderate",   emoji: "🚶", label: "Volumen moderado",  labelEN: "Moderate bulk",  desc: "+0.5kg/sem · Equilibrio entre músculo y grasa",              descEN: "+0.5kg/wk · Balance between muscle and fat",              recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Volumen agresivo",  labelEN: "Aggressive bulk",desc: "+1kg/sem · Máximo crecimiento, algo más de grasa",           descEN: "+1kg/wk · Maximum growth, some extra fat" },
+      { id: "gentle",     emoji: "🐢", label: "Volumen limpio",    labelEN: "Clean bulk",     desc: "+0.25kg/sem · Mínima grasa, máxima calidad muscular",        descEN: "+0.25kg/wk · Minimal fat, maximum muscle quality",         badge: "+0.25 kg/sem · superávit 250 kcal", badgeEN: "+0.25 kg/week · 250 kcal surplus" },
+      { id: "moderate",   emoji: "🚶", label: "Volumen moderado",  labelEN: "Moderate bulk",  desc: "+0.5kg/sem · Equilibrio entre músculo y grasa",              descEN: "+0.5kg/wk · Balance between muscle and fat",               badge: "+0.5 kg/sem · superávit 500 kcal",  badgeEN: "+0.5 kg/week · 500 kcal surplus",  recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Volumen agresivo",  labelEN: "Aggressive bulk",desc: "+1kg/sem · Máximo crecimiento, algo más de grasa",           descEN: "+1kg/wk · Maximum growth, some extra fat",                 badge: "+1 kg/sem · superávit 1000 kcal",   badgeEN: "+1 kg/week · 1000 kcal surplus" },
     ],
   },
   maintain: {
@@ -121,9 +121,9 @@ const GOAL_DETAILS: Record<string, {
     description: "Perderás grasa y ganarás músculo simultáneamente. Requiere paciencia pero los resultados son los más duraderos.",
     descriptionEN: "You'll lose fat and gain muscle simultaneously. Requires patience but the results are the most lasting.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Conservador", labelEN: "Conservative", desc: "Cambios lentos pero muy sostenibles a largo plazo",         descEN: "Slow changes but very sustainable long term" },
-      { id: "moderate",   emoji: "🚶", label: "Estándar",    labelEN: "Standard",     desc: "Balance óptimo entre perder grasa y ganar músculo",         descEN: "Optimal balance between losing fat and gaining muscle",   recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Intensivo",   labelEN: "Intensive",    desc: "Máxima transformación, requiere consistencia total",        descEN: "Maximum transformation, requires total consistency" },
+      { id: "gentle",     emoji: "🐢", label: "Conservador", labelEN: "Conservative", desc: "Cambios lentos pero muy sostenibles a largo plazo",         descEN: "Slow changes but very sustainable long term",              badge: "Cambios graduales · macros optimizados", badgeEN: "Gradual changes · optimized macros" },
+      { id: "moderate",   emoji: "🚶", label: "Estándar",    labelEN: "Standard",     desc: "Balance óptimo entre perder grasa y ganar músculo",         descEN: "Optimal balance between losing fat and gaining muscle",    badge: "Ciclado calorías · alta proteína",       badgeEN: "Calorie cycling · high protein",     recommended: true },
+      { id: "aggressive", emoji: "🏃", label: "Intensivo",   labelEN: "Intensive",    desc: "Máxima transformación, requiere consistencia total",        descEN: "Maximum transformation, requires total consistency",       badge: "Ciclado agresivo · proteína ≥2g/kg",     badgeEN: "Aggressive cycling · protein ≥2g/kg" },
     ],
   },
 };
@@ -835,12 +835,6 @@ export default function Onboarding() {
     },
   };
 
-  const paceOptions = [
-    { key: "gentle",     labelES: "🐢 Suave",    labelEN: "🐢 Gentle",    badgeES: "−0.25 kg/sem · déficit 250 kcal",  badgeEN: "−0.25 kg/week · 250 kcal deficit" },
-    { key: "moderate",   labelES: "🚶 Moderado",  labelEN: "🚶 Moderate",  badgeES: "−0.5 kg/sem · déficit 500 kcal",   badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
-    { key: "aggressive", labelES: "🏃 Agresivo",  labelEN: "🏃 Aggressive", badgeES: "−1 kg/sem · déficit 1000 kcal",  badgeEN: "−1 kg/week · 1000 kcal deficit" },
-  ];
-
   // ── IMC display values (imcVal / imcCategory / tone / goalKey already computed above) ──
   const wMin = calcWeightMin(formData.heightCm);
   const wMax = calcWeightMax(formData.heightCm);
@@ -1337,14 +1331,14 @@ export default function Onboarding() {
                                 <div style={{ position: "absolute", top: "50%", left: `${paceIndex * 50}%`, transform: "translate(-50%, -50%)", width: 22, height: 22, borderRadius: "50%", background: "#88ee22", border: "2px solid #0a0a0a", boxShadow: "0 0 0 3px rgba(136,238,34,0.2)", transition: "left 0.15s", cursor: "grab" }} />
                               </div>
                               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                {paceOptions.map((p, i) => (
+                                {detail.paces.map((p, i) => (
                                   <span key={i} style={{ fontSize: 11, color: i === paceIndex ? "#88ee22" : "#444", fontWeight: i === paceIndex ? 700 : 400, flex: 1, textAlign: i === 0 ? "left" : i === 2 ? "right" : "center" }}>
-                                    {isES ? p.labelES : p.labelEN}
+                                    {p.emoji} {isES ? p.label : p.labelEN}
                                   </span>
                                 ))}
                               </div>
                               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(136,238,34,0.08)", border: "1px solid rgba(136,238,34,0.2)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "#88ee22", fontWeight: 600, marginTop: 8 }}>
-                                {isES ? paceOptions[paceIndex].badgeES : paceOptions[paceIndex].badgeEN}
+                                {isES ? detail.paces[paceIndex].badge : detail.paces[paceIndex].badgeEN}
                               </div>
                             </div>
                           </>
