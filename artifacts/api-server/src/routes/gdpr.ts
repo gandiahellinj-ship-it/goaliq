@@ -293,7 +293,15 @@ router.delete("/account", normalLimiter, async (req, res) => {
       ],
     );
 
-    // 4. DELETE from auth.users — triggers FK CASCADE to all related public.* tables
+    // 4. Clear used_at on released beta code (BUG #8 fix)
+    // FK ON DELETE SET NULL only clears used_by_user_id, not used_at.
+    // We need both NULL so a released code looks identical to an unused one.
+    await client.query(
+      `UPDATE beta_invite_codes SET used_at = NULL WHERE used_by_user_id = $1`,
+      [userId],
+    );
+
+    // 5. DELETE from auth.users — triggers FK CASCADE to all related public.* tables
     const deleteResult = await client.query(
       `DELETE FROM auth.users WHERE id = $1 RETURNING id`,
       [userId],

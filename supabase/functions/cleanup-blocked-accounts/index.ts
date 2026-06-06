@@ -126,6 +126,21 @@ async function deleteAuthUser(supabase: SupabaseClient, userId: string): Promise
   if (error) throw new Error(`auth.admin.deleteUser failed: ${error.message}`);
 }
 
+async function clearBetaCodeUsedAt(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("beta_invite_codes")
+    .update({ used_at: null })
+    .eq("used_by_user_id", userId);
+
+  if (error) {
+    // Non-fatal: log but don't block cleanup
+    console.warn(`clear used_at failed for user ${userId}: ${error.message}`);
+  }
+}
+
 async function processOne(
   supabase: SupabaseClient,
   screening: ScreeningRow,
@@ -135,6 +150,9 @@ async function processOne(
   // Log first — auth.users cascade would otherwise delete the screening
   // row before we can capture id/block_reason/attempted_at.
   await logDeletion(supabase, screening, email, fallbackUsed);
+  // Clear used_at on any beta code claimed by this user (BUG #8)
+  // FK ON DELETE SET NULL only clears used_by_user_id, not used_at.
+  await clearBetaCodeUsedAt(supabase, screening.user_id);
   await deleteAuthUser(supabase, screening.user_id);
   return email;
 }
