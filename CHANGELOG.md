@@ -20,6 +20,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.7] — 2026-06-07
+
+### 🔍 BUG C investigated: strength tracking validated (false positive)
+
+Patch release que cierra la investigación de **BUG C**: el botón "Guardar" en `/workouts` SÍ funciona correctamente. El reporte inicial fue un falso positivo descubierto durante E2E testing con logs verbose.
+
+### Investigated
+
+- **BUG C (false positive)**: Initial report claimed "Guardar button doesn't fire POST /api/strength" with the observation that "only GET /api/strength?muscle=X" was visible in the Network panel.
+
+  Verbose `[DEBUG BUG C]` logs added in commit `53648c9` revealed the full success flow:
+  - `handleSave` executes on click
+  - Input validation passes (`kg=25, reps=8`)
+  - `mutationFn` entry with full payload
+  - Token obtained (length: 986)
+  - `POST /api/strength` returns 200
+  - PR detection works (`isNewPR: true, prDelta: 5`)
+  - UI shows "🏆 ¡Récord personal!" feedback
+
+  **Conclusion**: false positive. Initial report likely caused by Network filter misconfiguration, accidental page refresh between attempts, or a temporary session state during testing.
+
+### Changed
+
+- **Defensive improvements retained** (carried over from the debug commit):
+  - `try/catch` around `getAccessToken()` in `useSaveStrengthLog` for cleaner error handling.
+  - Hook-level `onError` callback in `useSaveStrengthLog` — breaks the silent-failure pattern (Pattern #4 in skill bug-hunter) by logging + showing a `toast.error()` with the failure reason.
+  - Per-call `onError` in `handleSave` strength branch — same goal, per-component logging.
+  - Clear error message prefixes (`[strength] auth failed:`, `[strength] response error:`, `[strength] save failed:`) for grep-ability and clarity.
+
+### Verified — E2E validation
+
+- ✅ `handleSave` executes on click.
+- ✅ Input validation passes correctly.
+- ✅ `mutationFn` enters with payload.
+- ✅ Token obtained successfully via `getAccessToken()`.
+- ✅ `POST /api/strength` returns 200.
+- ✅ PR detection functional.
+- ✅ UI shows `🏆 ¡Récord personal!` feedback.
+- ✅ Debug logs cleaned up after validation (commit on this release).
+
+### Notes
+
+- A non-blocking sidebar finding surfaced during BUG C investigation: AI-generated workout plans occasionally produce incorrect `exercise.muscles[0]` values (e.g., `"Abs"` for a Bench Press). The frontend treats the first value as canonical, so the `useStrengthLogs` query may filter by the wrong muscle group. Logged for future investigation; not bundled here.
+
+---
+
 ## [0.9.6] — 2026-06-07
 
 ### 🐛 BUG B resuelto: GIFs de ejercicios ahora cargan en /workouts
@@ -353,7 +399,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...HEAD
+[0.9.7]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.3...v0.9.4
