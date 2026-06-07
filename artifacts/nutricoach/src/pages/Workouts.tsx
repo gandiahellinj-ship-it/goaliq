@@ -77,6 +77,11 @@ const MUSCLE_TRANSLATIONS: Record<string, string> = {
   "rhomboids": "Romboides",
   "spine": "Columna",
   "neck": "Cuello",
+  // v0.9.13 — frontend coverage to match v0.9.12 backend MUSCLE_GROUPS additions.
+  "levator scapulae": "Elevador escápula",
+  "anterior deltoid": "Deltoides anterior",
+  "lateral deltoid": "Deltoides lateral",
+  "posterior deltoid": "Deltoides posterior",
 };
 
 function translateMuscle(muscle: string, lang: string): string {
@@ -90,6 +95,31 @@ function translateMuscles(muscles: string, lang: string): string {
     .split(/[,·]/)
     .map(m => translateMuscle(m.trim(), lang))
     .join(" · ");
+}
+
+// v0.9.13 — Feature F2 helpers (Opción B: primary badge color-coded + secondary muted).
+// splitMuscles returns the array form for per-muscle styling, while translateMuscles
+// (above) is preserved for any caller that still needs a joined string.
+function splitMuscles(muscles: string, lang: string): string[] {
+  if (!muscles) return [];
+  return muscles
+    .split(/[,·]/)
+    .map(m => translateMuscle(m.trim(), lang))
+    .filter(Boolean);
+}
+
+// Maps a (translated) muscle name to its canonical group color from Progress.tsx
+// GROUP_META. Regex-based to cover EN + ES + plurals + the v0.9.12 catalog
+// additions (Upper Back, Spine, Levator Scapulae, Serratus Anterior, etc).
+function muscleToGroupColor(muscle: string): string {
+  const m = muscle.toLowerCase();
+  if (/pector|pecho|chest|serrat/.test(m)) return "#1D9E75";  // chest
+  if (/lat|trap|rhomb|back|espalda|dorsal|lumbar|spine|columna|levator|scapulae/.test(m)) return "#7F77DD";  // back
+  if (/quad|hamstring|glute|calf|calves|gemelo|adduct|abduct|cuadr|isquio|glúte|piernas/.test(m)) return "#378ADD";  // legs
+  if (/delt|hombro|shoulder/.test(m)) return "#D4537E";  // shoulders
+  if (/bicep|tricep|forearm|antebrazo|bíceps|tríceps|brazos/.test(m)) return "#BA7517";  // arms
+  if (/abs|abdom|oblique|oblicu|hip flex|flexor/.test(m)) return "#639922";  // core
+  return "var(--giq-accent)";  // fallback
 }
 
 function equipmentTKey(equipment: string): string {
@@ -941,20 +971,45 @@ function ExerciseCard({ exercise, index }: { exercise: Exercise; index: number }
           <div className="flex-1 min-w-0">
             <div className="flex items-center flex-wrap gap-2 mb-2.5">
               <h3 className="font-bold" style={{ color: "var(--giq-text-primary)" }}>{exercise.name}</h3>
-              {exercise.muscles && (
-                <span
-                  className="shrink-0 font-medium"
-                  style={{
-                    color: "var(--giq-accent)",
-                    background: "var(--giq-border)",
-                    fontSize: 11,
-                    borderRadius: 4,
-                    padding: "2px 8px",
-                  }}
-                >
-                  {translateMuscles(exercise.muscles, lang)}
-                </span>
-              )}
+              {/* v0.9.13 — Feature F2: primary muscle in group color + secondary muscles muted. */}
+              {(() => {
+                const list = splitMuscles(exercise.muscles ?? "", lang);
+                if (list.length === 0) return null;
+                const [primary, ...secondary] = list;
+                const primaryColor = muscleToGroupColor(primary);
+                return (
+                  <>
+                    <span
+                      className="shrink-0 font-semibold"
+                      style={{
+                        color: primaryColor,
+                        background: `${primaryColor}1A`,
+                        border: `1px solid ${primaryColor}40`,
+                        fontSize: 11,
+                        borderRadius: 4,
+                        padding: "2px 8px",
+                      }}
+                    >
+                      {primary}
+                    </span>
+                    {secondary.map((m, i) => (
+                      <span
+                        key={`${m}-${i}`}
+                        className="shrink-0 font-medium"
+                        style={{
+                          color: "var(--giq-text-muted)",
+                          background: "var(--giq-border)",
+                          fontSize: 10,
+                          borderRadius: 4,
+                          padding: "2px 6px",
+                        }}
+                      >
+                        {m}
+                      </span>
+                    ))}
+                  </>
+                );
+              })()}
               {equipment && (
                 <span
                   className="shrink-0 font-medium"
