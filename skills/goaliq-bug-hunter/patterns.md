@@ -62,6 +62,27 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 11: Backend Authoritative on AI-Generated Metadata
+**Symptom**: An AI generates a structured payload where some fields are free-form text (e.g., muscle names, category labels, classification tags). The AI drifts: localizes inconsistently, invents new variants, omits the field. Downstream systems that depend on canonical values break.
+**How to detect**:
+- AI response includes a field that's "supposed to" match a canonical taxonomy but is just a string
+- Production data audit reveals high-cardinality, low-coherence values in that field (variant spellings, mixed languages, fictional terms)
+- Classification logic downstream uses the AI string directly and has frequent orphan/fallback cases
+**Approach (battle-tested in v0.9.12)**:
+1. **Identify the authoritative source**: usually an enriched local catalog (Pattern 10) or a deterministic mapping the AI used as input (e.g., a pool of allowed values).
+2. **Reorganize the post-AI pipeline in explicit phases**:
+   - PHASE 1: defaults + cleanup on AI fields the AI is allowed to own
+   - PHASE 2: reconcile references (IDs, names) the AI may have mis-copied
+   - PHASE 3 NEW: overwrite the drift-prone field with the canonical value from the authoritative source
+3. **Keep a defensive fallback** to the AI's original value for edge cases where the canonical lookup fails (cache empty, ID not resolved, etc.). Better to keep what the AI said than to crash.
+4. **Audit downstream classification BEFORE deploying** — if the canonical source has values your downstream mapping doesn't recognize, you swap one drift for another.
+**Lesson learned (from v0.9.12 — BUG E + BUG H closed together)**:
+- AI is good for content (notes, prose, creative reps strings), not for refs (canonical IDs, taxonomy values)
+- Prompt engineering to "constrain" the AI is encouragement, not enforcement. If correctness matters, override programmatically.
+- One pattern (backend authoritative) can close multiple bugs with the same root cause family (free-form AI drift). Identify the family, not just each instance.
+- Order matters: PHASE 3 must run AFTER reconciliation (PHASE 2), so the lookup has a valid exercise_id/key to query the catalog with
+- Coverage check: BEFORE deploying canonical injection, audit which canonical values exist in production data — extend MUSCLE_GROUPS-style mappings to cover gaps (Pattern 8)
+
 ## Pattern 10: Additive Enrichment Migration + ON CONFLICT DO UPDATE
 **Symptom**: An existing table with production data needs new columns to enable future features, without losing or churning legacy data.
 **How to detect**:

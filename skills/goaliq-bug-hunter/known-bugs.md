@@ -2,19 +2,6 @@
 
 ## Active Bugs
 
-### BUG E - 'general' muscle_group fallback (ACTIVE, non-blocking)
-- **Discovered**: 2026-06-07 during BUG D audit
-- **Severity**: 🟡 Medium (data quality, non-blocking)
-- **Symptom**: 4 strength_logs records have muscle_group='general'
-- **Source**: Workouts.tsx:623 fallback when exercise.muscles is null/undefined
-- **Impact**: These logs will never appear in /progress (no group includes 'general')
-- **Possible root causes**:
-  - AI generates exercise with empty muscles field
-  - Plan data corruption during generation
-  - Edge case in muscle extraction
-- **Status**: Pending investigation
-- **Action**: Investigate after MEJORA 11 visual / when relevant
-
 ### BUG F.tooltip - /progress subgroup chart tooltip (ACTIVE, partial of BUG F)
 - **Discovered**: 2026-06-07 (after BUG D fix validation), partially fixed in v0.9.9
 - **Severity**: 🟡 Low (UX nice-to-have)
@@ -61,7 +48,7 @@
 - **Suggested fix**: Render the note field next to/below each weight entry in the timeline
 - **Priority**: Low
 
-## Resolved Bugs (#1-#9, A, B, C, D, F partial, G)
+## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -130,6 +117,31 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG H - AI-invented muscle strings drift (RESOLVED v0.9.12)
+- **Discovered**: 2026-06-08 during v0.9.11 enrichment audit
+- **Severity**: 🟡 Medium (data quality, classification drift)
+- **Symptom**: AI generated muscle strings that didn't match the catalog ("Espalda Superior", "Flexores de Cadera", "Pectoral medio + Tríceps", etc.), causing classification orphans in /progress when those strings weren't in MUSCLE_GROUPS.
+- **Root cause**: The AI prompt gave an example format ("e.g., Chest, Triceps") but did NOT enforce the source. AI was free to invent or localize, leading to integration drift between AI output, frontend translation, and backend mapping.
+- **Fix**: e13497e — Backend authoritative pattern (Pattern 11). PHASE 3 of post-AI pipeline overwrites the `muscles` field with `cached.target + cached.secondaryMuscles` from the catalog. AI's `muscles` field is now ignored when the `exercise_id` resolves (which it always does after `reconcileExerciseIds`). Also extended MUSCLE_GROUPS coverage to 97.8% (18/19 catalog targets) as defense-in-depth for edge cases where catalog data sneaks through to subgroup labels.
+- **Tag**: v0.9.12
+- **Lesson**:
+  - Don't trust AI for canonical metadata — use it for content (notes, reps), not for refs (muscle names, IDs)
+  - Backend-authoritative pattern: AI proposes, backend canonicalizes
+  - When you have an enriched source-of-truth (v0.9.11 catalog), use it everywhere downstream
+  - Audit catalog target coverage BEFORE deploying canonical injection — otherwise you swap one drift for another
+
+### BUG E - 'general' muscle_group fallback (RESOLVED v0.9.12)
+- **Discovered**: 2026-06-07 during BUG D audit
+- **Severity**: 🟡 Medium (data quality, non-blocking)
+- **Symptom**: 4 strength_logs records had muscle_group='general' — orphan logs that never appeared in /progress because no canonical group includes "general".
+- **Root cause**: AI sometimes omitted the `muscles` field in generated plans. Frontend `Workouts.tsx:624` had `?? "general"` fallback when `exercise.muscles` was null/undefined. The "general" string was never added to MUSCLE_GROUPS (rightly so — it's a fallback, not a real group), so logs ended up unmapped.
+- **Fix**: e13497e — Same backend-authoritative pattern as BUG H. PHASE 3 of post-AI pipeline always injects `muscles` from catalog. Result: `exercise.muscles` is never null when `exercise_id` resolves. The `?? "general"` fallback in `Workouts.tsx:624` still exists as defense-in-depth, but should never fire for new plans.
+- **Tag**: v0.9.12
+- **Lesson**:
+  - "Fallback to a string the system doesn't understand" is anti-defensive — better to either skip the entry or surface an error
+  - Two-bug bundle (E+H): same root cause family (AI free-form drift), same fix (backend authoritative). Cheaper to fix together than separately
+  - Old orphan logs remain in DB until manually fixed or re-keyed; only NEW plans get the canonical pipeline
 
 ### BUG G - arms group label was "Trapecio" (RESOLVED v0.9.9)
 - **Discovered**: 2026-06-07 (during pre-test audit for catalog classification)
