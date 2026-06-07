@@ -62,6 +62,25 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 10: Additive Enrichment Migration + ON CONFLICT DO UPDATE
+**Symptom**: An existing table with production data needs new columns to enable future features, without losing or churning legacy data.
+**How to detect**:
+- Schema needs new fields but existing rows must survive intact
+- Re-sync from authoritative source will UPDATE existing rows, not just INSERT new ones
+- Risk: re-sync overwrites manually-fixed legacy fields
+**Approach (battle-tested in v0.9.11)**:
+1. **ALTER TABLE additive + idempotent**: `ADD COLUMN IF NOT EXISTS` with safe defaults (`DEFAULT '[]'::jsonb` for JSONB arrays, NULL for nullable scalars). Existing rows get the defaults automatically.
+2. **Backup pre-sync**: `CREATE TABLE foo_backup_pre_X AS SELECT * FROM foo;` as safety net.
+3. **INSERT ... ON CONFLICT (pk) DO UPDATE SET only_new_fields = EXCLUDED.only_new_fields**: legacy fields are NOT overwritten on conflict — preserves any manual fixes or upstream corrections.
+4. **Schema migration runs BEFORE cache load at boot**: ensures SELECT with new columns doesn't crash on first start.
+**Lesson learned (from v0.9.11 WorkoutX enrichment)**:
+- Sequence at boot matters: `ensureSupabaseTablesReady()` MUST run before `loadWorkoutXCache()` so the SELECT finds new columns
+- `ON CONFLICT DO NOTHING` is wrong for enrichment — it skips existing rows entirely, leaving new columns NULL forever
+- `ON CONFLICT DO UPDATE` for ALL fields is too aggressive — risks overwriting manual fixes upstream
+- The hybrid (UPDATE only new fields) is the right balance: enrichment without churn
+- Cost analysis matters: 1324 exercises / 10 per page = 133 API calls. Always verify external API quota before re-sync
+- 100% enrichment validation post-sync: `COUNT(*) FILTER (WHERE new_field IS NOT NULL)` per new field
+
 ## Pattern 9: Label-Data Semantic Drift in Canonical Mappings
 **Symptom**: A config table has key → label mapping where the label is semantically wrong for the key (e.g., `arms: { label: "Trapecio" }` — but trapezius is a back muscle, not arms)
 **How to detect**:
