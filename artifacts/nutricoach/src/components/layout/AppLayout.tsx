@@ -338,20 +338,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setProfileLoading(false);
+    // BUG A fix: gate query until Supabase JS has hydrated the JWT.
+    // Without this, the RLS-protected query to `profiles` runs anonymous
+    // and returns null → hasCompletedOnboarding=false → forced redirect to /onboarding.
+    if (!isAuthenticated || !session?.access_token) {
+      if (!isAuthenticated) setProfileLoading(false);
       return;
     }
     setProfileLoading(true);
     supabase
       .from("profiles")
-      .select("age")
+      .select("age, onboarding_completed_at")
       .maybeSingle()
-      .then(({ data }) => {
-        setHasCompletedOnboarding(!!data?.age);
+      .then(({ data, error }) => {
+        if (error) {
+          console.error("[AppLayout] profiles query failed:", error);
+        }
+        // Prefer explicit flag (set during onboarding submission);
+        // fall back to age proxy for users created before the column existed.
+        const completed = !!data?.onboarding_completed_at || !!data?.age;
+        setHasCompletedOnboarding(completed);
         setProfileLoading(false);
       });
-  }, [isAuthenticated]);
+  }, [isAuthenticated, session?.access_token]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

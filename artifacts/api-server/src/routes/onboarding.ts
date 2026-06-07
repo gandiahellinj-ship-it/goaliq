@@ -168,6 +168,9 @@ router.post("/onboarding", async (req, res) => {
         training_level: body.trainingLevel,
         training_location: body.trainingLocation,
         training_days_per_week: body.trainingDaysPerWeek,
+        // BUG A fix: explicit flag for onboarding completion.
+        // Replaces fragile `age` proxy used by AppLayout's redirect gate.
+        onboarding_completed_at: new Date().toISOString(),
       },
       { onConflict: "id" },
     )
