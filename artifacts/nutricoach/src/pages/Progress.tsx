@@ -8,6 +8,8 @@ import type { StrengthLog } from "@/lib/supabase-queries";
 import {
   LineChart,
   Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
@@ -84,6 +86,59 @@ function aggregateGroupLoad(
     }
   }
   return weekLoads;
+}
+
+// v0.9.15 — BUG M redesign helpers ────────────────────────────────────────────
+// computeWeekStats: aggregates stats over a set of logs (typically those within
+// the time filter window). Returns null when there are no logs.
+function computeWeekStats(logs: StrengthLog[]) {
+  if (!logs.length) return null;
+  return {
+    maxWeight: Math.max(...logs.map(l => l.weight_kg)),
+    totalVolume: Math.round(logs.reduce((sum, l) => sum + l.weight_kg * l.reps, 0)),
+    totalSets: logs.length,
+    totalReps: logs.reduce((sum, l) => sum + l.reps, 0),
+  };
+}
+
+// getRecentWeeklyVolume: returns last N weeks of volume (peso × reps) for a
+// group's logs. Ignores filterMonths — trend is always last N weeks per spec.
+function getRecentWeeklyVolume(
+  byMuscle: Record<string, StrengthLog[]>,
+  n: number = 6,
+): { weekStart: string; volume: number }[] {
+  const byWeek: Record<string, number> = {};
+  for (const logs of Object.values(byMuscle)) {
+    for (const log of logs) {
+      byWeek[log.week_start] =
+        (byWeek[log.week_start] ?? 0) + log.weight_kg * log.reps;
+    }
+  }
+  const sortedWeeks = Object.keys(byWeek).sort();
+  const lastN = sortedWeeks.slice(-n);
+  return lastN.map(weekStart => ({ weekStart, volume: Math.round(byWeek[weekStart]) }));
+}
+
+// detectPR: compares latest week's max weight vs previous week's max weight
+// across all logs of the group. Returns isPR=true and rounded delta when latest
+// strictly exceeds previous. Defensive against single-week histories.
+function detectPR(
+  byMuscle: Record<string, StrengthLog[]>,
+): { isPR: boolean; delta: number | null } {
+  const maxByWeek: Record<string, number> = {};
+  for (const logs of Object.values(byMuscle)) {
+    for (const log of logs) {
+      if (!maxByWeek[log.week_start] || log.weight_kg > maxByWeek[log.week_start]) {
+        maxByWeek[log.week_start] = log.weight_kg;
+      }
+    }
+  }
+  const sortedWeeks = Object.keys(maxByWeek).sort();
+  if (sortedWeeks.length < 2) return { isPR: false, delta: null };
+  const latest = maxByWeek[sortedWeeks[sortedWeeks.length - 1]];
+  const previous = maxByWeek[sortedWeeks[sortedWeeks.length - 2]];
+  const delta = latest - previous;
+  return { isPR: delta > 0, delta: Math.round(delta * 10) / 10 };
 }
 
 // ─── Time Filter Pills ────────────────────────────────────────────────────────
@@ -346,10 +401,12 @@ function LogWeightSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Tab 0: Grupos Musculares ─────────────────────────────────────────────────
+// ─── Tab 0: Grupos Musculares — v0.9.15 professional cards redesign ──────────
 // Calls all 6 group hooks unconditionally so React's rules of hooks are respected.
+// Replaces the previous single-line tonnage chart (BUG M: "432 kg" confusion)
+// with one card per group showing explicit KPIs + a 6-week trend mini-bar-chart.
 
-function GroupsChartInner({ filterMonths }: { filterMonths: number }) {
+function GroupsCardsView({ filterMonths }: { filterMonths: number }) {
   const { data: d0 } = useStrengthGroupLogs("shoulders");
   const { data: d1 } = useStrengthGroupLogs("legs");
   const { data: d2 } = useStrengthGroupLogs("back");
@@ -357,34 +414,53 @@ function GroupsChartInner({ filterMonths }: { filterMonths: number }) {
   const { data: d4 } = useStrengthGroupLogs("core");
   const { data: d5 } = useStrengthGroupLogs("arms");
 
-  const { chartData, hasAnyData } = useMemo(() => {
-    const groupLoads: Record<GroupKey, Record<string, number>> = {
-      shoulders: aggregateGroupLoad(d0?.byMuscle ?? {}, filterMonths),
-      legs:      aggregateGroupLoad(d1?.byMuscle ?? {}, filterMonths),
-      back:      aggregateGroupLoad(d2?.byMuscle ?? {}, filterMonths),
-      chest:     aggregateGroupLoad(d3?.byMuscle ?? {}, filterMonths),
-      core:      aggregateGroupLoad(d4?.byMuscle ?? {}, filterMonths),
-      arms:      aggregateGroupLoad(d5?.byMuscle ?? {}, filterMonths),
-    };
+  const groupsRaw: Record<GroupKey, Record<string, StrengthLog[]>> = {
+    shoulders: d0?.byMuscle ?? {},
+    legs:      d1?.byMuscle ?? {},
+    back:      d2?.byMuscle ?? {},
+    chest:     d3?.byMuscle ?? {},
+    core:      d4?.byMuscle ?? {},
+    arms:      d5?.byMuscle ?? {},
+  };
 
-    const weekSet = new Set<string>();
-    for (const loads of Object.values(groupLoads)) {
-      for (const week of Object.keys(loads)) weekSet.add(week);
-    }
-    const allWeeks = Array.from(weekSet).sort();
-
-    const chartData = allWeeks.map(week => {
-      const point: Record<string, any> = { week, label: formatWeekLabel(week) };
-      for (const key of GROUP_KEYS) {
-        point[key] = groupLoads[key][week] ?? null;
+  const { perGroup, anyDataExists, weekCount } = useMemo(() => {
+    const cutoff = filterMonths ? subMonths(new Date(), filterMonths) : null;
+    const perGroup = {} as Record<
+      GroupKey,
+      {
+        stats: ReturnType<typeof computeWeekStats>;
+        trend: { weekStart: string; volume: number }[];
+        pr: { isPR: boolean; delta: number | null };
       }
-      return point;
-    });
+    >;
+    const weekSet = new Set<string>();
+    let anyDataExists = false;
 
-    return { chartData, hasAnyData: allWeeks.length > 0 };
+    for (const key of GROUP_KEYS) {
+      const byMuscle = groupsRaw[key];
+
+      // KPIs use filter window. Trend ALWAYS last 6 weeks (per spec decision 3/6).
+      const filteredLogs: StrengthLog[] = [];
+      for (const logs of Object.values(byMuscle)) {
+        for (const log of logs) {
+          if (cutoff && new Date(log.week_start) < cutoff) continue;
+          filteredLogs.push(log);
+          weekSet.add(log.week_start);
+        }
+      }
+
+      const stats = computeWeekStats(filteredLogs);
+      const trend = getRecentWeeklyVolume(byMuscle, 6);
+      const pr = detectPR(byMuscle);
+
+      perGroup[key] = { stats, trend, pr };
+      if (stats) anyDataExists = true;
+    }
+
+    return { perGroup, anyDataExists, weekCount: weekSet.size };
   }, [d0, d1, d2, d3, d4, d5, filterMonths]);
 
-  if (!hasAnyData) {
+  if (!anyDataExists) {
     return (
       <div className="py-16 text-center">
         <div className="text-4xl mb-3">📊</div>
@@ -393,77 +469,105 @@ function GroupsChartInner({ filterMonths }: { filterMonths: number }) {
     );
   }
 
-  const activeKeys = GROUP_KEYS.filter(key => chartData.some(d => d[key] != null));
-
   return (
     <>
-      {/* v0.9.14 — BUG K: indicador discreto de semanas con datos cuando hay filtro temporal activo. */}
-      {filterMonths > 0 && chartData.length > 0 && (
+      {/* v0.9.14 — BUG K indicator preserved. */}
+      {filterMonths > 0 && weekCount > 0 && (
         <p className="text-[10px] text-[#555] -mt-3 mb-3">
-          Mostrando {chartData.length} semana{chartData.length === 1 ? "" : "s"} con datos
+          Mostrando {weekCount} semana{weekCount === 1 ? "" : "s"} con datos
         </p>
       )}
 
-      {/* Legend */}
-      <div className="flex flex-wrap gap-x-4 gap-y-2 mb-5">
-        {activeKeys.map(key => (
-          <div key={key} className="flex items-center gap-1.5">
-            <div
-              className="w-5 rounded-full"
-              style={{ height: 2, backgroundColor: GROUP_META[key].color }}
-            />
-            <span className="text-xs text-[#888]">{GROUP_META[key].label}</span>
-          </div>
-        ))}
-      </div>
+      {GROUP_KEYS.map(key => {
+        const { stats, trend, pr } = perGroup[key];
+        const color = GROUP_META[key].color;
+        const label = GROUP_META[key].label;
 
-      {/* Chart */}
-      <div className="h-[220px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 18, right: 12, bottom: 5, left: -20 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1f1f1f" />
-            <XAxis
-              dataKey="label"
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#555", fontSize: 11 }}
-              dy={8}
-            />
-            <YAxis
-              domain={["auto", "auto"]}
-              axisLine={false}
-              tickLine={false}
-              tick={{ fill: "#555", fontSize: 11 }}
-            />
-            <Tooltip
-              contentStyle={{
-                borderRadius: "10px",
-                border: "1px solid #1f1f1f",
-                backgroundColor: "#111",
-                padding: "8px 12px",
-              }}
-              labelStyle={{ color: "#888", fontSize: 12 }}
-              formatter={(val: number, name: string) => [
-                `${Math.round(val)} kg`,
-                GROUP_META[name as GroupKey]?.label ?? name,
-              ]}
-            />
-            {GROUP_KEYS.map(key => (
-              <Line
-                key={key}
-                type="monotone"
-                dataKey={key}
-                name={key}
-                stroke={GROUP_META[key].color}
-                strokeWidth={2.5}
-                connectNulls={false}
-                dot={{ r: 4, fill: "#0a0a0a", stroke: GROUP_META[key].color, strokeWidth: 2 }}
-                activeDot={{ r: 6, fill: GROUP_META[key].color }}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+        // Empty-state card: shown for groups with no logs in the filter window,
+        // educative (lets user see all canonical groups they could be training).
+        if (!stats) {
+          return (
+            <div
+              key={key}
+              style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
+              className="p-4 mb-3 opacity-60"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ background: color, opacity: 0.3 }}
+                />
+                <h4 className="font-bold text-[#888] text-sm">{label}</h4>
+              </div>
+              <p className="text-xs text-[#666] mt-2">
+                Sin sesiones registradas en este grupo
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={key}
+            style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
+            className="p-4 mb-3"
+          >
+            {/* Header: colored dot + label + optional PR badge */}
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+              <h4 className="font-bold text-[#e8e8e8] text-sm">{label}</h4>
+              {pr.isPR && pr.delta !== null && pr.delta > 0 && (
+                <span
+                  className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-md"
+                  style={{
+                    background: "rgba(255, 215, 0, 0.15)",
+                    color: "#FFD700",
+                    border: "1px solid rgba(255, 215, 0, 0.3)",
+                  }}
+                >
+                  🏆 PR! +{pr.delta} kg
+                </span>
+              )}
+            </div>
+
+            {/* KPI grid: 2 cols mobile / 4 cols desktop (md breakpoint = 768px). */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Peso máx</p>
+                <p className="text-base font-bold text-[#e8e8e8]">
+                  {stats.maxWeight} <span className="text-[10px] text-[#888]">kg</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Volumen sem.</p>
+                <p className="text-base font-bold text-[#e8e8e8]">
+                  {stats.totalVolume.toLocaleString()}{" "}
+                  <span className="text-[10px] text-[#888]">kg·r</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Sets</p>
+                <p className="text-base font-bold text-[#e8e8e8]">{stats.totalSets}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Reps</p>
+                <p className="text-base font-bold text-[#e8e8e8]">{stats.totalReps}</p>
+              </div>
+            </div>
+
+            {/* Mini bar chart: ALWAYS last 6 weeks, ignores filterMonths. */}
+            {trend.length > 0 && (
+              <div className="h-[40px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <Bar dataKey="volume" fill={color} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
@@ -488,12 +592,12 @@ function GroupsTab() {
               Carga por grupo muscular
             </h3>
             <p className="text-xs text-[#555] mt-0.5">
-              Volumen total por semana (peso × reps · kg)
+              Estadísticas semanales por grupo
             </p>
           </div>
           <TimeFilterPills value={timeFilter} onChange={setTimeFilter} />
         </div>
-        <GroupsChartInner filterMonths={filterMonths} />
+        <GroupsCardsView filterMonths={filterMonths} />
       </div>
     </div>
   );
