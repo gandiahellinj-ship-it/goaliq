@@ -74,6 +74,33 @@ function reconcileExerciseIds(
   }));
 }
 
+// v0.9.16 — inferSpecificMuscle: refine a primary muscle name from a generic
+// category (e.g., "Pectorals", "Delts") to its specific anatomical sub-muscle
+// (e.g., "Pectoral superior", "Deltoides lateral") using keywords in the
+// exercise name. Mirror of the frontend helper in Progress.tsx — keep both in
+// sync when modifying regex. Falls back to the input value when no keyword matches.
+function inferSpecificMuscle(exerciseName: string, fallback: string): string {
+  const name = exerciseName.toLowerCase();
+  const fb = fallback.toLowerCase();
+
+  // PECTORAL — anatomical differentiation by bench angle.
+  if (/pector|chest|pecho|pectorales|pectorals/.test(fb)) {
+    if (/\bincline\b|incline.bench|inclinad|inclinada/.test(name)) return "Pectoral superior";
+    if (/\bdecline\b|decline.bench|declinad/.test(name)) return "Pectoral inferior";
+    return "Pectoral medio";
+  }
+
+  // DELTOIDES — anatomical differentiation by movement direction.
+  if (/delt|hombro|shoulder/.test(fb)) {
+    if (/\brear\b|reverse|bent.over|posterior/.test(name)) return "Deltoides posterior";
+    if (/\blateral\b|\bside\b|lateral raise/.test(name)) return "Deltoides lateral";
+    if (/\bfront\b|front raise|overhead press|military|shoulder press/.test(name)) return "Deltoides anterior";
+    return fallback;
+  }
+
+  return fallback;
+}
+
 function getMealSystem(lang: "es" | "en"): string {
   if (lang === "en") {
     return "You are a professional nutritionist. LANGUAGE REQUIRED: Generate ALL content in English (UK). All meal names, ingredient names, portions, notes, and descriptions must be in English. Use internationally recognisable food terminology. You create personalised, realistic, and enjoyable weekly meal plans. You always respond with valid JSON only — no markdown, no explanation, no code blocks. Just raw JSON.";
@@ -621,18 +648,29 @@ Return ONLY the JSON array, nothing else.`;
   // PHASE 3 — v0.9.12: backend authoritative on `muscles`.
   // Closes BUG E (no more "general" fallback when AI omits `muscles`) and
   // BUG H (no more AI-invented Spanish strings like "Espalda Superior").
-  // Format matches Workouts.tsx:624 expectation: first comma-separated muscle
-  // is treated as primary and routed to its canonical group via MUSCLE_GROUPS.
-  // Fallback to the AI-provided value only when no exercise_id matched cache.
+  // PHASE 3.5 — v0.9.16: refine primary muscle anatomically (Pectoral
+  // superior/medio/inferior, Deltoides anterior/lateral/posterior) from
+  // exercise name keywords. Closes BUG N partial + addresses sub-pectoral
+  // user request. Helper mirrored in Progress.tsx for read-time consistency.
   const enriched = reconciled.map((day: any) => ({
     ...day,
     exercises: day.exercises.map((ex: any) => {
       const cached = ex.exercise_id ? getExerciseById(ex.exercise_id) : null;
+      const baseMuscles = cached
+        ? [cached.target, ...cached.secondaryMuscles].filter(Boolean)
+        : (ex.muscles ?? "").split(/[,·]/).map((m: string) => m.trim()).filter(Boolean);
+
+      // PHASE 3.5: refine primary muscle (index 0) anatomically. Secondary
+      // muscles remain unchanged from catalog — they're already specific enough
+      // (e.g., "Triceps", "Anterior Deltoid"), and refining them would risk
+      // introducing inconsistency where the AI may have written something valid.
+      if (baseMuscles.length > 0) {
+        baseMuscles[0] = inferSpecificMuscle(ex.name, baseMuscles[0]);
+      }
+
       return {
         ...ex,
-        muscles: cached
-          ? [cached.target, ...cached.secondaryMuscles].filter(Boolean).join(", ")
-          : (ex.muscles ?? ""),
+        muscles: baseMuscles.join(", "),
       };
     }),
   }));

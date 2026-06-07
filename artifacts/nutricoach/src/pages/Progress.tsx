@@ -141,6 +141,33 @@ function detectPR(
   return { isPR: delta > 0, delta: Math.round(delta * 10) / 10 };
 }
 
+// v0.9.16 — inferSpecificMuscle: refine a primary muscle name from a generic
+// category (e.g., "Pectorals", "Delts") to its specific anatomical sub-muscle
+// (e.g., "Pectoral superior", "Deltoides lateral") using keywords in the
+// exercise name. Mirror of the backend helper in aiGenerators.ts — keep both
+// in sync when modifying regex. Frontend variant exists so legacy logs (pre-
+// v0.9.16, with generic muscle_group like "Pectorales") get reclassified on
+// read-time without requiring data migration.
+function inferSpecificMuscle(exerciseName: string, fallback: string): string {
+  const name = exerciseName.toLowerCase();
+  const fb = fallback.toLowerCase();
+
+  if (/pector|chest|pecho|pectorales|pectorals/.test(fb)) {
+    if (/\bincline\b|incline.bench|inclinad|inclinada/.test(name)) return "Pectoral superior";
+    if (/\bdecline\b|decline.bench|declinad/.test(name)) return "Pectoral inferior";
+    return "Pectoral medio";
+  }
+
+  if (/delt|hombro|shoulder/.test(fb)) {
+    if (/\brear\b|reverse|bent.over|posterior/.test(name)) return "Deltoides posterior";
+    if (/\blateral\b|\bside\b|lateral raise/.test(name)) return "Deltoides lateral";
+    if (/\bfront\b|front raise|overhead press|military|shoulder press/.test(name)) return "Deltoides anterior";
+    return fallback;
+  }
+
+  return fallback;
+}
+
 // ─── Time Filter Pills ────────────────────────────────────────────────────────
 
 function TimeFilterPills({
@@ -603,7 +630,161 @@ function GroupsTab() {
   );
 }
 
-// ─── Tab 1: Por Subgrupo ──────────────────────────────────────────────────────
+// ─── Tab 1: Por Subgrupo — v0.9.16 professional cards + anatomical sub-muscles
+
+// v0.9.16 — SubgroupCardsView: renders one card per (re-aggregated) muscle in
+// the selected group. Mirrors the v0.9.15 GroupsCardsView structure but at the
+// per-muscle granularity. Colors come from SUBGROUP_COLORS (polychrome palette
+// from v0.9.14) so each muscle gets a distinct visual identity within the group.
+function SubgroupCardsView({
+  selectedGroup,
+  filterMonths,
+  reaggregated,
+}: {
+  selectedGroup: GroupKey;
+  filterMonths: number;
+  reaggregated: Record<string, StrengthLog[]>;
+}) {
+  const colors = SUBGROUP_COLORS[selectedGroup];
+
+  const { perMuscle, anyDataExists, weekCount } = useMemo(() => {
+    const cutoff = filterMonths ? subMonths(new Date(), filterMonths) : null;
+    const perMuscle = {} as Record<
+      string,
+      {
+        stats: ReturnType<typeof computeWeekStats>;
+        trend: { weekStart: string; volume: number }[];
+        pr: { isPR: boolean; delta: number | null };
+      }
+    >;
+    const weekSet = new Set<string>();
+    let anyDataExists = false;
+
+    for (const [muscle, logs] of Object.entries(reaggregated)) {
+      const filteredLogs: StrengthLog[] = [];
+      for (const log of logs) {
+        if (cutoff && new Date(log.week_start) < cutoff) continue;
+        filteredLogs.push(log);
+        weekSet.add(log.week_start);
+      }
+
+      const stats = computeWeekStats(filteredLogs);
+      // Trend and PR use ALL logs (not filtered) per spec decision 3/6:
+      // trend mini-chart always last 6 weeks regardless of filter.
+      const trend = getRecentWeeklyVolume({ _: logs }, 6);
+      const pr = detectPR({ _: logs });
+
+      perMuscle[muscle] = { stats, trend, pr };
+      if (stats) anyDataExists = true;
+    }
+
+    return { perMuscle, anyDataExists, weekCount: weekSet.size };
+  }, [reaggregated, filterMonths]);
+
+  if (!anyDataExists) {
+    return (
+      <div className="py-16 text-center">
+        <div className="text-4xl mb-3">🏋️</div>
+        <p className="text-[#555] text-sm">Aún no tienes sesiones registradas</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {filterMonths > 0 && weekCount > 0 && (
+        <p className="text-[10px] text-[#555] -mt-3 mb-3">
+          Mostrando {weekCount} semana{weekCount === 1 ? "" : "s"} con datos
+        </p>
+      )}
+
+      {Object.entries(perMuscle).map(([muscle, data], idx) => {
+        const { stats, trend, pr } = data;
+        const color = colors[idx % colors.length];
+
+        if (!stats) {
+          return (
+            <div
+              key={muscle}
+              style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
+              className="p-4 mb-3 opacity-60"
+            >
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded-full"
+                  style={{ background: color, opacity: 0.3 }}
+                />
+                <h4 className="font-bold text-[#888] text-sm">{muscle}</h4>
+              </div>
+              <p className="text-xs text-[#666] mt-2">
+                Sin sesiones registradas en este músculo
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={muscle}
+            style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
+            className="p-4 mb-3"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-3 h-3 rounded-full" style={{ background: color }} />
+              <h4 className="font-bold text-[#e8e8e8] text-sm">{muscle}</h4>
+              {pr.isPR && pr.delta !== null && pr.delta > 0 && (
+                <span
+                  className="ml-auto px-2 py-0.5 text-[10px] font-bold rounded-md"
+                  style={{
+                    background: "rgba(255, 215, 0, 0.15)",
+                    color: "#FFD700",
+                    border: "1px solid rgba(255, 215, 0, 0.3)",
+                  }}
+                >
+                  🏆 PR! +{pr.delta} kg
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Peso máx</p>
+                <p className="text-base font-bold text-[#e8e8e8]">
+                  {stats.maxWeight} <span className="text-[10px] text-[#888]">kg</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Volumen sem.</p>
+                <p className="text-base font-bold text-[#e8e8e8]">
+                  {stats.totalVolume.toLocaleString()}{" "}
+                  <span className="text-[10px] text-[#888]">kg·r</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Sets</p>
+                <p className="text-base font-bold text-[#e8e8e8]">{stats.totalSets}</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-[#555] uppercase tracking-wide">Reps</p>
+                <p className="text-base font-bold text-[#e8e8e8]">{stats.totalReps}</p>
+              </div>
+            </div>
+
+            {trend.length > 0 && (
+              <div className="h-[40px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={trend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                    <Bar dataKey="volume" fill={color} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
 
 function SubgroupTab() {
   const [selectedGroup, setSelectedGroup] = useState<GroupKey>("shoulders");
@@ -611,37 +792,25 @@ function SubgroupTab() {
 
   const { data: groupData } = useStrengthGroupLogs(selectedGroup);
   const byMuscle = groupData?.byMuscle ?? {};
-  const muscles = groupData?.muscles ?? [];
-  const colors = SUBGROUP_COLORS[selectedGroup];
   const filterMonths = TIME_FILTERS.find(f => f.key === timeFilter)?.months ?? 0;
 
-  const { chartData, allWeeks } = useMemo(() => {
-    const cutoff = filterMonths ? subMonths(new Date(), filterMonths) : null;
-    const weekSet = new Set<string>();
+  // v0.9.16: re-aggregate by anatomical sub-muscle. Logs with the same generic
+  // muscle_group (e.g., "Pectorals") get split into specific sub-muscles based
+  // on exercise name keywords (e.g., "Incline Bench Press" → "Pectoral superior").
+  // Backward compatible — old logs (pre-v0.9.16, with generic muscle_group)
+  // are reclassified on-the-fly. Logs generated post-v0.9.16 by the backend
+  // pipeline already have the specific muscle_group and pass through unchanged.
+  const reaggregated = useMemo(() => {
+    const result: Record<string, StrengthLog[]> = {};
     for (const logs of Object.values(byMuscle)) {
       for (const log of logs) {
-        if (cutoff && new Date(log.week_start) < cutoff) continue;
-        weekSet.add(log.week_start);
+        const specific = inferSpecificMuscle(log.exercise_name, log.muscle_group);
+        if (!result[specific]) result[specific] = [];
+        result[specific].push(log);
       }
     }
-    const allWeeks = Array.from(weekSet).sort();
-    const chartData = allWeeks.map(week => {
-      const point: Record<string, any> = { week, label: formatWeekLabel(week) };
-      for (const muscle of muscles) {
-        const logsForWeek = (byMuscle[muscle] ?? []).filter(
-          l => l.week_start === week,
-        );
-        point[muscle] =
-          logsForWeek.length > 0
-            ? Math.max(...logsForWeek.map(l => l.weight_kg))
-            : null;
-      }
-      return point;
-    });
-    return { chartData, allWeeks };
-  }, [groupData, filterMonths]);
-
-  const hasData = muscles.length > 0 && allWeeks.length > 0;
+    return result;
+  }, [byMuscle]);
 
   return (
     <div className="space-y-4">
@@ -662,7 +831,7 @@ function SubgroupTab() {
         ))}
       </select>
 
-      {/* Chart card */}
+      {/* Cards container */}
       <div
         className="p-4"
         style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
@@ -673,105 +842,17 @@ function SubgroupTab() {
               {GROUP_META[selectedGroup].label} — subgrupos
             </h3>
             <p className="text-xs text-[#555] mt-0.5">
-              Peso máximo por semana, por músculo (kg)
+              Estadísticas semanales por músculo
             </p>
           </div>
           <TimeFilterPills value={timeFilter} onChange={setTimeFilter} />
         </div>
 
-        {!hasData ? (
-          <div className="py-16 text-center">
-            <div className="text-4xl mb-3">🏋️</div>
-            <p className="text-[#555] text-sm">Aún no tienes sesiones registradas</p>
-          </div>
-        ) : (
-          <>
-            {/* v0.9.14 — BUG K: indicador semanas con datos en subgroup tab. */}
-            {filterMonths > 0 && allWeeks.length > 0 && (
-              <p className="text-[10px] text-[#555] -mt-3 mb-3">
-                Mostrando {allWeeks.length} semana{allWeeks.length === 1 ? "" : "s"} con datos
-              </p>
-            )}
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mb-5">
-              {muscles.map((muscle, i) => (
-                <div key={muscle} className="flex items-center gap-1.5">
-                  <div
-                    className="w-5 rounded-full"
-                    style={{ height: 2, backgroundColor: colors[i % colors.length] }}
-                  />
-                  <span className="text-xs text-[#888]">{muscle}</span>
-                </div>
-              ))}
-            </div>
-
-            {allWeeks.length >= 2 ? (
-              <div className="h-[220px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={chartData}
-                    margin={{ top: 18, right: 12, bottom: 5, left: -20 }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#1f1f1f"
-                    />
-                    <XAxis
-                      dataKey="label"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#555", fontSize: 11 }}
-                      dy={8}
-                    />
-                    <YAxis
-                      domain={["auto", "auto"]}
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fill: "#555", fontSize: 11 }}
-                      unit="kg"
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "10px",
-                        border: "1px solid #1f1f1f",
-                        backgroundColor: "#111",
-                        padding: "8px 12px",
-                      }}
-                      labelStyle={{ color: "#888", fontSize: 12 }}
-                      formatter={(val: number, name: string) => [`${val} kg`, name]}
-                    />
-                    {muscles.map((muscle, i) => (
-                      <Line
-                        key={muscle}
-                        type="monotone"
-                        dataKey={muscle}
-                        name={muscle}
-                        stroke={colors[i % colors.length]}
-                        strokeWidth={2.5}
-                        connectNulls={false}
-                        dot={{
-                          r: 4,
-                          fill: "#0a0a0a",
-                          stroke: colors[i % colors.length],
-                          strokeWidth: 2,
-                        }}
-                        activeDot={{ r: 6, fill: colors[i % colors.length] }}
-                      />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <div className="h-[100px] flex items-center justify-center px-4">
-                <p className="text-sm text-[#555] text-center">
-                  Registra logs en al menos 2 semanas diferentes para ver tu progresión
-                </p>
-              </div>
-            )}
-          </>
-        )}
+        <SubgroupCardsView
+          selectedGroup={selectedGroup}
+          filterMonths={filterMonths}
+          reaggregated={reaggregated}
+        />
       </div>
     </div>
   );
