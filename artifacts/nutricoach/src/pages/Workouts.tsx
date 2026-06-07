@@ -670,36 +670,21 @@ function ExerciseLogSection({ exercise }: { exercise: Exercise }) {
   const canSaveTimed = timedInput !== "";
 
   const handleSave = () => {
-    console.log("[DEBUG BUG C] Guardar clicked", {
-      exType,
-      weightInput,
-      repsInput,
-      canSave: weightInput !== "" && repsInput !== "",
-      isPending: saveLog.isPending,
-      muscleGroup,
-      exerciseName: exercise.name,
-    });
     if (exType === "strength") {
       const kg = parseFloat(weightInput);
       const reps = parseInt(repsInput, 10);
-      console.log("[DEBUG BUG C] parsed", { kg, reps });
-      if (!kg || isNaN(kg) || kg <= 0 || !reps || isNaN(reps) || reps <= 0) {
-        console.log("[DEBUG BUG C] Validation FAILED - early return");
-        return;
-      }
-      console.log("[DEBUG BUG C] Calling saveLog.mutate");
+      if (!kg || isNaN(kg) || kg <= 0 || !reps || isNaN(reps) || reps <= 0) return;
       saveLog.mutate(
         { exerciseName: exercise.name, muscleGroup, weightKg: kg, reps },
         {
           onSuccess: (result) => {
-            console.log("[DEBUG BUG C] mutate SUCCESS", result);
             setPrInfo({ delta: result.prDelta });
             setWeightInput("");
             setRepsInput("");
             setTimeout(() => setPrInfo(null), 4000);
           },
           onError: (err) => {
-            console.error("[DEBUG BUG C] mutate ERROR", err);
+            console.error("[strength] save failed:", err);
           },
         },
       );

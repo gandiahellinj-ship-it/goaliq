@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1285,18 +1286,14 @@ export function useSaveStrengthLog() {
       paceMinPerKm?: number;
       heartRateAvg?: number;
     }) => {
-      console.log("[DEBUG BUG C] mutationFn entry", payload);
-
       let token: string;
       try {
         token = await getAccessToken();
-        console.log("[DEBUG BUG C] token obtained, length:", token.length);
       } catch (err) {
-        console.error("[DEBUG BUG C] getAccessToken FAILED", err);
+        console.error("[strength] auth failed:", err);
         throw err;
       }
 
-      console.log("[DEBUG BUG C] About to fetch POST /api/strength");
       const res = await fetch("/api/strength", {
         method: "POST",
         headers: {
@@ -1306,26 +1303,26 @@ export function useSaveStrengthLog() {
         body: JSON.stringify(payload),
       });
 
-      console.log("[DEBUG BUG C] fetch returned", { status: res.status, ok: res.ok });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        console.error("[DEBUG BUG C] response NOT OK", err);
+        console.error("[strength] response error:", err);
         throw new Error(err.error ?? "Failed to save strength log");
       }
 
-      const data = (await res.json()) as {
+      return (await res.json()) as {
         log: StrengthLog;
         isNewPR: boolean;
         prDelta: number | null;
         prevMax: number | null;
       };
-      console.log("[DEBUG BUG C] response data", data);
-      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["strength_logs"] });
       queryClient.invalidateQueries({ queryKey: ["strength_muscles"] });
+    },
+    onError: (err: Error) => {
+      console.error("[strength] save failed:", err);
+      toast.error(err.message ?? "No se pudo guardar el log");
     },
   });
 }
