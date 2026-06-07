@@ -20,6 +20,133 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.11] — 2026-06-08
+
+### 🔥 WorkoutX catalog enrichment (Mejora 9.5)
+
+Sprint mayor: enriquecer el catálogo de ejercicios con 8 campos nuevos de la API WorkoutX. Foundation técnica para Features 2/3 (músculos específicos + % activación muscular).
+
+### Added
+
+**Schema BBDD — `workoutx_exercises` (8 nuevas columnas):**
+- `secondary_muscles`     JSONB DEFAULT `'[]'`  (músculos secundarios)
+- `instructions`          JSONB DEFAULT `'[]'`  (pasos detallados)
+- `gif_url`               TEXT                  (URL animación)
+- `mechanic`              TEXT                  (compound/isolation)
+- `force`                 TEXT                  (push/pull/static/carry)
+- `description`           TEXT                  (resumen ejercicio)
+- `met`                   NUMERIC               (actividad metabólica)
+- `calories_per_minute`   NUMERIC               (calorías quemadas)
+
+**TypeScript types enriquecidos:**
+- `WxExercise` (routes/workoutx.ts) — 8 new fields
+- `WxCachedExercise` (lib/workoutx-cache.ts) — 8 new fields
+- SELECT at boot reads all 15 columns
+- API download mapping preserves all enrichment fields
+- NUMERIC values coerced to number from pg's string representation
+
+**INSERT statement (CRITICAL):**
+- Batch size: 7 → 15 columns per row
+- `ON CONFLICT (id) DO NOTHING` → `DO UPDATE SET` (enrichment fields only)
+- Legacy fields (`name`, `body_part`, `target`, `equipment`, `difficulty`, `category`) NOT overwritten on conflict — preserves manual fixes
+
+### Changed
+
+**Catálogo crecimiento:**
+- ANTES: 1094 ejercicios (sync 21-abr-2026)
+- DESPUÉS: 1324 ejercicios (+230 nuevos, sync 8-jun-2026)
+
+**Datos enriquecidos al 100%:**
+- 1324/1324 con `secondary_muscles` populado
+- 1324/1324 con `instructions` (pasos detallados)
+- 1324/1324 con `gif_url`
+- 1324/1324 con `mechanic` (compound/isolation)
+- 1324/1324 con `force` (push/pull/static/carry)
+- 1324/1324 con `description`
+- 1324/1324 con `met`
+- 1324/1324 con `calories_per_minute`
+
+### Verified — E2E validation
+
+**FASE 1 — Schema migration** (commit `562243f`):
+- ✅ ALTER TABLE additive ejecutada al boot
+- ✅ Server arranca limpio sin errores
+- ✅ Cache 1094 exercises cargada con SELECT 15 columnas
+- ✅ Backup creado en Supabase: `workoutx_exercises_backup_pre_enrichment`
+
+**FASE 2 — Force-sync execution:**
+- ✅ POST `/api/workoutx/force-sync` respondió 200 OK
+- ✅ Downloaded 1324 exercises in 133 API pages
+- ✅ ~133 API calls consumidas (5% del quota mensual Basic plan)
+- ✅ INSERT enriched batch con ON CONFLICT DO UPDATE successful
+- ✅ Cache reloaded with 1324 exercises
+- ✅ Sync-status: `{"cached":1324,"db":1324}`
+- ✅ Zero errors in logs
+
+**Spot-check ejercicio `0001` (3/4 Sit-up):**
+- `secondary_muscles`: `["Hip Flexors", "Lower Back"]` ✅
+- 5 instructions steps ✅
+- `mechanic`: `isolation` ✅
+- `force`: `push` ✅
+- `met`: `3.5` ✅
+- `calories_per_minute`: `4.3` ✅
+
+**Distribución `force` descubierta:**
+- `push`: 883 (66.7%)
+- `pull`: 425 (32.1%)
+- `static`: 14 (1.1%)
+- `carry`: 2 (0.2%) — bonus, no documentado oficialmente
+
+### Foundation for future features
+
+Este catálogo enriquecido habilita:
+
+**Feature F2 — Músculos específicos por ejercicio:**
+- Bench Press → `secondary_muscles: ["Triceps", "Anterior Deltoid"]`
+- Squat → `secondary_muscles: ["Glutes", "Hamstrings", "Lower Back"]`
+- Permitirá UI con "Pectoral medio + Tríceps + Deltoides anterior"
+
+**Feature F3 — Análisis % activación muscular:**
+- `target` (primary) + `secondary_muscles` → ranking de prioridad
+- `mechanic` compound/isolation → análisis de tipo de trabajo
+- Permitirá insights "70% Pectoral medio esta semana, considera Incline"
+
+**Bonus — Tracking calorías por ejercicio:**
+- `calories_per_minute × duration` → calorías quemadas reales
+- Mejor que estimaciones genéricas (MET fórmula)
+
+### Pre-checks completed
+
+- ✅ Plan WorkoutX Basic verified (3000 calls/month, 2709 disponibles pre-sync)
+- ✅ JSON API exploratory curl confirmed all fields present
+- ✅ ADMIN_KEY existing in Replit Secrets
+- ✅ Schema additive migration safe (`IF NOT EXISTS`)
+- ✅ Pre-sync backup created defensively
+
+### Files modified
+
+3 files in api-server:
+- `artifacts/api-server/src/db-migrations.ts` (+15/-0)
+- `artifacts/api-server/src/routes/workoutx.ts` (+8/-0)
+- `artifacts/api-server/src/lib/workoutx-cache.ts` (+68/-1)
+
+Total: +91/-1 lines (FASE 1 commit `562243f`).
+
+### Notes
+
+- Migration corre al boot del server vía `ensureSupabaseTablesReady()`.
+- ALTER TABLE con `IF NOT EXISTS` = idempotente, safe re-run.
+- Pre-existing rows survived migration intact (NULLs in new columns until re-sync).
+- Force-sync via POST `/api/workoutx/force-sync` (admin-protected con `x-admin-key`).
+- Backup table `workoutx_exercises_backup_pre_enrichment` preserved for rollback safety.
+- Pattern 10 (Additive enrichment migration) added to skill bug-hunter based on this release's approach.
+
+### Versioning note
+
+No `v0.9.10` was released — version number skipped after `v0.9.9` (UX polish) directly to `v0.9.11` to align with the planned "Mejora 9.5" milestone tag.
+
+---
+
 ## [0.9.9] — 2026-06-07
 
 ### 🎨 UX polish: /progress strength tab labels + arms group label
@@ -508,7 +635,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...HEAD
+[0.9.11]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...v0.9.11
 [0.9.9]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...v0.9.7
