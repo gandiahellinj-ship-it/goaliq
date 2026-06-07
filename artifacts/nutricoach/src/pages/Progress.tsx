@@ -43,13 +43,18 @@ const GROUP_META: Record<GroupKey, { label: string; color: string }> = {
   arms:      { label: "Brazos", color: "#BA7517" },
 };
 
+// v0.9.14 — BUG I: polychrome palette per group for maximum line distinguishability.
+// First color in each array is the canonical group color (matches GROUP_META above
+// and muscleToGroupColor in Workouts.tsx for Feature F2 cross-feature consistency).
+// Remaining colors are maximally distinct hues chosen to avoid monochromatic confusion
+// when multiple muscle lines overlap in the subgroup chart.
 const SUBGROUP_COLORS: Record<GroupKey, string[]> = {
-  shoulders: ["#D4537E", "#e87da0", "#f2a8be"],
-  legs:      ["#378ADD", "#5fa3e8", "#87c0f0", "#b0d9f8"],
-  back:      ["#7F77DD", "#a09ae8", "#bfbbf2"],
-  chest:     ["#1D9E75", "#3dc494", "#6dd9b3"],
-  core:      ["#639922", "#87cc2e", "#aae062"],
-  arms:      ["#BA7517", "#d99033", "#edb860"],
+  shoulders: ["#D4537E", "#88B4F0", "#FCD56C"],            // pink + sky + gold
+  legs:      ["#378ADD", "#F1A93B", "#9B59B6", "#3DC494"], // blue + amber + purple + teal
+  back:      ["#7F77DD", "#FFB347", "#27AE60"],            // purple + amber + emerald
+  chest:     ["#1D9E75", "#E84A5F", "#FFD449"],            // green + coral + yellow
+  core:      ["#639922", "#9B59B6", "#F4A261"],            // olive + purple + sandy
+  arms:      ["#BA7517", "#3498DB", "#27AE60"],            // orange + sky blue + emerald
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -392,6 +397,13 @@ function GroupsChartInner({ filterMonths }: { filterMonths: number }) {
 
   return (
     <>
+      {/* v0.9.14 — BUG K: indicador discreto de semanas con datos cuando hay filtro temporal activo. */}
+      {filterMonths > 0 && chartData.length > 0 && (
+        <p className="text-[10px] text-[#555] -mt-3 mb-3">
+          Mostrando {chartData.length} semana{chartData.length === 1 ? "" : "s"} con datos
+        </p>
+      )}
+
       {/* Legend */}
       <div className="flex flex-wrap gap-x-4 gap-y-2 mb-5">
         {activeKeys.map(key => (
@@ -557,7 +569,7 @@ function SubgroupTab() {
               {GROUP_META[selectedGroup].label} — subgrupos
             </h3>
             <p className="text-xs text-[#555] mt-0.5">
-              Carga por músculo específico (kg)
+              Peso máximo por semana, por músculo (kg)
             </p>
           </div>
           <TimeFilterPills value={timeFilter} onChange={setTimeFilter} />
@@ -570,6 +582,13 @@ function SubgroupTab() {
           </div>
         ) : (
           <>
+            {/* v0.9.14 — BUG K: indicador semanas con datos en subgroup tab. */}
+            {filterMonths > 0 && allWeeks.length > 0 && (
+              <p className="text-[10px] text-[#555] -mt-3 mb-3">
+                Mostrando {allWeeks.length} semana{allWeeks.length === 1 ? "" : "s"} con datos
+              </p>
+            )}
+
             {/* Legend */}
             <div className="flex flex-wrap gap-x-4 gap-y-2 mb-5">
               {muscles.map((muscle, i) => (
