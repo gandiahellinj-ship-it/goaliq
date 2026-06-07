@@ -134,6 +134,14 @@ interface WxExercise {
   gifUrl: string;
   secondaryMuscles: string[];
   instructions: string[];
+  // v0.9.11 — enrichment fields confirmed present in API response.
+  category: string;
+  difficulty: string;
+  mechanic: string;
+  force: string;
+  met: number;
+  caloriesPerMinute: number;
+  description: string;
 }
 
 interface WxExerciseOut {

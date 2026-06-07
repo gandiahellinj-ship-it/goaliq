@@ -72,6 +72,21 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     CREATE INDEX IF NOT EXISTS workoutx_exercises_target_idx
     ON public.workoutx_exercises(target)
   `);
+  // v0.9.11 — enrichment columns (additive, idempotent ALTER)
+  // Source fields from WorkoutX API: secondaryMuscles, instructions, gifUrl,
+  // mechanic (compound/isolation), force (push/pull/static), description,
+  // met (metabolic equivalent), caloriesPerMinute.
+  await pool.query(`
+    ALTER TABLE public.workoutx_exercises
+      ADD COLUMN IF NOT EXISTS secondary_muscles  JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS instructions       JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS gif_url            TEXT,
+      ADD COLUMN IF NOT EXISTS mechanic           TEXT,
+      ADD COLUMN IF NOT EXISTS force              TEXT,
+      ADD COLUMN IF NOT EXISTS description        TEXT,
+      ADD COLUMN IF NOT EXISTS met                NUMERIC,
+      ADD COLUMN IF NOT EXISTS calories_per_minute NUMERIC
+  `);
 
   // 4. calendar_events — create if missing; not defined in supabase-schema.sql
   await pool.query(`

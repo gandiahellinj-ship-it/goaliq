@@ -14,6 +14,16 @@ export type WxCachedExercise = {
   equipment: string;
   difficulty: string;
   category: string;
+  // v0.9.11 — enrichment fields. Default values used when DB has NULL
+  // (pre-enrichment rows) so consumers can rely on field presence.
+  secondaryMuscles: string[];
+  instructions: string[];
+  gifUrl: string;
+  mechanic: string;
+  force: string;
+  description: string;
+  met: number;
+  caloriesPerMinute: number;
 };
 
 const GYM_EQUIPMENT = new Set([
@@ -41,7 +51,12 @@ export async function loadWorkoutXCache(): Promise<void> {
     // Try loading from DB first
     try {
       const { rows } = await pool.query(
-        "SELECT id, name, body_part, target, equipment, difficulty, category FROM public.workoutx_exercises ORDER BY id"
+        `SELECT
+           id, name, body_part, target, equipment, difficulty, category,
+           secondary_muscles, instructions, gif_url, mechanic, force,
+           description, met, calories_per_minute
+         FROM public.workoutx_exercises
+         ORDER BY id`
       );
 
       if (rows.length > 0) {
@@ -53,6 +68,16 @@ export async function loadWorkoutXCache(): Promise<void> {
           equipment: r.equipment,
           difficulty: r.difficulty,
           category: r.category,
+          // JSONB columns are already parsed by pg.
+          secondaryMuscles: Array.isArray(r.secondary_muscles) ? r.secondary_muscles : [],
+          instructions: Array.isArray(r.instructions) ? r.instructions : [],
+          gifUrl: r.gif_url ?? "",
+          mechanic: r.mechanic ?? "",
+          force: r.force ?? "",
+          description: r.description ?? "",
+          // pg returns NUMERIC as string by default — coerce to number.
+          met: r.met != null ? parseFloat(r.met) : 0,
+          caloriesPerMinute: r.calories_per_minute != null ? parseFloat(r.calories_per_minute) : 0,
         }));
         cacheLoaded = true;
         console.log(`[workoutx-cache] Loaded ${exerciseCache.length} exercises from DB`);
@@ -99,6 +124,15 @@ export async function loadWorkoutXCache(): Promise<void> {
               equipment: ex.equipment ?? "",
               difficulty: ex.difficulty ?? "",
               category: ex.category ?? "",
+              // v0.9.11 — enrichment fields.
+              secondaryMuscles: Array.isArray(ex.secondaryMuscles) ? ex.secondaryMuscles : [],
+              instructions: Array.isArray(ex.instructions) ? ex.instructions : [],
+              gifUrl: ex.gifUrl ?? "",
+              mechanic: ex.mechanic ?? "",
+              force: ex.force ?? "",
+              description: ex.description ?? "",
+              met: typeof ex.met === "number" ? ex.met : 0,
+              caloriesPerMinute: typeof ex.caloriesPerMinute === "number" ? ex.caloriesPerMinute : 0,
             });
           }
         }
@@ -120,22 +154,48 @@ export async function loadWorkoutXCache(): Promise<void> {
     // Save to DB in batches of 100
     if (all.length > 0) {
       try {
+        // v0.9.11 — 15 columns per row + ON CONFLICT DO UPDATE on enrichment
+        // fields only. Legacy fields (name, body_part, target, equipment,
+        // difficulty, category) are NOT overwritten on conflict — preserves
+        // any manual fixes and avoids churning existing data unnecessarily.
+        const COLS_PER_ROW = 15;
         for (let i = 0; i < all.length; i += 100) {
           const batch = all.slice(i, i + 100);
-          const values = batch.map((_, j) =>
-            `($${j*7+1}, $${j*7+2}, $${j*7+3}, $${j*7+4}, $${j*7+5}, $${j*7+6}, $${j*7+7})`
-          ).join(", ");
+          const values = batch.map((_, j) => {
+            const base = j * COLS_PER_ROW;
+            const ph = (off: number) => `$${base + off}`;
+            return `(${ph(1)},${ph(2)},${ph(3)},${ph(4)},${ph(5)},${ph(6)},${ph(7)},${ph(8)}::jsonb,${ph(9)}::jsonb,${ph(10)},${ph(11)},${ph(12)},${ph(13)},${ph(14)},${ph(15)})`;
+          }).join(", ");
           const params = batch.flatMap(ex => [
-            ex.id, ex.name, ex.bodyPart, ex.target, ex.equipment, ex.difficulty, ex.category
+            ex.id, ex.name, ex.bodyPart, ex.target, ex.equipment, ex.difficulty, ex.category,
+            JSON.stringify(ex.secondaryMuscles ?? []),
+            JSON.stringify(ex.instructions ?? []),
+            ex.gifUrl || null,
+            ex.mechanic || null,
+            ex.force || null,
+            ex.description || null,
+            ex.met || null,
+            ex.caloriesPerMinute || null,
           ]);
           await pool.query(
-            `INSERT INTO public.workoutx_exercises (id, name, body_part, target, equipment, difficulty, category)
+            `INSERT INTO public.workoutx_exercises
+               (id, name, body_part, target, equipment, difficulty, category,
+                secondary_muscles, instructions, gif_url, mechanic, force,
+                description, met, calories_per_minute)
              VALUES ${values}
-             ON CONFLICT (id) DO NOTHING`,
+             ON CONFLICT (id) DO UPDATE SET
+               secondary_muscles    = EXCLUDED.secondary_muscles,
+               instructions         = EXCLUDED.instructions,
+               gif_url              = EXCLUDED.gif_url,
+               mechanic             = EXCLUDED.mechanic,
+               force                = EXCLUDED.force,
+               description          = EXCLUDED.description,
+               met                  = EXCLUDED.met,
+               calories_per_minute  = EXCLUDED.calories_per_minute`,
             params
           );
         }
-        console.log(`[workoutx-cache] Saved ${all.length} exercises to DB`);
+        console.log(`[workoutx-cache] Saved ${all.length} exercises to DB (enriched)`);
       } catch (err) {
         console.error("[workoutx-cache] Failed to save to DB:", err);
       }
