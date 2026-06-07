@@ -20,6 +20,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.14] — 2026-06-08
+
+### 🎨 UX polish — `/progress` charts (BUG I + J + K resolved)
+
+Bundle backlog cleanup: 3 UX bugs cerrados en `Progress.tsx` con disciplina senior (1 archivo, 3 cambios coherentes).
+
+### Fixed
+
+**BUG I (100%) — Monochromatic palette collisions:**
+- Before: Each subgroup chart used 3-4 tones of the same color (legs: 4 azules, arms: 3 naranjas) → lines indistinguishable when overlapping or crossing.
+- After: Polychrome palette per group:
+  - First color: canonical (preserves Feature F2 cross-feature consistency)
+  - Rest: maximally distinguishable hues
+- Examples:
+  - `legs`: blue + amber + purple + teal
+  - `arms`: orange + sky + emerald
+  - `chest`: green + coral + yellow
+  - `back`: purple + amber + emerald
+  - `shoulders`: pink + sky + gold
+  - `core`: olive + purple + sandy
+
+**BUG J (100%) — Subgroup subtitle ambiguous:**
+- Before: `"Carga por músculo específico (kg)"`
+- After: `"Peso máximo por semana, por músculo (kg)"`
+- Distinguishes from Groups tab (volume) vs Subgroup tab (max weight).
+- Each metric has its purpose, only labels needed clarity.
+
+**BUG K (100%) — Time filter "1A" not covering year (false positive):**
+- Like BUG C (v0.9.7): filter logic was CORRECT.
+- Users see "1A" but chart shows only available data (3-4 months in test2goaliq case).
+- Fix: Add `"Mostrando X semana(s) con datos"` indicator below subtitle:
+  - Only renders when `filterMonths > 0`
+  - Singular/plural correct (`1 semana` vs `N semanas`)
+  - Educates user about actual range available
+  - Subtle style: `text-[10px]` color `#555`
+
+### Added
+
+**Indicator below subtitles** (both `Grupos musculares` and `Por subgrupo` tabs):
+- `"Mostrando X semana(s) con datos"`
+- Defensive: only when filter active AND data exists
+
+### Verified — E2E validation (commit `462ed58` in production)
+
+- ✅ Sync Replit OK
+- ✅ Vite HMR detected
+- ✅ Visual confirmed: polychrome palette per group
+- ✅ Subtítulo clarificado
+- ✅ Indicador semanas funciona
+- ✅ Cross-feature consistency: `/workouts` pill colors match `/progress` lines
+- ✅ Plural correcto (1 semana / N semanas)
+
+### Cross-feature consistency
+
+Critical: first color in `SUBGROUP_COLORS` arrays MUST match `GROUP_META` in `Progress.tsx` AND `muscleToGroupColor` in `Workouts.tsx`. This preserves the visual language established in v0.9.13 Feature F2 (badges colored).
+
+Validated:
+- `chest` `#1D9E75` in `/workouts` pill = `/progress` Pectoral line 1
+- `legs` `#378ADD` in `/workouts` pill = `/progress` Cuádriceps line 1
+- `arms` `#BA7517` in `/workouts` pill = `/progress` Bíceps line 1
+
+### New bug discovered (NOT fixed in v0.9.14)
+
+**BUG M — Tonnage confusion in Groups tab:**
+- Tab `"Grupos musculares"` shows `Σ(weight × reps)` per week per group
+- User reads `"432 kg"` as a real weight
+- UX confusing despite metric being technically valid
+- Documented as Active for v0.9.15 professional redesign
+
+### Files
+
+1 file modified:
+- `artifacts/nutricoach/src/pages/Progress.tsx` (+26/-7 lines)
+
+### Notes
+
+- `v0.9.10` sigue intencionalmente saltado (documentado en CHANGELOG v0.9.11)
+- 4 releases mayores en 1 día (v0.9.11 → v0.9.14)
+- Active bugs reducidos a 3 (`F.tooltip`, `L`, `M`)
+- Pattern 13 (Polychrome Categorical Palette) added to skill bug-hunter
+- Flow 9 (Cross-feature color consistency) added to skill bug-hunter
+- Next: `v0.9.15` professional redesign of Groups tab to address BUG M
+
+---
+
 ## [0.9.13] — 2026-06-08
 
 ### 🎨 Feature F2: Muscle hierarchy badges (Visual UI)
@@ -815,7 +900,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.14...HEAD
+[0.9.14]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...v0.9.11
