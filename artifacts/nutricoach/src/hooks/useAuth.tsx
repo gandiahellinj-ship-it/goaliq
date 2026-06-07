@@ -91,6 +91,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   }, []);
 
+  console.log("[DEBUG useAuth] State change", {
+    hasSession: !!session,
+    hasAccessToken: !!session?.access_token,
+    hasUser: !!user,
+    isLoading,
+    isAuthenticated: !!user,
+  });
+
   return (
     <AuthContext.Provider value={{
       user,

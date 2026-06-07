@@ -303,6 +303,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [qaLoading, setQaLoading] = useState(false);
   const [qaReport, setQaReport] = useState<QAReport | null>(null);
 
+  console.log("[DEBUG AppLayout] MOUNT", {
+    isAuthenticated,
+    authLoading,
+    hasSession: !!session,
+    hasAccessToken: !!session?.access_token,
+    location,
+  });
+
   const isDevEnv =
     typeof window !== "undefined" &&
     window.location.hostname.includes("replit.dev");
@@ -338,35 +346,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    console.log("[DEBUG AppLayout] profiles useEffect fires", {
+      isAuthenticated,
+      hasToken: !!session?.access_token,
+    });
     // BUG A fix: gate query until Supabase JS has hydrated the JWT.
-    // Without this, the RLS-protected query to `profiles` runs anonymous
-    // and returns null → hasCompletedOnboarding=false → forced redirect to /onboarding.
     if (!isAuthenticated || !session?.access_token) {
+      console.log("[DEBUG AppLayout] Skipping query - not ready");
       if (!isAuthenticated) setProfileLoading(false);
       return;
     }
+    console.log("[DEBUG AppLayout] Running profiles query");
     setProfileLoading(true);
     supabase
       .from("profiles")
       .select("age, onboarding_completed_at")
       .maybeSingle()
       .then(({ data, error }) => {
+        console.log("[DEBUG AppLayout] Query result", { data, error });
         if (error) {
           console.error("[AppLayout] profiles query failed:", error);
         }
-        // Prefer explicit flag (set during onboarding submission);
-        // fall back to age proxy for users created before the column existed.
         const completed = !!data?.onboarding_completed_at || !!data?.age;
+        console.log("[DEBUG AppLayout] Setting hasCompletedOnboarding:", completed);
         setHasCompletedOnboarding(completed);
         setProfileLoading(false);
       });
   }, [isAuthenticated, session?.access_token]);
 
   useEffect(() => {
+    console.log("[DEBUG AppLayout] Redirect check", {
+      authLoading,
+      isAuthenticated,
+      profileLoading,
+      hasCompletedOnboarding,
+      location,
+    });
     if (!authLoading && !isAuthenticated) {
+      console.log("[DEBUG AppLayout] -> Redirecting to /");
       setLocation("/");
     } else if (isAuthenticated && !profileLoading) {
       if (!hasCompletedOnboarding && location !== "/onboarding") {
+        console.log("[DEBUG AppLayout] -> Redirecting to /onboarding");
         setLocation("/onboarding");
       }
     }
