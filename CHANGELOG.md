@@ -20,6 +20,98 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.15] — 2026-06-08
+
+### 🏆 Professional cards redesign for Groups tab (BUG M closed)
+
+Rediseño mayor del tab "Grupos musculares" en `/progress`. Pasamos de single line chart con tonnage confuso a 6 cards profesionales con KPIs explícitos, mini-charts y PR detection. Eleva GoalIQ al nivel visual de apps comerciales (Strong, Hevy, Fitbod). **BUG M closed**.
+
+### Fixed
+
+**BUG M (100%) — Tonnage confusion in Groups tab:**
+- Before: Single line chart, 6 lines superpuestas, eje Y `"kg"` ambiguo (era `Σ peso × reps` pero se leía como peso real)
+- After: 6 professional cards with explicit metrics and units
+- Each metric has its own unit label: `kg`, `kg·r`, `sets`, `reps`
+- User no longer confused about what `"432 kg"` means
+
+### Added
+
+**3 new helpers** (`Progress.tsx`):
+- `computeWeekStats(logs)`: max weight + volume + sets + reps
+- `getRecentWeeklyVolume(byMuscle, n)`: trend last N weeks
+- `detectPR(byMuscle)`: PR detection vs previous week with delta
+
+**`GroupsCardsView` component** (replaces `GroupsChartInner`):
+- 6 cards apilados verticalmente (one per canonical group)
+- Each card with:
+  - Header: colored dot + group label + optional PR badge
+  - 4 KPIs grid (responsive: 2 cols mobile, 4 cols desktop)
+  - Mini bar chart (last 6 weeks volume trend)
+- Empty state card for groups without logs (educative)
+
+**PR badge:**
+- Trigger: latest week max weight > previous week (`delta > 0`)
+- Style: gold (`#FFD700`) with 15% alpha background, border
+- Format: `"🏆 PR! +X kg"`
+- Defensive: hidden if single-week history or `delta ≤ 0`
+
+### Verified — E2E validation (commit `8cdb541` in production)
+
+**Real user data (test2goaliq):**
+- Piernas: 34 kg max, 6,322 kg·r volume, 31 sets, 314 reps
+- Pectoral: 22 kg max, 3,736 kg·r volume, 24 sets, 236 reps
+- Brazos: 15 kg max, 4,939 kg·r volume, 42 sets, 481 reps
+- PRs detected: Piernas +2kg, Pectoral +2kg, Brazos +1kg
+- Empty states: Hombros, Espalda, Abdomen
+- Indicator `"Mostrando 13 semanas con datos"` (v0.9.14 preservado)
+
+### Filter behavior (documented inline)
+
+- KPIs respect `filterMonths` (1M, 3M, 1A, Todo)
+- Trend mini-chart ALWAYS shows last 6 weeks (independent of filter, per design decision 3/6)
+- Indicator `"Mostrando X semanas con datos"` preserved (v0.9.14)
+
+### Cross-feature consistency preserved
+
+First color in `SUBGROUP_COLORS` matches `GROUP_META` (Progress.tsx) AND `muscleToGroupColor` (Workouts.tsx). Pattern 12 + 13 visual language maintained:
+- `chest` `#1D9E75` in `/workouts` pill = `/progress` card dot + bars
+- `legs` `#378ADD` in `/workouts` pill = `/progress` card dot + bars
+- `arms` `#BA7517` in `/workouts` pill = `/progress` card dot + bars
+- (etc. for all 6 groups)
+
+### Decisions documented (6 product decisions, all "A")
+
+1. Cards stacked (Option A) — chosen over hybrid/grid
+2. 4 KPIs per card with responsive grid (2/4 cols)
+3. Trend window: 6 weeks FIXED (ignores filter)
+4. PR detection: vs previous week (actionable)
+5. Empty state: show card with `"Sin sesiones registradas"`
+6. Filter behavior: only affects KPIs, trend always 6 weeks
+
+### New bug discovered (NOT fixed in v0.9.15)
+
+**BUG N — Subgroup tab visual inconsistency:**
+- Tab `"Por subgrupo"` still uses line chart (v0.9.14)
+- Tab `"Grupos musculares"` now uses cards (v0.9.15)
+- User explicitly asked for same treatment
+- Documented as Active for `v0.9.16` (next release)
+
+### Files
+
+1 file modified:
+- `artifacts/nutricoach/src/pages/Progress.tsx` (+193 / -89 lines)
+
+### Notes
+
+- 5 releases mayores en 1 día (v0.9.11 → v0.9.15)
+- BUG M cerrado: tonnage confusion eliminated
+- Foundation for Feature F3 (% muscle activation): helpers reusable for advanced analytics
+- Pattern 14 (KPI Cards with Explicit Units) added to skill bug-hunter
+- Flow 10 (Professional Groups cards validation) added to skill bug-hunter
+- Next: `v0.9.16` — Subgroup cards (same treatment as Groups)
+
+---
+
 ## [0.9.14] — 2026-06-08
 
 ### 🎨 UX polish — `/progress` charts (BUG I + J + K resolved)
@@ -900,7 +992,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.14...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.15...HEAD
+[0.9.15]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...v0.9.12
