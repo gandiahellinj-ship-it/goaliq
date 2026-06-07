@@ -1285,22 +1285,43 @@ export function useSaveStrengthLog() {
       paceMinPerKm?: number;
       heartRateAvg?: number;
     }) => {
-      const token = await getAccessToken();
+      console.log("[DEBUG BUG C] mutationFn entry", payload);
+
+      let token: string;
+      try {
+        token = await getAccessToken();
+        console.log("[DEBUG BUG C] token obtained, length:", token.length);
+      } catch (err) {
+        console.error("[DEBUG BUG C] getAccessToken FAILED", err);
+        throw err;
+      }
+
+      console.log("[DEBUG BUG C] About to fetch POST /api/strength");
       const res = await fetch("/api/strength", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
+
+      console.log("[DEBUG BUG C] fetch returned", { status: res.status, ok: res.ok });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        console.error("[DEBUG BUG C] response NOT OK", err);
         throw new Error(err.error ?? "Failed to save strength log");
       }
-      return res.json() as Promise<{
+
+      const data = (await res.json()) as {
         log: StrengthLog;
         isNewPR: boolean;
         prDelta: number | null;
         prevMax: number | null;
-      }>;
+      };
+      console.log("[DEBUG BUG C] response data", data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["strength_logs"] });
