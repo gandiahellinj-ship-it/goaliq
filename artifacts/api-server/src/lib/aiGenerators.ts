@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonrepair } from "jsonrepair";
-import { loadWorkoutXCache, getExercisesByLocationAndLevel } from "./workoutx-cache";
+import { loadWorkoutXCache, getExercisesByLocationAndLevel, getExerciseById } from "./workoutx-cache";
 import {
   moderateMealPlan,
   moderateWorkoutPlan,
@@ -597,6 +597,10 @@ Return ONLY the JSON array, nothing else.`;
   const model = trainingDays >= 6 ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001";
   console.log(`[aiGenerators] Workout: trainingDays=${trainingDays}, maxTokens=${maxTokens}, model=${model}`);
   const workoutData = await callClaudeWithRetry(WORKOUT_SYSTEM, prompt, maxTokens, (val) => isWorkoutArray(val, trainingDays), model);
+
+  // ── Post-AI pipeline (3 explicit phases) ──────────────────────────────────
+
+  // PHASE 1 — Apply defaults + basic cleanup per exercise.
   const processedDays = (workoutData as any[]).map((day: any) => ({
     ...day,
     exercises: (day.exercises ?? []).map((ex: any) => ({
@@ -610,11 +614,30 @@ Return ONLY the JSON array, nothing else.`;
     })),
   }));
 
-  // Safety net: fill in any missing exercise_ids from the pool
-  return {
-    days: reconcileExerciseIds(processedDays, wxMap, wxNameMap),
-    model,
-  };
+  // PHASE 2 — Reconcile exercise IDs + canonical names from the WorkoutX cache.
+  // Safety net for cases where the AI didn't return an exercise_id.
+  const reconciled = reconcileExerciseIds(processedDays, wxMap, wxNameMap);
+
+  // PHASE 3 — v0.9.12: backend authoritative on `muscles`.
+  // Closes BUG E (no more "general" fallback when AI omits `muscles`) and
+  // BUG H (no more AI-invented Spanish strings like "Espalda Superior").
+  // Format matches Workouts.tsx:624 expectation: first comma-separated muscle
+  // is treated as primary and routed to its canonical group via MUSCLE_GROUPS.
+  // Fallback to the AI-provided value only when no exercise_id matched cache.
+  const enriched = reconciled.map((day: any) => ({
+    ...day,
+    exercises: day.exercises.map((ex: any) => {
+      const cached = ex.exercise_id ? getExerciseById(ex.exercise_id) : null;
+      return {
+        ...ex,
+        muscles: cached
+          ? [cached.target, ...cached.secondaryMuscles].filter(Boolean).join(", ")
+          : (ex.muscles ?? ""),
+      };
+    }),
+  }));
+
+  return { days: enriched, model };
 }
 
 // ─── Moderated wrappers (Mejora 6) ────────────────────────────────────────────
