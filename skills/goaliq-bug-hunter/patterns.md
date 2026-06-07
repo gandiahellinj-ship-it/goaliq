@@ -62,6 +62,21 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 9: Label-Data Semantic Drift in Canonical Mappings
+**Symptom**: A config table has key → label mapping where the label is semantically wrong for the key (e.g., `arms: { label: "Trapecio" }` — but trapezius is a back muscle, not arms)
+**How to detect**:
+- Audit `GROUP_META` / similar config objects with key→label pairs
+- Check whether each label is semantically coherent with what its key represents
+- Watch for surprising user feedback: "wait, why does X say Y?"
+**How to fix**:
+- Trivial: one-line label correction
+- Cross-check other entries in the same config for similar drift
+**Lesson learned (from BUG G)**:
+- TypeScript doesn't catch semantic mismatches — any string satisfies `label: string`
+- Config changes need a semantic review pass, not just type-check
+- Defensive practice: when adding/renaming canonical keys, eyeball every label against its key
+- Distinct from Pattern 8 (value mismatch): Pattern 8 is about runtime data drifting; Pattern 9 is about a static config being authored incorrectly
+
 ## Pattern 8: Value Mapping Drift (frontend/backend mismatch)
 **Symptom**: Endpoint returns empty results despite valid data in DB
 **How to detect**:

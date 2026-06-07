@@ -15,24 +15,53 @@
 - **Status**: Pending investigation
 - **Action**: Investigate after MEJORA 11 visual / when relevant
 
-### BUG F - /progress strength UX confusing labels (ACTIVE)
-- **Discovered**: 2026-06-07 (after BUG D fix validation)
-- **Severity**: 🟡 Low (UX polish, not blocking)
-- **Symptoms** (pre-existing, exposed once data displayed):
-  - Label "Carga total por sesión" should be "Volumen total por semana"
-  - "1 jun" date label could benefit from tooltip showing logged_at
-  - "Registra más sesiones" message could be more specific:
-    "Registra logs en al menos 2 semanas diferentes"
-- **Files involved**:
-  - artifacts/nutricoach/src/pages/Progress.tsx (labels, threshold msg)
-- **Suggested fix**:
-  - Update label text strings
-  - Optional: tooltip showing individual log dates
-  - More specific empty state message
-- **Impact**: User confusion about what numbers mean
-- **Priority**: Low - not blocking, fix when polishing UX
+### BUG F.tooltip - /progress subgroup chart tooltip (ACTIVE, partial of BUG F)
+- **Discovered**: 2026-06-07 (after BUG D fix validation), partially fixed in v0.9.9
+- **Severity**: 🟡 Low (UX nice-to-have)
+- **Symptom**: Subgroup line chart shows `week_start` (ISO Monday) on X-axis with no way to see the actual `logged_at` dates of the individual data points
+- **Status**: BUG F resolved partial in v0.9.9 (label + threshold copy). Tooltip remains active.
+- **Suggested fix**: Custom Recharts tooltip component that fetches the individual logs and displays them on hover
+- **Files involved**: artifacts/nutricoach/src/pages/Progress.tsx (line ~612 Tooltip element)
+- **Effort**: ~30-45 min (custom tooltip + per-log fetch)
+- **Priority**: Low - not blocking; revisit during /progress polishing pass
 
-## Resolved Bugs (#1-#9, A, B, C, D)
+### BUG I - SUBGROUP_COLORS palette collisions (ACTIVE)
+- **Discovered**: 2026-06-07 (during E2E test with 16-week demo data)
+- **Severity**: 🟡 Low (UX clarity)
+- **Symptom**: Color palette for subgroup chart has internal collisions
+  - `legs` group: Cuádriceps/Glúteos both shades of blue, hard to distinguish lines
+  - `arms` group: Bíceps/Tríceps both shades of orange, hard to distinguish lines
+- **Files involved**: artifacts/nutricoach/src/pages/Progress.tsx:46-53 (SUBGROUP_COLORS)
+- **Suggested fix**: Pick higher-contrast color combinations per group (avoid same-hue collisions inside one group)
+- **Priority**: Low
+
+### BUG J - Metric inconsistency between tabs (ACTIVE)
+- **Discovered**: 2026-06-07 (during E2E test)
+- **Severity**: 🟡 Medium (semantic confusion)
+- **Symptom**: Two semantically different metrics under same UI parent
+  - "Grupos musculares" tab: weekly tonnage (sum of weight × reps)
+  - "Por subgrupo" tab: max weight per week (Math.max of weight_kg)
+- **Files involved**: Progress.tsx (aggregateGroupLoad line 68, subgroup chart line 502-525)
+- **Suggested fix**: Either unify the metric (both tonnage or both max), OR add explicit subtitle to "Por subgrupo" tab clarifying "Peso máximo por semana"
+- **Priority**: Medium - causes user confusion when comparing tabs
+
+### BUG K - Time filter "1A" doesn't span full year (ACTIVE)
+- **Discovered**: 2026-06-07 (during E2E test with 16-week data)
+- **Severity**: 🟡 Low
+- **Symptom**: Time filter pill "1A" (1 año / 1 year) doesn't include the full year range when user has data spanning >12 months
+- **Files involved**: Progress.tsx TIME_FILTERS definition
+- **Suggested fix**: Verify TIME_FILTERS[..."1A"].months === 12; or change to "Todo" / "All time" pill
+- **Priority**: Low
+
+### BUG L - Weight log notes invisible (ACTIVE)
+- **Discovered**: 2026-06-07 (during E2E test)
+- **Severity**: 🟡 Low (data not lost, but not displayed)
+- **Symptom**: Notes field saved with weight logs is not rendered/visible in "Peso Corporal" tab
+- **Files involved**: Progress.tsx WeightTab + LogWeightSheet (line ~124-155, log display section)
+- **Suggested fix**: Render the note field next to/below each weight entry in the timeline
+- **Priority**: Low
+
+## Resolved Bugs (#1-#9, A, B, C, D, F partial, G)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -101,6 +130,35 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG G - arms group label was "Trapecio" (RESOLVED v0.9.9)
+- **Discovered**: 2026-06-07 (during pre-test audit for catalog classification)
+- **Severity**: 🟡 Low (UX, label only)
+- **Symptom**: The `arms` canonical group in GROUP_META was labeled "Trapecio" (anatomically a back muscle = trapezius). Users logging bicep curls saw their data under a tab labeled "Trapecio".
+- **Root cause**: Label-data semantic drift in canonical mapping config. The `key` of the group was correct (`arms`), but the display `label` ("Trapecio") was semantically incoherent with the key.
+- **Fix**: eab1026 - One-line change: arms.label "Trapecio" → "Brazos"
+- **Tag**: v0.9.9
+- **Lesson**:
+  - TypeScript doesn't catch semantic mismatches (any string is valid for label field)
+  - Config tables with key→label mappings need semantic review during creation
+  - Audit other canonical mappings for similar drift (Pattern 9)
+
+### BUG F - /progress strength UX confusing labels (RESOLVED partial v0.9.9)
+- **Discovered**: 2026-06-07 (after BUG D fix validation)
+- **Severity**: 🟡 Low (UX polish)
+- **Symptoms** (pre-existing, exposed once data displayed):
+  - Label "Carga total por sesión" was ambiguous (it's actually weekly tonnage)
+  - "Registra más sesiones" message didn't explain WHY (threshold is 2+ distinct weeks)
+- **Fix**: eab1026 - Label + threshold message updated for clarity:
+  - "Carga total levantada por sesión (kg)" → "Volumen total por semana (peso × reps · kg)"
+  - "Registra más sesiones para ver la gráfica" → "Registra logs en al menos 2 semanas diferentes para ver tu progresión"
+  - Added px-4 + text-center for wrap on narrow viewports
+- **Tag**: v0.9.9
+- **Note**: Partial resolution. Optional tooltip showing individual logged_at dates per data point remains active (see BUG F.tooltip).
+- **Lesson**:
+  - UX labels need to match the actual semantics of the data shown
+  - "Por sesión" vs "por semana" matters when the calculation is aggregating
+  - Threshold messages should explain the requirement, not just say "más"
 
 ### BUG D - /progress missing strength logs (RESOLVED v0.9.8)
 - **Discovered**: 2026-06-07 (E2E test by user)

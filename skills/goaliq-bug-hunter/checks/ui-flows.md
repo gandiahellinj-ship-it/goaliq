@@ -59,7 +59,11 @@
 - byMuscle object contains user's logs keyed by muscle_group
 - "Grupos musculares" tab: weekly tonnage point per week (sum of weight × reps)
 - "Por subgrupo" tab: line chart per specific muscle (requires ≥2 distinct weeks)
+- Subtitle reads "Volumen total por semana (peso × reps · kg)" — clear formula hint
+- Threshold message reads "Registra logs en al menos 2 semanas diferentes para ver tu progresión"
+- "arms" tab labeled "Brazos" (NOT "Trapecio")
 - PR detection shows 🏆 on records
-**Current state**: ✅ PASSING (v0.9.8 fix)
+**Current state**: ✅ PASSING (v0.9.8 fix + v0.9.9 UX polish)
+**Validated**: E2E with 16-week demo data, 5 exercises, deload weeks visible
 
 [More flows]
