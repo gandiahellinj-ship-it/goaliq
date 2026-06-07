@@ -303,14 +303,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [qaLoading, setQaLoading] = useState(false);
   const [qaReport, setQaReport] = useState<QAReport | null>(null);
 
-  console.log("[DEBUG AppLayout] MOUNT", {
-    isAuthenticated,
-    authLoading,
-    hasSession: !!session,
-    hasAccessToken: !!session?.access_token,
-    location,
-  });
-
   const isDevEnv =
     typeof window !== "undefined" &&
     window.location.hostname.includes("replit.dev");
@@ -346,55 +338,38 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    console.log("[DEBUG AppLayout] profiles useEffect fires", {
-      isAuthenticated,
-      hasToken: !!session?.access_token,
-    });
     // BUG A fix: gate query until Supabase JS has hydrated the JWT.
     if (!isAuthenticated || !session?.access_token) {
-      console.log("[DEBUG AppLayout] Skipping query - not ready");
-      // BUG A final fix: only flip profileLoading to false if auth is
-      // CONFIRMED logged out (auth has finished loading AND user is null).
-      // During auth rehydration on F5, isAuthenticated transiently reads
-      // false before the session restores; setting profileLoading=false
-      // here would let the redirect useEffect fire with stale state.
+      // Only flip profileLoading to false when auth is CONFIRMED logged out
+      // (authLoading finished AND user is null). During rehydration on F5,
+      // isAuthenticated transiently reads false before the session restores;
+      // flipping the flag here would let the redirect useEffect fire with
+      // stale state and bounce the user to /onboarding.
       if (!isAuthenticated && !authLoading) {
         setProfileLoading(false);
       }
       return;
     }
-    console.log("[DEBUG AppLayout] Running profiles query");
     setProfileLoading(true);
     supabase
       .from("profiles")
       .select("age, onboarding_completed_at")
       .maybeSingle()
       .then(({ data, error }) => {
-        console.log("[DEBUG AppLayout] Query result", { data, error });
         if (error) {
           console.error("[AppLayout] profiles query failed:", error);
         }
         const completed = !!data?.onboarding_completed_at || !!data?.age;
-        console.log("[DEBUG AppLayout] Setting hasCompletedOnboarding:", completed);
         setHasCompletedOnboarding(completed);
         setProfileLoading(false);
       });
   }, [isAuthenticated, session?.access_token, authLoading]);
 
   useEffect(() => {
-    console.log("[DEBUG AppLayout] Redirect check", {
-      authLoading,
-      isAuthenticated,
-      profileLoading,
-      hasCompletedOnboarding,
-      location,
-    });
     if (!authLoading && !isAuthenticated) {
-      console.log("[DEBUG AppLayout] -> Redirecting to /");
       setLocation("/");
     } else if (isAuthenticated && !profileLoading) {
       if (!hasCompletedOnboarding && location !== "/onboarding") {
-        console.log("[DEBUG AppLayout] -> Redirecting to /onboarding");
         setLocation("/onboarding");
       }
     }

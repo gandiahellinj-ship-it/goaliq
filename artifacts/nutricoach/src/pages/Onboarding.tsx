@@ -168,7 +168,6 @@ const TONE_LOOKUP: Record<ImcCategory, Record<GoalKey, ToneValue>> = {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Onboarding() {
-  console.log("[DEBUG Onboarding] MOUNT");
   const [, setLocation] = useLocation();
   const t = useT();
   const { lang } = useLanguage();
@@ -351,15 +350,12 @@ export default function Onboarding() {
   // Runs once on mount. Decides whether to show the questionnaire (step 0),
   // skip straight to step 1 (sobre ti), or render the blocked view.
   useEffect(() => {
-    console.log("[DEBUG Onboarding] Screening useEffect fires", { isEditMode });
     if (isEditMode) {
-      console.log("[DEBUG Onboarding] Edit mode - going to step 1");
       setCurrentStep(1);
       return;
     }
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      console.log("[DEBUG Onboarding] supabase.auth.getUser ->", { hasUser: !!user });
       if (!user) {
         setLocation("/");
         return;
@@ -369,12 +365,10 @@ export default function Onboarding() {
         .select("screening_result, block_reason")
         .eq("user_id", user.id)
         .maybeSingle();
-      console.log("[DEBUG Onboarding] health_screenings result", data);
       if (data?.screening_result === "blocked") {
         setBlockReason(data.block_reason ?? null);
         setShowBlockedView(true);
       } else if (data?.screening_result === "passed" || data?.screening_result === "allergies_only") {
-        console.log("[DEBUG Onboarding] Skip screening - going to step 1");
         setCurrentStep(1);
       }
       setScreeningCheckLoading(false);
