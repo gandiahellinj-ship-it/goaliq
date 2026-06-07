@@ -1,10 +1,38 @@
 # Known Bugs - Historical Reference
 
-## Active Bugs (none currently)
+## Active Bugs
 
-All discovered bugs have been resolved through v0.9.6. See "Resolved Bugs" below for the historical record.
+### BUG E - 'general' muscle_group fallback (ACTIVE, non-blocking)
+- **Discovered**: 2026-06-07 during BUG D audit
+- **Severity**: 🟡 Medium (data quality, non-blocking)
+- **Symptom**: 4 strength_logs records have muscle_group='general'
+- **Source**: Workouts.tsx:623 fallback when exercise.muscles is null/undefined
+- **Impact**: These logs will never appear in /progress (no group includes 'general')
+- **Possible root causes**:
+  - AI generates exercise with empty muscles field
+  - Plan data corruption during generation
+  - Edge case in muscle extraction
+- **Status**: Pending investigation
+- **Action**: Investigate after MEJORA 11 visual / when relevant
 
-## Resolved Bugs (#1-#9, A, B)
+### BUG F - /progress strength UX confusing labels (ACTIVE)
+- **Discovered**: 2026-06-07 (after BUG D fix validation)
+- **Severity**: 🟡 Low (UX polish, not blocking)
+- **Symptoms** (pre-existing, exposed once data displayed):
+  - Label "Carga total por sesión" should be "Volumen total por semana"
+  - "1 jun" date label could benefit from tooltip showing logged_at
+  - "Registra más sesiones" message could be more specific:
+    "Registra logs en al menos 2 semanas diferentes"
+- **Files involved**:
+  - artifacts/nutricoach/src/pages/Progress.tsx (labels, threshold msg)
+- **Suggested fix**:
+  - Update label text strings
+  - Optional: tooltip showing individual log dates
+  - More specific empty state message
+- **Impact**: User confusion about what numbers mean
+- **Priority**: Low - not blocking, fix when polishing UX
+
+## Resolved Bugs (#1-#9, A, B, C, D)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -73,6 +101,21 @@ All discovered bugs have been resolved through v0.9.6. See "Resolved Bugs" below
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG D - /progress missing strength logs (RESOLVED v0.9.8)
+- **Discovered**: 2026-06-07 (E2E test by user)
+- **Severity**: 🔴 Critical
+- **Symptom**: /progress shows "Aún no tienes sesiones registradas" even with strength_logs records in DB
+- **Root cause**: MUSCLE_GROUPS in routes/strength.ts:48-69 missing Spanish plural forms. AI-generated plans produce values like 'Pectorales' that weren't in any group's muscle list.
+- **Fix**: 4ccfca5 - Add 'Pectorales', 'Espalda', 'Piernas', 'Brazos' to corresponding groups (4 lines)
+- **Tag**: v0.9.8
+- **Audit findings**: 8 distinct muscle_group values in DB; 7 mapped correctly after fix, 1 ('general') orphan → tracked as BUG E
+- **Lesson**:
+  - Integration drift between AI output, frontend translation, and backend mapping is common
+  - Audit production data BEFORE assuming fix is complete
+  - Run SELECT DISTINCT muscle_group queries to discover actual values vs expected
+  - One bug fix can reveal multiple variations of the same pattern
+  - The 4 plural forms (Pectorales, Espalda, Piernas, Brazos) were a preventive layer, not just a single-bug fix
 
 ### BUG C - Strength save investigated (FALSE POSITIVE v0.9.7)
 - **Discovered**: 2026-06-07 (E2E test)

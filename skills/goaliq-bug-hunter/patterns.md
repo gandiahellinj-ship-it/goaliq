@@ -61,3 +61,19 @@
 - workoutx.ts was THE ONLY router declaring with /api/ prefix
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
+
+## Pattern 8: Value Mapping Drift (frontend/backend mismatch)
+**Symptom**: Endpoint returns empty results despite valid data in DB
+**How to detect**:
+- Compare frontend query parameters with backend mapping
+- Check if frontend sends canonical EN keys but DB has ES values
+- Audit DISTINCT values in DB column vs expected mapping
+**How to fix**:
+- Add missing values to mapping table (additive, zero risk)
+- Run audit queries: SELECT DISTINCT col, COUNT(*) FROM table
+- Document all known variations
+**Lesson learned (from BUG D)**:
+- AI-generated values can drift from canonical forms
+- Single audit query reveals more variations than expected
+- Always verify mapping completeness with production data
+- Prevention layer: constrain AI prompt to output canonical only
