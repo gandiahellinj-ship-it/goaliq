@@ -20,6 +20,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.9] — 2026-06-07
+
+### 🎨 UX polish: /progress strength tab labels + arms group label
+
+Patch release que bundle UX corrections en `Progress.tsx` para mayor claridad. Cierra **BUG G** (label `arms` muestra "Trapecio" — anatómicamente incorrecto) y **BUG F** parcialmente (subtitle de tonnage + threshold message más específicos). Una sub-tarea de BUG F queda pendiente: tooltip individual con `logged_at` por punto del gráfico.
+
+### Fixed
+
+- **BUG G** (UX, low severity): The `arms` canonical group was labeled `"Trapecio"` in `GROUP_META` (Progress.tsx:43). Trapezius is anatomically a back muscle, causing confusion when users see bicep curls or tricep extensions categorized in a tab labeled "Trapecio". Fixed to `"Brazos"`.
+
+- **BUG F.1** (UX): Tonnage subtitle in "Grupos musculares" tab clarified.
+  - Before: `"Carga total levantada por sesión (kg)"` — ambiguous; the value shown is weekly volume across all logs of the week, not per-session
+  - After: `"Volumen total por semana (peso × reps · kg)"` — explicit + formula hint
+
+- **BUG F.2** (UX): Threshold message in "Por subgrupo" tab clarified.
+  - Before: `"Registra más sesiones para ver la gráfica"` — didn't explain WHY
+  - After: `"Registra logs en al menos 2 semanas diferentes para ver tu progresión"` — specifies the actual requirement (2+ distinct `week_start` values)
+  - Added `px-4` + `text-center` so longer copy wraps gracefully on narrow viewports
+
+### Verified — E2E validation (commit `eab1026` in production)
+
+Validated with extensive demo data (16 weeks of logs across 5 exercises):
+
+- ✅ Tab "arms" now shows label **"Brazos"** instead of "Trapecio"
+- ✅ Tonnage subtitle clearer: "Volumen total por semana (peso × reps · kg)"
+- ✅ Threshold message displays correctly with new copy
+- ✅ Subgroup line chart renders for groups with ≥2 weeks (Piernas: 2 muscles, Brazos: 2 muscles)
+- ✅ Weekly tonnage chart shows multiple lines (3 colors visible for distinct groups)
+- ✅ Deloads visible in time-series (demo data includes intentional deload weeks)
+- ✅ PR detection 🏆 working across the demo dataset
+- ✅ Zero functional regressions — math intact, all groups unaffected
+
+### Identified — future iterations (non-blocking, tracked in skill bug-hunter)
+
+Surfaced during E2E test with multi-week demo data:
+
+- **BUG F.tooltip** (active): Optional Recharts tooltip showing individual `logged_at` dates per data point in subgroup line chart. Bigger scope than label change (requires custom tooltip component + per-log fetch); deferred to future iteration.
+- **BUG I**: `SUBGROUP_COLORS` palette has color collisions inside `legs` (Cuádriceps/Glúteos both blue tones) and `arms` (Bíceps/Tríceps both orange tones). Hard to distinguish lines.
+- **BUG J**: Metric inconsistency between tabs. "Grupos musculares" tab shows weekly tonnage (kg × reps sum); "Por subgrupo" tab shows max weight per week. Two semantically different metrics under same UI parent.
+- **BUG K**: Time filter pill `"1A"` (1 year) doesn't span the user's full data range when demo includes >12 months of logs.
+- **BUG L**: Weight log notes field not rendered/visible in "Peso Corporal" tab.
+
+### Notes
+
+- All v0.9.9 changes are label/copy text only — zero functional risk.
+- Single file modified (`Progress.tsx`), 3 edits, +5 / −5 lines.
+- Pattern 9 (Label-Data Semantic Drift in Canonical Mappings) added to skill bug-hunter based on BUG G root cause.
+
+---
+
 ## [0.9.8] — 2026-06-07
 
 ### 🐛 BUG D resuelto: `/progress` now displays strength logs
@@ -458,7 +508,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...HEAD
+[0.9.9]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...v0.9.6
