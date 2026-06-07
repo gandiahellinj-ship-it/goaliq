@@ -31,6 +31,22 @@
 - DevTools Application → Service Workers
 - Check registered SW version vs current commit
 
+## Pattern 7: False Positive Bug Reports
+**Symptom**: User reports feature broken, but verbose logs show it works correctly
+**How to detect**:
+- Add verbose logs along the suspected flow
+- Compare log output vs expected vs reported
+- If logs show success but user reports failure: false positive
+**How to verify**:
+- Same enfoque as real bugs: logs first, conclusions after
+- Don't dismiss user reports too quickly
+- But also don't assume every report = real bug
+**Lesson learned (from BUG C)**:
+- Initial report seemed clear: "POST doesn't fire"
+- Logs revealed: full successful flow
+- Defensive improvements retained anyway (worth the time)
+- Pattern: user testing also exposes observation errors, not just actual bugs
+
 ## Pattern 6: Route Prefix Duplication
 **Symptom**: API endpoints return 404 despite frontend requesting correct URL
 **How to detect**:

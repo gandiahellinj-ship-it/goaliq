@@ -36,4 +36,17 @@
 - Modal "Ver ejemplo →" shows animated preview
 **Current state**: ✅ PASSING (v0.9.6 fix)
 
+## Flow 5: Strength tracking save flow
+**Test**:
+1. Login + /workouts
+2. Expand strength exercise (e.g., Bench Press)
+3. Enter weight + reps
+4. Click "Guardar"
+**Expected**:
+- Console: [DEBUG BUG C] logs trace through full flow (if logs active)
+- Network: POST /api/strength returns 200
+- Response: { log, isNewPR, prDelta, prevMax }
+- UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
+**Current state**: ✅ PASSING (v0.9.7 investigation)
+
 [More flows]

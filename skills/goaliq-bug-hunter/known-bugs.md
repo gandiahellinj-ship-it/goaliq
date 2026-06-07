@@ -74,6 +74,35 @@ All discovered bugs have been resolved through v0.9.6. See "Resolved Bugs" below
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
 
+### BUG C - Strength save investigated (FALSE POSITIVE v0.9.7)
+- **Discovered**: 2026-06-07 (E2E test)
+- **Severity**: 🟢 Investigated (no fix needed)
+- **Reported symptom**: Click "Guardar" doesn't fire POST /api/strength
+- **Reported observation**: Only GET /api/strength?muscle=X visible in Network
+- **Investigation**: Added verbose [DEBUG BUG C] logs in commit 53648c9
+- **Console output revealed full success flow**:
+  - handleSave → executes
+  - Validation → passes (kg=25, reps=8)
+  - mutationFn → entry
+  - Token → obtained (length: 986)
+  - POST /api/strength → 200
+  - PR detected (isNewPR: true, prDelta: 5)
+  - UI → '🏆 ¡Récord personal!'
+- **Root cause**: FALSE POSITIVE. Initial report likely due to:
+  - Network filter misconfiguration
+  - Accidental refresh between attempts
+  - Temporary session/token state
+- **Tag**: v0.9.7
+- **Defensive improvements retained**:
+  - try/catch around getAccessToken
+  - onError callback at hook level (with toast.error UX feedback)
+  - Clear error prefixes [strength]
+- **Lesson**:
+  - Verbose logs work BOTH for confirming bugs AND proving they don't exist
+  - Network filter UX in browser devtools can mislead
+  - Same enfoque cerró BUG A definitively in 1 iteration
+  - Always validate before assuming a bug is real
+
 ### BUG B - Exercise GIFs not loading in /workouts (RESOLVED v0.9.6)
 - **Discovered**: 2026-06-07 (UI test)
 - **Severity**: 🔴 Critical
