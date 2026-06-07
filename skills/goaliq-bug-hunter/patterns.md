@@ -62,6 +62,22 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 12: Design System Color Reuse for Visual Hierarchy
+**Symptom**: A new feature needs color semantics (e.g., distinguishing muscle groups, severities, statuses). Without a shared source of truth, devs hardcode colors per file, causing drift (one screen says chest = `#1D9E75`, another says `#2BA988`). Future redesigns require touching N files.
+**How to detect**:
+- A canonical color palette exists in one part of the codebase (e.g., a `GROUP_META` config used by charts)
+- A new feature in another file needs the same semantic colors
+- Risk: copy-paste of hex values vs reusing the existing config
+**Approach (battle-tested in v0.9.13)**:
+1. **Identify the existing color source** (`Progress.tsx` `GROUP_META` for canonical group colors).
+2. **Reuse the same hex values** in the new feature, even if a direct import is impractical. Document the source ("Coherent with Progress.tsx GROUP_META") so future devs know where to update.
+3. **Extract a mapping helper** that maps the feature's domain object (a muscle name) to a color via the canonical group. Make it regex-based for flexibility (EN + ES + plurals + edge cases).
+4. **Provide a defensive fallback** (`var(--giq-accent)`) for when the lookup doesn't match — visual continuity matters more than strict correctness.
+**Lesson learned (from v0.9.13 — Feature F2)**:
+- Cross-file color consistency is a UX feature, not just a stylesheet detail. Charts in `/progress` and badges in `/workouts` using the same chest green creates an implicit visual language ("this color means chest, anywhere in the app").
+- Regex-based mapping is more robust than Map<string,string> for muscle names because catalog data can vary in capitalization, language, or pluralization (e.g., `Pectoral` vs `Pectorals` vs `Pecho` all → chest color).
+- Future refactor path: when a critical mass of features uses the same colors, extract `GROUP_COLORS` to a shared module (e.g., `lib/design-tokens.ts`). For now, duplication with a comment pointing to the source is good enough.
+
 ## Pattern 11: Backend Authoritative on AI-Generated Metadata
 **Symptom**: An AI generates a structured payload where some fields are free-form text (e.g., muscle names, category labels, classification tags). The AI drifts: localizes inconsistently, invents new variants, omits the field. Downstream systems that depend on canonical values break.
 **How to detect**:

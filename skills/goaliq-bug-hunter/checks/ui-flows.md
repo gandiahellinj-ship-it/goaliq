@@ -49,6 +49,28 @@
 - UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
 **Current state**: ✅ PASSING (v0.9.7 investigation)
 
+## Flow 8: Muscle hierarchy badges visual validation (v0.9.13)
+**Test**:
+1. Login + navigate to /workouts with an AI-generated plan (v0.9.12 or later)
+2. Inspect each exercise card's header row
+**Expected**:
+- Primary muscle (first) renders as a badge in the canonical group color:
+  - chest → green (#1D9E75)
+  - back → purple (#7F77DD)
+  - legs → blue (#378ADD)
+  - shoulders → pink (#D4537E)
+  - arms → orange (#BA7517)
+  - core → olive (#639922)
+- Secondary muscles render as muted gray badges (smaller, less emphasis)
+- Equipment pill renders unchanged (separate from muscles, gray legacy style)
+- On mobile (375px wide), badges wrap naturally to a second line — no horizontal scroll
+- Color matches /progress charts for the same group (visual consistency)
+**Edge cases**:
+- Exercise with no muscles: no muscle badges render (same as before v0.9.13)
+- AI-invented muscle string (legacy plan): regex catches most via group name, fallback to accent color
+**Current state**: ✅ PASSING (v0.9.13 fix)
+**Validated**: User-confirmed visual E2E for test2goaliq plan post-Replit sync
+
 ## Flow 7: Plan AI muscles canonical validation (v0.9.12)
 **Test**:
 1. DELETE the user's current workout_plans row in BBDD
