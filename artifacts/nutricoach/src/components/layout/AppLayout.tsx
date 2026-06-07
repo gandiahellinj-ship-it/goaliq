@@ -353,7 +353,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     // BUG A fix: gate query until Supabase JS has hydrated the JWT.
     if (!isAuthenticated || !session?.access_token) {
       console.log("[DEBUG AppLayout] Skipping query - not ready");
-      if (!isAuthenticated) setProfileLoading(false);
+      // BUG A final fix: only flip profileLoading to false if auth is
+      // CONFIRMED logged out (auth has finished loading AND user is null).
+      // During auth rehydration on F5, isAuthenticated transiently reads
+      // false before the session restores; setting profileLoading=false
+      // here would let the redirect useEffect fire with stale state.
+      if (!isAuthenticated && !authLoading) {
+        setProfileLoading(false);
+      }
       return;
     }
     console.log("[DEBUG AppLayout] Running profiles query");
@@ -372,7 +379,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         setHasCompletedOnboarding(completed);
         setProfileLoading(false);
       });
-  }, [isAuthenticated, session?.access_token]);
+  }, [isAuthenticated, session?.access_token, authLoading]);
 
   useEffect(() => {
     console.log("[DEBUG AppLayout] Redirect check", {
