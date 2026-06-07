@@ -49,6 +49,24 @@
 - UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
 **Current state**: ✅ PASSING (v0.9.7 investigation)
 
+## Flow 9: Cross-feature color consistency (v0.9.14)
+**Test**:
+1. Open /workouts with an AI-generated plan
+2. Locate a Bench Press card → note the primary muscle pill color (should be green #1D9E75)
+3. Navigate to /progress → "Por subgrupo" tab → select "Pectoral"
+4. Inspect the first line in the chart legend
+5. Repeat for legs (blue #378ADD), arms (orange #BA7517), back (purple #7F77DD), shoulders (pink #D4537E), core (olive #639922)
+**Expected**:
+- The primary muscle badge color in /workouts MATCHES the first line color in /progress for the same group
+- This anchors the visual language established in Feature F2 (v0.9.13)
+- The rest of the palette in /progress (positions 1+) can diverge — that's expected polychrome (Pattern 13)
+**Why this matters**:
+- Cross-feature consistency means a color "carries meaning" throughout the app (chest = green, legs = blue, etc.)
+- Pattern 12 (Design System Color Reuse) + Pattern 13 (Polychrome) must agree on position 0
+- If they diverge, users get confused: "Why is chest green here but red there?"
+**Current state**: ✅ PASSING (v0.9.14 fix)
+**Validated**: E2E for the 6 groups with test2goaliq plan
+
 ## Flow 8: Muscle hierarchy badges visual validation (v0.9.13)
 **Test**:
 1. Login + navigate to /workouts with an AI-generated plan (v0.9.12 or later)

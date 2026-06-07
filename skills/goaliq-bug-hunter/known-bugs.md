@@ -12,33 +12,19 @@
 - **Effort**: ~30-45 min (custom tooltip + per-log fetch)
 - **Priority**: Low - not blocking; revisit during /progress polishing pass
 
-### BUG I - SUBGROUP_COLORS palette collisions (ACTIVE)
-- **Discovered**: 2026-06-07 (during E2E test with 16-week demo data)
-- **Severity**: 🟡 Low (UX clarity)
-- **Symptom**: Color palette for subgroup chart has internal collisions
-  - `legs` group: Cuádriceps/Glúteos both shades of blue, hard to distinguish lines
-  - `arms` group: Bíceps/Tríceps both shades of orange, hard to distinguish lines
-- **Files involved**: artifacts/nutricoach/src/pages/Progress.tsx:46-53 (SUBGROUP_COLORS)
-- **Suggested fix**: Pick higher-contrast color combinations per group (avoid same-hue collisions inside one group)
-- **Priority**: Low
-
-### BUG J - Metric inconsistency between tabs (ACTIVE)
-- **Discovered**: 2026-06-07 (during E2E test)
-- **Severity**: 🟡 Medium (semantic confusion)
-- **Symptom**: Two semantically different metrics under same UI parent
-  - "Grupos musculares" tab: weekly tonnage (sum of weight × reps)
-  - "Por subgrupo" tab: max weight per week (Math.max of weight_kg)
-- **Files involved**: Progress.tsx (aggregateGroupLoad line 68, subgroup chart line 502-525)
-- **Suggested fix**: Either unify the metric (both tonnage or both max), OR add explicit subtitle to "Por subgrupo" tab clarifying "Peso máximo por semana"
-- **Priority**: Medium - causes user confusion when comparing tabs
-
-### BUG K - Time filter "1A" doesn't span full year (ACTIVE)
-- **Discovered**: 2026-06-07 (during E2E test with 16-week data)
-- **Severity**: 🟡 Low
-- **Symptom**: Time filter pill "1A" (1 año / 1 year) doesn't include the full year range when user has data spanning >12 months
-- **Files involved**: Progress.tsx TIME_FILTERS definition
-- **Suggested fix**: Verify TIME_FILTERS[..."1A"].months === 12; or change to "Todo" / "All time" pill
-- **Priority**: Low
+### BUG M - Tonnage confusion in Groups tab (ACTIVE)
+- **Discovered**: 2026-06-08 during v0.9.14 E2E validation
+- **Severity**: 🟡 Medium (semantic UX confusion)
+- **Symptom**: Tab "Grupos musculares" shows weekly tonnage (Σ peso × reps per week per group). User reads "432 kg" as if it were a real weight lifted, but it's actually a volume metric.
+- **Source**: Progress.tsx aggregateGroupLoad function. Metric is technically valid (standard tonnage in strength training), but the units "kg" plus the absence of a clear visual cue mislead users.
+- **Impact**: Users compare across weeks ("780 kg, 432 kg, ...") thinking they have lifted/regressed massive weights, when really they did fewer reps that week.
+- **Status**: Pending professional redesign in v0.9.15
+- **Possible solutions**:
+  - Show as "kg × reps" units instead of just "kg" in axis labels
+  - Change scale label to "Volumen semanal" with subtitle "(suma peso × reps)"
+  - Switch to per-session or per-day chart instead of weekly aggregation
+  - Add a tooltip that explicitly shows the formula and a per-log breakdown
+- **Priority**: Medium - non-blocking but eroding user trust in the metric
 
 ### BUG L - Weight log notes invisible (ACTIVE)
 - **Discovered**: 2026-06-07 (during E2E test)
@@ -48,7 +34,7 @@
 - **Suggested fix**: Render the note field next to/below each weight entry in the timeline
 - **Priority**: Low
 
-## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H)
+## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -117,6 +103,43 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG K - Time filter "1A" doesn't span full year (RESOLVED v0.9.14, false positive)
+- **Discovered**: 2026-06-07 (during E2E test with 16-week data)
+- **Severity**: 🟡 Low
+- **Reported symptom**: "1A" filter (1 year) doesn't include the full year range when user has data spanning >12 months
+- **Investigation**: Code review confirmed the filter logic is CORRECT. TIME_FILTERS["1A"].months = 12, subMonths(today, 12) gives a valid cutoff. The chart correctly shows logs from the last 365 days — but if user only has 3-4 months of data, the chart looks the same as "3M".
+- **Root cause**: User expectation mismatch (false positive, similar to BUG C v0.9.7). The chart only shows weeks that have data; if there's no data 6+ months back, those gaps are absent rather than empty.
+- **Fix**: 462ed58 — Add "Mostrando X semana(s) con datos" indicator below subtitle when filterMonths > 0. Educates user about the actual range covered without changing filter behavior.
+- **Tag**: v0.9.14
+- **Lesson**:
+  - Same false-positive class as BUG C — code is correct, UX expectation broken
+  - Solution can be communication (indicator) rather than code change
+  - "False positive" pattern surfaces during user testing in real environments — log them, don't dismiss them
+
+### BUG J - Metric inconsistency between tabs (RESOLVED v0.9.14)
+- **Discovered**: 2026-06-07 (during E2E test)
+- **Severity**: 🟡 Medium (semantic confusion)
+- **Symptom**: Two semantically different metrics under same UI parent — "Grupos musculares" tab showed weekly tonnage (Σ weight × reps), "Por subgrupo" tab showed max weight per week. Both labeled with the same ambiguous "(kg)" suffix.
+- **Root cause**: Subgroup tab subtitle was "Carga por músculo específico (kg)" which didn't specify which metric.
+- **Fix**: 462ed58 — Change subgroup subtitle to "Peso máximo por semana, por músculo (kg)". Both tabs now have explicit metric labels.
+- **Tag**: v0.9.14
+- **Lesson**:
+  - Two tabs with different metrics CAN coexist if labeled correctly (volume vs. max). Forcing unification would lose information (PR-style data).
+  - UX clarity > UX uniformity — explicit labels resolve confusion without architectural changes
+  - Each metric has its purpose; the bug is labelling, not concept
+
+### BUG I - SUBGROUP_COLORS palette collisions (RESOLVED v0.9.14)
+- **Discovered**: 2026-06-07 (during E2E test with 16-week demo data)
+- **Severity**: 🟡 Low (UX clarity)
+- **Symptom**: Each subgroup chart used 3-4 tones of the same color (e.g., legs: 4 azules, arms: 3 naranjas). Lines indistinguishable when overlapping or crossing.
+- **Root cause**: Monochromatic palette design. Variants of the same hue look similar especially in dim chart settings and with anti-aliased thin lines.
+- **Fix**: 462ed58 — Polychrome palette per group. First color preserves canonical group identity (cross-feature with Feature F2 in /workouts), rest are maximally distinguishable hues.
+- **Tag**: v0.9.14
+- **Lesson**:
+  - "More shades" ≠ "more distinguishable" — humans see hue better than lightness for categorical data
+  - First-position color anchoring preserves group identity across the app even when the rest of the palette diverges
+  - Pattern 13 (Polychrome Categorical Palette) documented
 
 ### BUG H - AI-invented muscle strings drift (RESOLVED v0.9.12)
 - **Discovered**: 2026-06-08 during v0.9.11 enrichment audit

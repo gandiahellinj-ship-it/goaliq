@@ -62,6 +62,23 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 13: Polychrome Categorical Palette for Overlapping Series
+**Symptom**: A chart shows multiple series related to the same parent category (e.g., muscle subgroups within "legs"). The designer uses monochromatic shades of the parent color (4 tones of blue for the 4 leg muscles). When the lines overlap or cross in dim chart backgrounds, they become visually indistinguishable.
+**How to detect**:
+- Multi-series line/bar chart where the data points share a parent category
+- Palette uses lightness or saturation variants of a single hue per category
+- User feedback: "I can't tell which line is which"
+**Approach (battle-tested in v0.9.14)**:
+1. **Anchor with identity**: The first color in the palette stays the canonical group color (preserves cross-feature visual language — Pattern 12 alignment).
+2. **Maximize hue distance for the rest**: For positions 2+ in the palette, pick hues that are far apart on the color wheel from each other AND from the canonical anchor.
+3. **Within-category contrast > cross-category coherence**: Don't try to keep the whole palette "looking like legs" with shades of blue — accept that the secondary muscles in legs can be amber, purple, teal. The user sees them inside one chart at a time; cross-category dilution is a non-issue.
+4. **Verify cross-feature consistency**: Other parts of the app may reference the canonical color (e.g., Pattern 12 reuse). Confirm those still match the first-position color.
+**Lesson learned (from v0.9.14 — BUG I)**:
+- "More shades" ≠ "more distinguishable" — humans perceive hue distance better than lightness or saturation distance for categorical data
+- Anchoring the canonical color in position 0 keeps Pattern 12 consistency intact (Workouts.tsx muscleToGroupColor and Progress.tsx GROUP_META still match the same value)
+- A chart with 4 monochrome shades may look "designed" but is functionally worse than 4 random distinct hues — UX > aesthetics here
+- Reuse colors ACROSS categories (chest secondary = arms secondary = `#27AE60`) is fine — user only sees one category's palette at a time
+
 ## Pattern 12: Design System Color Reuse for Visual Hierarchy
 **Symptom**: A new feature needs color semantics (e.g., distinguishing muscle groups, severities, statuses). Without a shared source of truth, devs hardcode colors per file, causing drift (one screen says chest = `#1D9E75`, another says `#2BA988`). Future redesigns require touching N files.
 **How to detect**:
