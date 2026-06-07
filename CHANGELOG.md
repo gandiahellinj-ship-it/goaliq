@@ -20,6 +20,107 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.16] — 2026-06-08
+
+### 🏆 Anatomical sub-muscles + Subgroup cards redesign (BUG N closed)
+
+Bundle de 2 features coherentes en 1 release: anatomical differentiation en el backend pipeline + cards profesionales en tab "Por subgrupo". Cierra **BUG N** + petición original "Pectoral superior/medio/inferior". **6 releases en 1 día**.
+
+### Fixed
+
+**BUG N (100%) — Subgroup tab visual inconsistency:**
+- Before: Tab "Por subgrupo" usaba LineChart con N líneas superpuestas
+- After: cards apilados profesionales (mismo patrón v0.9.15 Groups tab)
+- Consistencia visual completa entre tabs
+
+### Added
+
+**Backend — Anatomical primary muscle refinement (`aiGenerators.ts`):**
+
+`inferSpecificMuscle(exerciseName, fallback)` helper:
+- PECTORAL: Incline → `"Pectoral superior"` · Decline → `"Pectoral inferior"` · Flat → `"Pectoral medio"`
+- DELTOIDES: Rear/Reverse/Bent → `"Deltoides posterior"` · Lateral/Side → `"Deltoides lateral"` · Front/Press/Military → `"Deltoides anterior"`
+- Fallback robusto al original cuando no matchea
+
+PHASE 3.5 nueva en pipeline (after PHASE 3 muscle injection):
+- Refina solo primary muscle (index 0)
+- Secondary muscles preservados del catalog
+- Aplicado en backend authoritative pattern (Pattern 11)
+
+**Frontend — `SubgroupCardsView` component (`Progress.tsx`):**
+- Replaces LineChart con cards profesionales
+- Mismo pattern que `GroupsCardsView` (v0.9.15)
+- 4 KPIs grid + mini bar chart + PR badge per muscle
+- Empty state cards para músculos sin logs
+- Mobile responsive (`grid-cols-2` → `md:grid-cols-4`)
+
+**Frontend — `inferSpecificMuscle` mirror (`Progress.tsx`):**
+- Idéntico al backend (Pattern 15)
+- Re-aggregation en `useMemo`
+- Backward compat con logs antiguos genéricos
+- Idempotent con logs nuevos específicos
+- Zero migration needed
+
+### Verified — E2E validation (commit `91f4c40` in production)
+
+**Real user data (test2goaliq):**
+
+Pectoral (1 card, backward compat):
+- `"Pectoral medio"` (verde canonical)
+- PR +2 kg | 22 kg max | 3,736 kg·r | 24 sets | 236 reps
+
+Piernas (2 cards, polychrome):
+- Cuádriceps: PR +2 kg | 30 kg | 2,382 kg·r | 13 sets | 124 reps
+- Glúteos: PR +2 kg | 34 kg | 3,940 kg·r | 18 sets | 190 reps
+
+Brazos (2 cards, polychrome):
+- Tríceps: PR +2 kg | 15 kg | 2,042 kg·r | 17 sets | 194 reps
+- Bíceps: PR +1 kg | 15 kg | 2,897 kg·r | 25 sets | 287 reps
+
+Regression check:
+- ✅ Tab "Grupos musculares" (v0.9.15) intacto
+- ✅ Tab "Peso corporal" sin cambios
+- ✅ Sub-pectorales visible cuando user haga Incline/Decline (zero migration)
+
+### Architecture decisions (5 product decisions, all "A")
+
+1. Sub-anatómicos: Pectoral + Hombros (no Espalda en esta release)
+2. Logs antiguos: re-derive en frontend `useMemo`
+3. Color: Polychrome via `SUBGROUP_COLORS`
+4. Backend pipeline también aplica (Pattern 11)
+5. Grupo sin sub-anatómicos: mismo layout cards
+
+### Pattern 15 (new) — Mirror Helpers FE/BE
+
+When the same logic needs to apply both at write-time (backend pipeline) and read-time (frontend defensive transform), implement IDENTICAL helpers on both sides. Trade-off: code duplication (DRY violation) for backward + forward compatibility without migration. Critical: keep both in sync when modifying (comment on both ends).
+
+### Cross-feature consistency preserved
+
+First color in `SUBGROUP_COLORS` matches `GROUP_META` + `muscleToGroupColor`. Pattern 12 + 13 + 14 + 15 all honored:
+- `chest` `#1D9E75` in `/workouts` pill = `/progress` group card = `/progress` subgroup card 1
+- Per-muscle polychrome distinguishability (Pattern 13)
+- KPI cards explicit units (Pattern 14)
+- Mirror helpers strategy (Pattern 15)
+
+### Files
+
+2 files modified:
+- `artifacts/api-server/src/lib/aiGenerators.ts` (+40 lines)
+- `artifacts/nutricoach/src/pages/Progress.tsx` (+205 lines)
+
+### Notes
+
+- **6 releases mayores en 1 día** (v0.9.11 → v0.9.16)
+- BUG N closed + sub-pectorales request fulfilled
+- Active bugs reducidos a 2 (`F.tooltip`, `L`)
+- Pattern 15 (Mirror helpers FE/BE) documented
+- Flow 11 (Subgroup cards + sub-anatomical validation) added
+- Backward compat: zero migration, logs viejos clasificados automáticamente
+- Forward compat: planes AI nuevos con sub-anatómicos canonical
+- Foundation técnica COMPLETA para beta launch
+
+---
+
 ## [0.9.15] — 2026-06-08
 
 ### 🏆 Professional cards redesign for Groups tab (BUG M closed)
@@ -992,7 +1093,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.15...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.16...HEAD
+[0.9.16]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.15...v0.9.16
 [0.9.15]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...v0.9.14
 [0.9.13]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...v0.9.13
