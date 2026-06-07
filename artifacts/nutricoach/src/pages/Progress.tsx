@@ -40,7 +40,7 @@ const GROUP_META: Record<GroupKey, { label: string; color: string }> = {
   back:      { label: "Espalda",  color: "#7F77DD" },
   chest:     { label: "Pectoral", color: "#1D9E75" },
   core:      { label: "Abdomen",  color: "#639922" },
-  arms:      { label: "Trapecio", color: "#BA7517" },
+  arms:      { label: "Brazos", color: "#BA7517" },
 };
 
 const SUBGROUP_COLORS: Record<GroupKey, string[]> = {
@@ -476,7 +476,7 @@ function GroupsTab() {
               Carga por grupo muscular
             </h3>
             <p className="text-xs text-[#555] mt-0.5">
-              Carga total levantada por sesión (kg)
+              Volumen total por semana (peso × reps · kg)
             </p>
           </div>
           <TimeFilterPills value={timeFilter} onChange={setTimeFilter} />
@@ -641,9 +641,9 @@ function SubgroupTab() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-[100px] flex items-center justify-center">
-                <p className="text-sm text-[#555]">
-                  Registra más sesiones para ver la gráfica
+              <div className="h-[100px] flex items-center justify-center px-4">
+                <p className="text-sm text-[#555] text-center">
+                  Registra logs en al menos 2 semanas diferentes para ver tu progresión
                 </p>
               </div>
             )}
