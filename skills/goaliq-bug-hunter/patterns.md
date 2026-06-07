@@ -62,6 +62,24 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 14: KPI Cards with Explicit Units
+**Symptom**: A chart compresses multiple metrics (weight, volume, sets, reps, calories) onto one shared axis with a single unit label ("kg"). Users read the number through the lens of the single unit and misinterpret what they're seeing. The metric is technically correct but the framing misleads.
+**How to detect**:
+- A chart aggregates a derived value (e.g., `Σ weight × reps`) but labels the axis with the simple base unit ("kg")
+- User feedback: "Why does it say I lifted 432 kg? I never did that."
+- Multi-line/multi-bar charts where each series is the same TYPE of value but the value is a compound metric in disguise
+**Approach (battle-tested in v0.9.15)**:
+1. **Stop hiding the compound metric**: if the value is `kg × reps`, surface that. Use "kg·r" or "volumen" — anything but bare "kg".
+2. **Give each metric breathing room with cards**: instead of cramming 4 metrics onto one chart's Y axis, give each its own visual cell. Max weight, total volume, set count, rep count — each gets a label, a value, and a unit.
+3. **Reserve charts for trends, not for stats**: charts are good at showing change over time. They're bad at showing "what is the current state". Cards are better for current state.
+4. **Defensive empty states**: when a group/muscle/category has no data, show an empty card with explanatory text. Don't hide the row — the user knowing that "this category exists but I haven't trained it" is itself information.
+**Lesson learned (from v0.9.15 — BUG M)**:
+- Units are UX. "432 kg" and "432 kg·r" are different stories the same number can tell.
+- A line chart with 6 superposed series is a power tool — good for comparing trajectories, bad for understanding current values.
+- Professional fitness apps (Strong/Hevy/Fitbod) use cards for a reason: they support glanceable comparison + drill-down detail without forcing the user to interpret a multi-series chart.
+- Cards + mini-chart (sparkline) = trend WITHOUT axis labels — you get the "is this going up" answer without the "what does the Y axis mean" confusion.
+- Foundation reuse: helpers like `computeWeekStats`, `getRecentWeeklyVolume`, `detectPR` are reusable for future features (e.g., Feature F3 % muscle activation analysis).
+
 ## Pattern 13: Polychrome Categorical Palette for Overlapping Series
 **Symptom**: A chart shows multiple series related to the same parent category (e.g., muscle subgroups within "legs"). The designer uses monochromatic shades of the parent color (4 tones of blue for the 4 leg muscles). When the lines overlap or cross in dim chart backgrounds, they become visually indistinguishable.
 **How to detect**:

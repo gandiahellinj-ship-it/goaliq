@@ -12,19 +12,18 @@
 - **Effort**: ~30-45 min (custom tooltip + per-log fetch)
 - **Priority**: Low - not blocking; revisit during /progress polishing pass
 
-### BUG M - Tonnage confusion in Groups tab (ACTIVE)
-- **Discovered**: 2026-06-08 during v0.9.14 E2E validation
-- **Severity**: 🟡 Medium (semantic UX confusion)
-- **Symptom**: Tab "Grupos musculares" shows weekly tonnage (Σ peso × reps per week per group). User reads "432 kg" as if it were a real weight lifted, but it's actually a volume metric.
-- **Source**: Progress.tsx aggregateGroupLoad function. Metric is technically valid (standard tonnage in strength training), but the units "kg" plus the absence of a clear visual cue mislead users.
-- **Impact**: Users compare across weeks ("780 kg, 432 kg, ...") thinking they have lifted/regressed massive weights, when really they did fewer reps that week.
-- **Status**: Pending professional redesign in v0.9.15
+### BUG N - Subgroup tab visual inconsistency (ACTIVE)
+- **Discovered**: 2026-06-08 during v0.9.15 E2E validation
+- **Severity**: 🟡 Medium (UX consistency)
+- **Symptom**: After v0.9.15 redesigned "Grupos musculares" with professional cards (KPIs + mini-chart + PR badge), the sibling tab "Por subgrupo" still uses the older line chart layout. Inconsistent visual language between tabs of the same Strength section.
+- **Source**: Progress.tsx SubgroupTab still uses LineChart from Recharts. GroupsTab now uses GroupsCardsView with cards.
+- **Impact**: Visual jarring when navigating between tabs. User feedback: "Por subgrupo debería tener el mismo tratamiento que Grupos".
+- **Status**: Pending redesign in v0.9.16
 - **Possible solutions**:
-  - Show as "kg × reps" units instead of just "kg" in axis labels
-  - Change scale label to "Volumen semanal" with subtitle "(suma peso × reps)"
-  - Switch to per-session or per-day chart instead of weekly aggregation
-  - Add a tooltip that explicitly shows the formula and a per-log breakdown
-- **Priority**: Medium - non-blocking but eroding user trust in the metric
+  - SubgroupCardsView: similar pattern, one card per individual muscle within selected group
+  - Each card: muscle name + max weight + reps PR + mini-chart of weight progression
+  - Defer Recharts to per-muscle weight trend instead of cross-muscle comparison
+- **Priority**: Medium - non-blocking but breaks UX coherence
 
 ### BUG L - Weight log notes invisible (ACTIVE)
 - **Discovered**: 2026-06-07 (during E2E test)
@@ -34,7 +33,7 @@
 - **Suggested fix**: Render the note field next to/below each weight entry in the timeline
 - **Priority**: Low
 
-## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K)
+## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K, M)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -103,6 +102,19 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG M - Tonnage confusion in Groups tab (RESOLVED v0.9.15)
+- **Discovered**: 2026-06-08 during v0.9.14 E2E validation
+- **Severity**: 🟡 Medium (semantic UX confusion)
+- **Symptom**: Tab "Grupos musculares" showed weekly tonnage (Σ peso × reps per week per group) with Y axis labeled "kg". User read "432 kg" as a real weight lifted, but it was actually a volume metric.
+- **Root cause**: A single line chart trying to communicate compound information (Σ weight × reps) using the wrong unit suffix ("kg" alone). Tonnage is a valid strength training metric but is meaningless without explicit "kg × reps" framing.
+- **Fix**: 8cdb541 — Full redesign of GroupsTab from single line chart to 6 professional cards. Each card shows 4 explicit KPIs (Peso máx kg, Volumen sem. kg·r, Sets, Reps) + mini 6-week bar chart + PR badge. Each metric carries its own unit label, eliminating the "kg" ambiguity.
+- **Tag**: v0.9.15
+- **Lesson**:
+  - Units are UX, not just labels — "432 kg" and "432 kg·r" are different stories the chart tells
+  - When a metric is compound (weight × reps), display it with a compound unit ("kg·r") so users don't conflate it with simple weight
+  - A professional redesign is sometimes the right answer instead of a copy patch — Pattern 14 (KPI Cards with Explicit Units) documented
+  - Cards give each metric breathing room; line charts force all metrics into one shared Y axis
 
 ### BUG K - Time filter "1A" doesn't span full year (RESOLVED v0.9.14, false positive)
 - **Discovered**: 2026-06-07 (during E2E test with 16-week data)

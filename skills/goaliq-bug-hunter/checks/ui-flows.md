@@ -49,6 +49,37 @@
 - UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
 **Current state**: ✅ PASSING (v0.9.7 investigation)
 
+## Flow 10: Professional Groups cards visual validation (v0.9.15)
+**Test**:
+1. Login + navigate to /progress → tab "Grupos musculares"
+2. Inspect the 6 group cards (or empty states)
+**Expected**:
+- 6 cards rendered vertically (one per canonical group: Hombros, Piernas, Espalda, Pectoral, Abdomen, Brazos)
+- Each card with data shows:
+  - Header: colored dot (canonical group color) + group label
+  - Optional PR badge: "🏆 PR! +X kg" in gold/#FFD700 (only if latest week max > previous week)
+  - KPI grid: Peso máx (kg), Volumen sem. (kg·r), Sets, Reps
+  - Mini bar chart: last 6 weeks of volume, color = canonical group
+- Cards without data show empty state:
+  - Opacity-60
+  - Dot with reduced opacity
+  - Text "Sin sesiones registradas en este grupo"
+- Indicator "Mostrando X semanas con datos" still appears when filter active
+- Subtitle "Estadísticas semanales por grupo" replaces old "Volumen total por semana (peso × reps · kg)"
+**Filter behavior**:
+- Changing filter (1M, 3M, 1A, Todo) updates KPI values
+- Mini bar charts DO NOT change (trend always last 6 weeks)
+- "Mostrando X semanas" indicator updates with filter
+**Mobile (375px)**:
+- KPIs render in 2 columns (grid-cols-2)
+- Desktop (≥768px) renders 4 columns (md:grid-cols-4)
+- PR badge floats right in header without overflow
+**Cross-feature**:
+- Card dot color matches the primary muscle pill color in /workouts for the same group
+- Mini-chart bars use same color
+**Current state**: ✅ PASSING (v0.9.15 fix)
+**Validated**: E2E with test2goaliq real data — 3 cards with PRs (Piernas, Pectoral, Brazos), 3 empty states (Hombros, Espalda, Abdomen)
+
 ## Flow 9: Cross-feature color consistency (v0.9.14)
 **Test**:
 1. Open /workouts with an AI-generated plan
