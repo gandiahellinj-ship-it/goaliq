@@ -20,6 +20,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.5] — 2026-06-07
+
+### 🐛 BUG A resuelto: refresh ya no redirige a onboarding step 2
+
+Patch release que cierra definitivamente **BUG A** (regresión crítica documentada en v0.9.4): el F5 sobre cualquier ruta autenticada bouncing al usuario a `/onboarding` paso 2. El bug era una race condition multinivel en `AppLayout` durante la rehidratación de sesión de Supabase.
+
+### Fixed
+
+- **BUG A (critical)**: Refresh on any authenticated page redirected user to onboarding step 2 instead of staying on the current route.
+
+  **Root cause**: Multi-layered race condition in `AppLayout`:
+  1. On refresh, `useAuth` rehydrates the Supabase session asynchronously (transient state where `isAuthenticated=false` + `authLoading=true`).
+  2. The profiles query useEffect had `setProfileLoading(false)` in the "not authenticated" branch, which fired during rehydration.
+  3. The redirect useEffect then saw `{ profileLoading: false, hasCompletedOnboarding: false }` and redirected to `/onboarding`.
+  4. The profiles query completed milliseconds later with correct data, but the redirect had already happened.
+
+  **Fix applied in 3 commits**:
+  - `a32ed2f`: Initial race condition guard (`session?.access_token` gate on the query).
+  - `ff694fb`: Verbose debug logs for diagnosis (temporary, removed in this release).
+  - `005e2bc`: Final fix — only flip `profileLoading` to `false` when auth is CONFIRMED logged out (`!isAuthenticated && !authLoading`), not during transient rehydration. Added `authLoading` to the useEffect dep array to ensure re-evaluation when auth state transitions.
+
+- Added explicit `onboarding_completed_at TIMESTAMPTZ` column to the `profiles` table. Replaces the fragile `age` proxy previously used by AppLayout's redirect gate. Backwards compatible — falls back to age check for users created before the column existed.
+
+### Changed
+
+- Profiles query in `AppLayout` now selects both `age` and `onboarding_completed_at` for dual-check redirect logic (commit `005e2bc`).
+- `useEffect` dep array now includes `authLoading` to ensure re-evaluation when auth state transitions.
+- Onboarding POST (`api-server/src/routes/onboarding.ts`) now writes `onboarding_completed_at: new Date().toISOString()` on profile upsert, so newly onboarded users get the flag set explicitly.
+
+### Database
+
+- `ALTER TABLE public.profiles ADD COLUMN onboarding_completed_at TIMESTAMPTZ` applied to production.
+- Retroactive update: 8 existing users with `age IS NOT NULL` flagged as completed at 2026-06-07 09:00:05 UTC.
+
+### Removed
+
+- Diagnostic `console.log("[DEBUG ...] ...")` statements added in `ff694fb` for BUG A diagnosis, after E2E validation confirmed the fix.
+  - `AppLayout.tsx`: 9 debug logs (MOUNT, profiles useEffect, query lifecycle, redirect check).
+  - `useAuth.tsx`: 1 state-change log.
+  - `Onboarding.tsx`: 6 logs (MOUNT, screening useEffect lifecycle).
+  - Kept: `console.error("[AppLayout] profiles query failed:", error)` — useful for future runtime diagnosis, not a debug artifact.
+
+### Verified — E2E validation (commit `005e2bc` in production)
+
+- ✅ F5 en `/dashboard` → permanece en `/dashboard`.
+- ✅ Navegación a `/workouts` → permanece en `/workouts`.
+- ✅ F5 en `/workouts` → permanece en `/workouts`.
+- ✅ Nunca aparece redirect espurio a `/onboarding`.
+- ✅ Secuencia de logs (antes del cleanup) confirmó: `profileLoading` se mantiene `true` durante la ventana de rehidratación, el redirect useEffect queda bloqueado por el guard, y la query corre con sesión válida.
+
+---
+
 ## [0.9.4] — 2026-06-07
 
 ### 🧹 Pre-Mejora 11: Tech debt cleanup + E2E validation completa
@@ -262,7 +314,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...HEAD
+[0.9.5]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.1...v0.9.2
