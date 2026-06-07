@@ -20,6 +20,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.12] — 2026-06-08
+
+### 🎯 Backend authoritative on muscles (closes BUG E + BUG H)
+
+Sprint para cerrar **BUG E** (`general` fallback) y **BUG H** (AI-invented muscle strings) aprovechando el enrichment del catálogo v0.9.11.
+
+### Fixed
+
+**BUG E (100%) — `muscle_group='general'` fallback resolved:**
+- Before: AI sometimes omitted the `muscles` field → frontend fallback to `?? "general"` → strength_log written with `muscle_group='general'` → log orphan in `/progress` view.
+- After: backend authoritative on `muscles` field. Pipeline PHASE 3 always injects `target + secondaryMuscles` from the catalog via `getExerciseById(exercise_id)`. Impossible to have NULL/missing muscles when the exercise_id resolves.
+
+**BUG H (~97%) — AI-invented muscle strings resolved:**
+- Before: AI generated bizarre strings like "Espalda Superior", "Flexores de Cadera", or localized inconsistently between EN/ES.
+- After: muscles overwritten by canonical EN values from catalog ("Upper Back", "Hip Flexors"). Catalog targets coverage extended to 97.8% via 7 new entries in MUSCLE_GROUPS.
+
+### Added
+
+**Post-AI pipeline reorganized in 3 explicit phases** (`aiGenerators.ts`):
+- PHASE 1: defaults + cleanup (existing logic).
+- PHASE 2: `reconcileExerciseIds` for canonical names + IDs (existing).
+- PHASE 3 NEW: backend injects muscles from catalog via `getExerciseById`.
+
+**MUSCLE_GROUPS extended** (catalog coverage 79% → 97.8%, `strength.ts`):
+- `back` +5 entries: "Upper Back" (88 exercises), "Spine" (19), "Columna", "Levator Scapulae" (2), "Elevador escápula".
+- `chest` +2 entries: "Serratus Anterior" (5), "Serrato anterior".
+- Total coverage: 18/19 catalog targets mapped.
+- Excluded intentionally: "Cardiovascular System" (29 cardio exercises, not strength).
+
+### Edge cases validated
+
+5 scenarios analyzed and covered before commit:
+1. AI `exercise_id` correct + cache hit → canonical injection ✅
+2. AI omits `muscles` → catalog provides ✅ (closes BUG E)
+3. AI invents bizarre strings → catalog overrides ✅ (closes BUG H)
+4. No `exercise_id` resolved → fallback to AI muscles (defensive)
+5. Cache empty at boot → defensive fallback to AI muscles
+
+### Verified — E2E validation (commit `e13497e` in production)
+
+**Plan AI regenerated for `test2goaliq`:**
+- 18 exercises generated across 5 days
+- ALL `muscles` canonical English (from catalog)
+- Format: `"Target, Secondary1, Secondary2"`
+- Examples:
+  - `"Pectorals, Triceps, Shoulders"` (Dumbbell Bench Press, id 0289)
+  - `"Upper Back, Biceps, Forearms"` (Dumbbell Bent Over Row)
+  - `"Quads, Glutes, Hamstrings, Calves"` (Dumbbell Goblet Squat)
+  - `"Abs, Hip Flexors"` (Sit-up With Arms On Chest)
+- No "general", no AI-invented Spanish drift
+- 15 distinct muscle names, all mapped to canonical groups
+
+**Spot-check catalog data (exercise `0289`):**
+- `target: "Pectorals"`
+- `secondary_muscles: ["Triceps", "Shoulders"]`
+- Plan output: `"Pectorals, Triceps, Shoulders"`
+- 100% match with catalog enrichment v0.9.11
+
+### Observation (not a bug)
+
+WorkoutX API occasionally returns generic body_part categories as `secondaryMuscles` ("Shoulders" instead of "Anterior Deltoid", "Back" instead of "Lats"). This is a data source limitation, not a pipeline issue. Future Feature F3 (% muscle activation) will work with both specific and generic data — it's not a regression of v0.9.12.
+
+### Files
+
+2 files modified:
+- `artifacts/api-server/src/lib/aiGenerators.ts` (+28/-5)
+- `artifacts/api-server/src/routes/strength.ts` (+6/-2)
+
+Total: +34/-7 lines.
+
+### Notes
+
+- Backend authoritative pattern documented as Pattern 11 in skill bug-hunter.
+- Old workout plans (pre-v0.9.12) still carry AI-invented muscles. They will inherit the new pipeline on next plan regeneration (Settings → onboarding edit, or weekly cron).
+- Foundation now solid for Features F2 (specific muscles UI) and F3 (% activation analysis).
+
+---
+
 ## [0.9.11] — 2026-06-08
 
 ### 🔥 WorkoutX catalog enrichment (Mejora 9.5)
@@ -635,7 +713,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...HEAD
+[0.9.12]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...v0.9.11
 [0.9.9]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...v0.9.9
 [0.9.8]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...v0.9.8
