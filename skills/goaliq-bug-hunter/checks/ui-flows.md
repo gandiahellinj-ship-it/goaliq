@@ -49,6 +49,42 @@
 - UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
 **Current state**: ✅ PASSING (v0.9.7 investigation)
 
+## Flow 11: Subgroup cards + anatomical sub-muscles validation (v0.9.16)
+**Test**:
+1. Login + navigate to /progress → tab "Por subgrupo"
+2. Cycle through groups via the selector
+3. For each, inspect the cards rendered
+**Expected**:
+- Subtitle says "Estadísticas semanales por músculo" (NOT "Peso máximo por semana, por músculo (kg)")
+- Cards stacked (NOT a line chart)
+- Each card structure mirrors Groups tab (v0.9.15): colored dot + muscle name + optional PR badge + 4 KPIs grid + mini bar chart
+- Empty state cards for muscles without logs in the filter window
+- Indicator "Mostrando X semanas con datos" appears when filter active
+
+**Anatomical sub-muscles (backward compat)**:
+- Pectoral with only flat Bench Press logs → 1 card "Pectoral medio" in canonical green
+- Pectoral with Incline Dumbbell Press logs → additional card "Pectoral superior" in coral (SUBGROUP_COLORS[1])
+- Pectoral with Decline logs → additional card "Pectoral inferior" in yellow (SUBGROUP_COLORS[2])
+- Shoulders with Lateral Raise → "Deltoides lateral" card
+- Shoulders with Front Raise / Shoulder Press → "Deltoides anterior" card
+- Shoulders with Rear Delt Fly / Bent-over Lateral → "Deltoides posterior" card
+
+**Forward compat (post-v0.9.16 plans)**:
+- Backend pipeline (aiGenerators.ts PHASE 3.5) writes `muscles: "Pectoral superior, Triceps, ..."` for Incline exercises
+- Logs created from those plans have `strength_logs.muscle_group = "Pectoral superior"` directly
+- Frontend helper is idempotent: re-classifying already-specific values returns them unchanged
+
+**Cross-feature consistency**:
+- First card per group has the canonical group color (matches Workouts.tsx F2 pill + Progress.tsx GroupsCardsView dot)
+- chest verde #1D9E75, legs azul #378ADD, arms naranja #BA7517, etc.
+
+**Regression check**:
+- Tab "Grupos musculares" (v0.9.15) still works
+- Tab "Peso corporal" unchanged
+
+**Current state**: ✅ PASSING (v0.9.16 fix)
+**Validated**: E2E with test2goaliq real data — Pectoral 1 card backward compat, Piernas 2 cards, Brazos 2 cards, PRs detected across groups
+
 ## Flow 10: Professional Groups cards visual validation (v0.9.15)
 **Test**:
 1. Login + navigate to /progress → tab "Grupos musculares"

@@ -12,19 +12,6 @@
 - **Effort**: ~30-45 min (custom tooltip + per-log fetch)
 - **Priority**: Low - not blocking; revisit during /progress polishing pass
 
-### BUG N - Subgroup tab visual inconsistency (ACTIVE)
-- **Discovered**: 2026-06-08 during v0.9.15 E2E validation
-- **Severity**: 🟡 Medium (UX consistency)
-- **Symptom**: After v0.9.15 redesigned "Grupos musculares" with professional cards (KPIs + mini-chart + PR badge), the sibling tab "Por subgrupo" still uses the older line chart layout. Inconsistent visual language between tabs of the same Strength section.
-- **Source**: Progress.tsx SubgroupTab still uses LineChart from Recharts. GroupsTab now uses GroupsCardsView with cards.
-- **Impact**: Visual jarring when navigating between tabs. User feedback: "Por subgrupo debería tener el mismo tratamiento que Grupos".
-- **Status**: Pending redesign in v0.9.16
-- **Possible solutions**:
-  - SubgroupCardsView: similar pattern, one card per individual muscle within selected group
-  - Each card: muscle name + max weight + reps PR + mini-chart of weight progression
-  - Defer Recharts to per-muscle weight trend instead of cross-muscle comparison
-- **Priority**: Medium - non-blocking but breaks UX coherence
-
 ### BUG L - Weight log notes invisible (ACTIVE)
 - **Discovered**: 2026-06-07 (during E2E test)
 - **Severity**: 🟡 Low (data not lost, but not displayed)
@@ -33,7 +20,7 @@
 - **Suggested fix**: Render the note field next to/below each weight entry in the timeline
 - **Priority**: Low
 
-## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K, M)
+## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K, M, N)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -102,6 +89,21 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG N - Subgroup tab visual inconsistency + anatomical sub-muscles (RESOLVED v0.9.16)
+- **Discovered**: 2026-06-08 during v0.9.15 E2E validation
+- **Severity**: 🟡 Medium (UX consistency + product feature)
+- **Symptom**: After v0.9.15 redesigned "Grupos musculares" with professional cards, the sibling tab "Por subgrupo" still used the old line chart layout. Additionally, original user request: Pectoral showed as one bar instead of being split into superior/medio/inferior.
+- **Root cause**: Two issues bundled — UX consistency (LineChart vs cards mismatch) + missing anatomical refinement (catalog target stays generic "Pectorals" without bench-angle distinction).
+- **Fix**: 91f4c40 — Two-pronged solution:
+  1. SubgroupCardsView component replaces LineChart (mirrors GroupsCardsView from v0.9.15)
+  2. inferSpecificMuscle helper added to both backend (aiGenerators.ts PHASE 3.5) and frontend (Progress.tsx, mirror for backward compat). Refines Pectoral by Incline/Decline/Flat keywords and Deltoides by Front/Lateral/Rear keywords.
+- **Tag**: v0.9.16
+- **Lesson**:
+  - Bundle 2 features when they share architecture (cards + helper) — single release with coherent narrative > two atomic releases
+  - Mirror helpers FE/BE strategy (Pattern 15) enables backward + forward compatibility without migration
+  - Catalog target is generic for a reason (1 target per exercise = simple), but reading layer can refine it for richer UX
+  - Defensive duplicate helper: keep in sync via comment + code review checklist
 
 ### BUG M - Tonnage confusion in Groups tab (RESOLVED v0.9.15)
 - **Discovered**: 2026-06-08 during v0.9.14 E2E validation

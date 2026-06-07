@@ -62,6 +62,26 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 15: Mirror Helpers FE/BE for Hybrid Canonical+Legacy Strategy
+**Symptom**: A piece of logic (e.g., classify exercise by anatomical sub-muscle, normalize a user input) needs to apply at TWO points in the data lifecycle: write-time on the backend (so new data is canonical going forward) AND read-time on the frontend (so legacy data without the transformation is reclassified on-the-fly). Without applying both, you face the migration problem: either migrate old data (expensive, error-prone) or only apply going forward (legacy stays stale forever).
+**How to detect**:
+- New feature requires data transformation that wasn't applied to existing rows
+- Migration cost is high (manual SQL, downtime risk, irreversible)
+- Read-time computation is cheap (small dataset, simple logic)
+- You want "the right thing" to show up both for old and new data
+**Approach (battle-tested in v0.9.16)**:
+1. **Implement the transformation as a pure function** with clear inputs and outputs.
+2. **Place IDENTICAL copies in backend and frontend code**. Add a comment on both ends pointing to the mirror.
+3. **Backend applies at write-time**: integrate into pipeline so new records are canonical (Pattern 11 backend-authoritative).
+4. **Frontend applies at read-time defensively**: re-aggregate or re-key the data on display, so legacy records get the same treatment.
+5. **Document the duplication intentionally**: it's a known DRY violation accepted for backward + forward compatibility.
+**Lesson learned (from v0.9.16 — BUG N + sub-pectorals request)**:
+- DRY is a guideline, not a religion. Sometimes the cost of duplication is lower than the cost of architectural complexity (e.g., setting up a shared workspace module just for one helper).
+- The two implementations MUST stay in sync. Code review checklist: "did you update both?". Comment headers reference each other.
+- Pure functions are easier to mirror than stateful logic. If you have to mirror state management, you're probably over-mirroring.
+- Backward compat is a feature, not a refactor. Users with months of logs shouldn't lose visualization quality because the team shipped a smarter classifier.
+- Forward compat happens automatically: new records flowing through the backend pipeline are already canonical, the frontend helper is idempotent for them (no double-transformation).
+
 ## Pattern 14: KPI Cards with Explicit Units
 **Symptom**: A chart compresses multiple metrics (weight, volume, sets, reps, calories) onto one shared axis with a single unit label ("kg"). Users read the number through the lens of the single unit and misinterpret what they're seeing. The metric is technically correct but the framing misleads.
 **How to detect**:
