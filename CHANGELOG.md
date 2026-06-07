@@ -20,6 +20,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.8] — 2026-06-07
+
+### 🐛 BUG D resuelto: `/progress` now displays strength logs
+
+Patch release que cierra **BUG D**: la página `/progress` no mostraba los logs de strength training guardados porque el mapeo `group→muscle_group` del backend no incluía los plurales españoles que la AI genera como valores de `muscle_group`.
+
+### Fixed
+
+- **BUG D (critical)**: `/progress` showed "Aún no tienes sesiones registradas" even with strength logs in the database.
+
+  **Symptom**: User logs Bench Press (`muscle_group='Pectorales'`), but `GET /api/strength/group?group=chest` returns empty array.
+
+  **Root cause**: `MUSCLE_GROUPS` mapping in `routes/strength.ts:48-69` was missing Spanish plural forms. AI-generated plans produce values like `'Pectorales'` that weren't in any group's muscle list. The SQL filter `WHERE muscle_group = ANY(ARRAY[...])` never matched.
+
+  **Fix** (commit `4ccfca5`): Add 4 Spanish plurals to corresponding groups:
+  - `chest`: `+'Pectorales'`
+  - `back`: `+'Espalda'`
+  - `legs`: `+'Piernas'`
+  - `arms`: `+'Brazos'`
+
+  Single-file additive change (4 lines). No frontend changes, no database migration. Zero regression risk.
+
+### Audit findings — muscle_group values in strength_logs
+
+Post-fix audit query (`SELECT muscle_group, COUNT(*) FROM strength_logs GROUP BY 1 ORDER BY 2 DESC`) revealed 8 distinct values:
+
+| muscle_group | count | mapped to |
+|---|---|---|
+| Pectorales | 4 | ✅ chest (this fix) |
+| general | 4 | ⚠️ orphan (BUG E — see below) |
+| Isquiotibiales | 1 | ✅ legs (pre-existing) |
+| Cuádriceps | 1 | ✅ legs (pre-existing) |
+| Deltoides | 1 | ✅ shoulders (pre-existing) |
+| Tríceps | 1 | ✅ arms (pre-existing) |
+| Calves | 1 | ✅ legs (pre-existing) |
+| Forearms | 1 | ✅ arms (pre-existing) |
+
+→ 7 of 8 variants correctly mapped post-fix. The only orphan is the `'general'` fallback (BUG E).
+
+### Identified — non-blocking issues (not bundled in this release)
+
+- **BUG E** (data quality): 4 logs have `muscle_group='general'`. Source: `Workouts.tsx:623` fallback `exercise.muscles?.split(...)[0].trim() ?? "general"` when AI-generated plan has null/undefined `muscles`. Those logs are orphans (no canonical group includes `"general"`). Tracked for future investigation.
+
+- **BUG F** (UX polish): label/copy issues in `/progress` strength tab surfaced once data started rendering. All pre-existing, not regressions:
+  - "Carga total por sesión" label is actually weekly tonnage (sum of `weight_kg × reps` per week).
+  - X-axis shows `week_start` (ISO Monday), not individual log dates — would benefit from tooltip showing actual `logged_at`.
+  - "Registra más sesiones para ver la gráfica" message fires when there's only 1 distinct week of data; could be more specific ("Registra logs en al menos 2 semanas diferentes").
+
+### Verified — E2E validation (commit `4ccfca5` in production)
+
+- ✅ `GET /api/strength/group?group=chest` returns 664 bytes (4 logs of `Pectorales`).
+- ✅ Other groups correctly return `[]` (28 bytes) when user has no data.
+- ✅ `/progress` "Grupos musculares" tab renders the chest data point: `200 + 200 + 200 + 180 = 780 kg` weekly tonnage on `1 jun` (Monday of the week).
+- ✅ Math verified: 4 logs (20kg×10, 20kg×10, 25kg×8, 30kg×6) → 780 kg total volume.
+- ✅ Date "1 jun" verified as `week_start` (Monday) for logs registered week of June 1–7.
+- ✅ Subgroup chart correctly defers rendering until ≥2 distinct weeks exist (1-point line would be meaningless).
+
+---
+
 ## [0.9.7] — 2026-06-07
 
 ### 🔍 BUG C investigated: strength tracking validated (false positive)
@@ -399,7 +458,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...HEAD
+[0.9.8]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.7...v0.9.8
 [0.9.7]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...v0.9.7
 [0.9.6]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.4...v0.9.5
