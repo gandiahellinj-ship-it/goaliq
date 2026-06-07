@@ -20,6 +20,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.6] — 2026-06-07
+
+### 🐛 BUG B resuelto: GIFs de ejercicios ahora cargan en /workouts
+
+Patch release que cierra **BUG B**: los GIFs de los ejercicios no cargaban en la página Entrenos porque el endpoint backend estaba inalcanzable por un prefix duplicado en las declaraciones de ruta.
+
+### Fixed
+
+- **BUG B (critical)**: Exercise GIFs failed to load in `/workouts`. All `/api/workoutx/gif/[ID]` requests returned 404.
+
+  **Root cause**: Single-file bug in `routes/workoutx.ts`. The 7 route declarations included `/api/` prefix manually, while `app.ts:106` already mounts the router with `app.use("/api", router)`. Result: endpoints were served at `/api/api/workoutx/*` (doubled), but the frontend correctly requested `/api/workoutx/*` → 404.
+
+  The other 17 routers in the codebase correctly declare paths without `/api/` prefix. Only `workoutx.ts` had this issue.
+
+  **Fix**: Remove `/api/` from the 7 route declarations:
+  - `/api/workoutx/exercise` → `/workoutx/exercise`
+  - `/api/workoutx/gif/:id` → `/workoutx/gif/:id`
+  - `/api/workoutx/by-location` → `/workoutx/by-location`
+  - `/api/workoutx/equipment` → `/workoutx/equipment`
+  - `/api/workoutx/muscle` → `/workoutx/muscle`
+  - `/api/workoutx/sync-status` → `/workoutx/sync-status`
+  - `/api/workoutx/force-sync` → `/workoutx/force-sync`
+
+  **Single commit fix** (`a0a8b18`): 7 lines, 1 file. No frontend changes, no mount point changes, no DB changes.
+
+### Verified — E2E validation (commit `a0a8b18` in production)
+
+- ✅ `/workouts` page displays exercise GIFs in cards.
+- ✅ "Ver ejemplo →" modal shows animated GIF preview.
+- ✅ Browser Console shows no 404 errors for `/api/workoutx/gif/*`.
+- ✅ Network requests to `/api/workoutx/gif/[ID]` return 200 + Content-Type: image/gif.
+- ✅ api-server logs show `[workoutx-cache] Loaded 1094 exercises from DB`.
+
+### Historical context
+
+Bug likely present since commit `8c58b15` (initial WorkoutX integration). Possibly never worked properly — the UI has a fallback to `<ExerciseAnimation>` SVG component, which may have masked the issue until users explicitly noticed missing animated previews.
+
+---
+
 ## [0.9.5] — 2026-06-07
 
 ### 🐛 BUG A resuelto: refresh ya no redirige a onboarding step 2
@@ -314,7 +353,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.6...HEAD
+[0.9.6]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.5...v0.9.6
 [0.9.5]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.2...v0.9.3
