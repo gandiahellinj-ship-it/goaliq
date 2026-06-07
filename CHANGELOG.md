@@ -20,6 +20,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.13] — 2026-06-08
+
+### 🎨 Feature F2: Muscle hierarchy badges (Visual UI)
+
+Cierre del trio v0.9.11 (enrichment) + v0.9.12 (backend authoritative) + v0.9.13 (visual UI). Los usuarios ahora ven los muscles canonical del catálogo con jerarquía visual coherente con `/progress` charts.
+
+### Added
+
+**Visual hierarchy en exercise cards** (`Workouts.tsx`):
+- **Primary muscle** (first): badge con color del grupo canonical
+  - Background: color con alpha 10% (`${color}1A`)
+  - Border: color con alpha 25% (`${color}40`)
+  - Font: semibold, size 11
+  - Padding: 2px 8px
+- **Secondary muscles**: badges gris muted
+  - Color: `var(--giq-text-muted)`
+  - Background: `var(--giq-border)`
+  - Font: medium, size 10
+  - Padding: 2px 6px
+- **Equipment pill**: sin cambios (mantiene style legacy)
+
+**Group colors** (consistencia con `/progress` GROUP_META):
+- `chest`: `#1D9E75` (verde)
+- `back`: `#7F77DD` (morado)
+- `legs`: `#378ADD` (azul)
+- `shoulders`: `#D4537E` (rosa)
+- `arms`: `#BA7517` (naranja)
+- `core`: `#639922` (oliva)
+
+**Two new helpers** (`Workouts.tsx`):
+- `splitMuscles(str, lang)`: returns translated array per muscle (versus `translateMuscles` which returns joined string, preserved for any caller still needing it).
+- `muscleToGroupColor(muscle)`: regex maps muscle → group color.
+  - Covers EN + ES + plurales
+  - Cubre v0.9.12 catalog additions (Upper Back, Spine, Levator Scapulae, Serratus Anterior)
+  - Fallback to `var(--giq-accent)` if no match
+
+**MUSCLE_TRANSLATIONS coverage** (+4 entries):
+- `"levator scapulae"`: `"Elevador escápula"` (gap crítico identificado en v0.9.12 audit)
+- `"anterior deltoid"`: `"Deltoides anterior"`
+- `"lateral deltoid"`: `"Deltoides lateral"`
+- `"posterior deltoid"`: `"Deltoides posterior"`
+
+Last 3 add consistency con `routes/strength.ts` MUSCLE_GROUPS `shoulders` array.
+
+### Visual mockups by group
+
+**Chest exercise (Bench Press):**
+```
+[Pectoral] (verde #1D9E75)  [Tríceps] (gris)  [Hombros] (gris)  [Mancuerna]
+```
+
+**Back exercise (Lat Pulldown):**
+```
+[Dorsales] (morado #7F77DD)  [Bíceps] (gris)  [Hombros] (gris)  [Polea]
+```
+
+**Legs exercise (Squat):**
+```
+[Cuádriceps] (azul #378ADD)  [Glúteos] (gris)  [Isquiotibiales] (gris)  [Barra]
+```
+
+**Arms exercise (Bicep Curl):**
+```
+[Bíceps] (naranja #BA7517)  [Antebrazos] (gris)  [Mancuerna]
+```
+
+**Core exercise (Sit-up):**
+```
+[Abdominales] (oliva #639922)  [Flexores de cadera] (gris)  [Peso corporal]
+```
+
+### Verified — E2E validation (commit `8183d52` in production)
+
+- ✅ Plan AI regenerado para `test2goaliq`
+- ✅ Cards muestran primary muscle en group color
+- ✅ Secondary muscles en gris muted
+- ✅ Equipment pill sin cambios
+- ✅ Mobile (375px) wrap natural sin overflow
+- ✅ Visual coherente con `/progress` charts
+
+### Foundation for Feature F3
+
+Color logic (`muscleToGroupColor`) reusable para:
+- Widget "% activación muscular esta semana"
+- Sub-group anatomical badges (Pectoral superior/medio/inferior)
+- Balance push/pull visualizations
+- Muscle activation heatmap
+
+### Files
+
+1 file modified:
+- `artifacts/nutricoach/src/pages/Workouts.tsx` (+69/-14 lines)
+
+### Notes
+
+- Visual changes only, zero backend impact.
+- Foundation técnica del trio v0.9.11 → v0.9.12 → v0.9.13 completada.
+- Pattern 12 (Design System Color Reuse for Visual Hierarchy) añadido a skill bug-hunter.
+- Próximo natural: v0.9.14 (sub-grupos anatómicos: Pectoral superior/medio/inferior inferido del nombre del ejercicio + Feature F3 % activación).
+
+---
+
 ## [0.9.12] — 2026-06-08
 
 ### 🎯 Backend authoritative on muscles (closes BUG E + BUG H)
@@ -713,7 +815,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...HEAD
+[0.9.13]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.12...v0.9.13
 [0.9.12]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.11...v0.9.12
 [0.9.11]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.9...v0.9.11
 [0.9.9]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.8...v0.9.9
