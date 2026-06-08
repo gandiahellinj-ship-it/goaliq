@@ -89,7 +89,8 @@ export type ProgressStats = {
   completedWorkoutsThisWeek: number;
   totalWorkoutsThisWeek: number;
   weeklyAdherencePercent: number;
-  weightHistory: { date: string; weightKg: number }[];
+  // v0.9.17 — BUG L closure: notes field propagated through the full pipeline.
+  weightHistory: { date: string; weightKg: number; notes: string | null }[];
   streak: number;
   todayWorkoutDone: boolean;
 };
@@ -442,7 +443,11 @@ export function useProgressStats() {
         completedWorkoutsThisWeek,
         totalWorkoutsThisWeek,
         weeklyAdherencePercent: weeklyAdherence,
-        weightHistory: withWeight.map(l => ({ date: l.log_date, weightKg: l.weight_kg! })),
+        weightHistory: withWeight.map(l => ({
+          date: l.log_date,
+          weightKg: l.weight_kg!,
+          notes: (l as any).notes ?? null,
+        })),
         streak,
         todayWorkoutDone,
       } as ProgressStats;
@@ -1071,14 +1076,25 @@ export function useSwapIngredient() {
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
+// v0.9.17 — BUG L closure: payload now accepts notes (free-text comment) so
+// the LogWeightSheet "Anotaciones" field actually gets persisted. `condition`
+// from the UI is NOT a column in progress_logs (schema check confirmed); if a
+// future product decision wants it, add a column via migration first.
 export function useLogWeight() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (weightKg: number) => {
+    mutationFn: async (payload: { weightKg: number; notes: string | null }) => {
       const userId = await getUserId();
       const today = new Date().toISOString().split("T")[0];
       const { error } = await supabase.from("progress_logs").upsert(
-        { user_id: userId, log_date: today, weight_kg: weightKg },
+        {
+          user_id: userId,
+          log_date: today,
+          weight_kg: payload.weightKg,
+          // Only set notes when the user wrote something. Passing undefined
+          // preserves an existing note on conflict (same day re-log).
+          ...(payload.notes ? { notes: payload.notes } : {}),
+        },
         { onConflict: "user_id,log_date" },
       );
       if (error) throw error;

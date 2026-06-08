@@ -2,23 +2,7 @@
 
 ## Active Bugs
 
-### BUG F.tooltip - /progress subgroup chart tooltip (ACTIVE, partial of BUG F)
-- **Discovered**: 2026-06-07 (after BUG D fix validation), partially fixed in v0.9.9
-- **Severity**: 🟡 Low (UX nice-to-have)
-- **Symptom**: Subgroup line chart shows `week_start` (ISO Monday) on X-axis with no way to see the actual `logged_at` dates of the individual data points
-- **Status**: BUG F resolved partial in v0.9.9 (label + threshold copy). Tooltip remains active.
-- **Suggested fix**: Custom Recharts tooltip component that fetches the individual logs and displays them on hover
-- **Files involved**: artifacts/nutricoach/src/pages/Progress.tsx (line ~612 Tooltip element)
-- **Effort**: ~30-45 min (custom tooltip + per-log fetch)
-- **Priority**: Low - not blocking; revisit during /progress polishing pass
-
-### BUG L - Weight log notes invisible (ACTIVE)
-- **Discovered**: 2026-06-07 (during E2E test)
-- **Severity**: 🟡 Low (data not lost, but not displayed)
-- **Symptom**: Notes field saved with weight logs is not rendered/visible in "Peso Corporal" tab
-- **Files involved**: Progress.tsx WeightTab + LogWeightSheet (line ~124-155, log display section)
-- **Suggested fix**: Render the note field next to/below each weight entry in the timeline
-- **Priority**: Low
+[No active bugs — all resolved through v0.9.17. See "Resolved Bugs" below.]
 
 ## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K, M, N)
 

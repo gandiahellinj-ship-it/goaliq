@@ -229,15 +229,21 @@ function LogWeightSheet({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     const val = parseFloat(weightInput);
     if (!val || isNaN(val) || val < 20 || val > 400) return;
-    logWeightMutation.mutate(val, {
-      onSuccess: () => {
-        setSaved(true);
-        setTimeout(() => {
-          setSaved(false);
-          onClose();
-        }, 1500);
+    // v0.9.17 — BUG L closure: forward the `note` field to the mutation so
+    // it lands in progress_logs.notes. `condition` is currently dropped
+    // (no schema column); decide whether to store it in a future iteration.
+    logWeightMutation.mutate(
+      { weightKg: val, notes: note.trim() || null },
+      {
+        onSuccess: () => {
+          setSaved(true);
+          setTimeout(() => {
+            setSaved(false);
+            onClose();
+          }, 1500);
+        },
       },
-    });
+    );
   };
 
   return (
@@ -1193,6 +1199,61 @@ function WeightTab({ stats, onLogClick }: { stats: any; onLogClick: () => void }
           </div>
         )}
       </div>
+
+      {/* v0.9.17 — BUG L closure: weight entries history list with notes.
+          Last 8 entries reversed (newest first). Delta shown vs previous
+          chronological entry. Notes rendered italic + quoted only when present. */}
+      {stats?.weightHistory && stats.weightHistory.length > 0 && (
+        <div
+          className="p-4"
+          style={{ background: "#111", border: "1px solid #1f1f1f", borderRadius: 16 }}
+        >
+          <h3 className="font-bold text-[#e8e8e8] text-sm mb-4">Historial reciente</h3>
+          <div className="space-y-3">
+            {(stats.weightHistory as { date: string; weightKg: number; notes: string | null }[])
+              .slice(-8)
+              .reverse()
+              .map((entry, i, arr) => {
+              const prev = arr[i + 1];
+              const delta = prev
+                ? +(entry.weightKg - prev.weightKg).toFixed(1)
+                : null;
+              const dateFormat = parseISO(entry.date).toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "short",
+              });
+              return (
+                <div
+                  key={entry.date}
+                  className="border-b border-[#1f1f1f] pb-3 last:border-0 last:pb-0"
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-sm text-[#888]">{dateFormat}</span>
+                    <span className="text-sm font-bold text-[#e8e8e8]">
+                      {entry.weightKg}
+                      <span className="text-[10px] text-[#555] ml-1">kg</span>
+                    </span>
+                    {delta !== null && delta !== 0 && (
+                      <span
+                        className={`text-xs ${
+                          delta > 0 ? "text-[#FF8B6B]" : "text-[#1D9E75]"
+                        }`}
+                      >
+                        {delta > 0 ? "+" : ""}{delta} kg
+                      </span>
+                    )}
+                  </div>
+                  {entry.notes && (
+                    <p className="text-xs text-[#888] mt-1 italic">
+                      "{entry.notes}"
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Log CTA */}
       <button
