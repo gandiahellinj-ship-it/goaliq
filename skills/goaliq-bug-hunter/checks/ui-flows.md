@@ -49,6 +49,32 @@
 - UI: "Anterior: Xkg" updates, "🏆 ¡Récord personal!" if new PR
 **Current state**: ✅ PASSING (v0.9.7 investigation)
 
+## Flow 12: Weight log notes E2E validation (v0.9.17)
+**Test**:
+1. Pre-step verification: confirm progress_logs.notes column exists
+   ```sql
+   SELECT column_name, data_type FROM information_schema.columns
+   WHERE table_schema = 'public' AND table_name = 'progress_logs' AND column_name = 'notes';
+   ```
+2. Navigate to /progress → tab "Peso corporal"
+3. Inspect the new "Historial reciente" section (added in v0.9.17)
+4. Live feature test: click "⚖️ Registrar peso de hoy", input weight + a non-empty "Anotaciones" text, submit
+5. Verify entry appears at top of Historial with note rendered italic + quoted
+6. Verify Supabase: `SELECT log_date, weight_kg, notes FROM progress_logs WHERE user_id = '<uuid>' AND log_date = CURRENT_DATE`
+**Expected**:
+- "Historial reciente" section renders last 8 entries (newest first)
+- Each entry: date "8 jun" + weight bold + unit "kg" + delta vs previous chronological entry (verde if down, coral if up, omitted if 0)
+- Note shown in italic + double-quotes only when present (entries without notes show clean date+weight+delta only)
+- After live submit: new entry appears instantly at top, with the note text visible
+- DB has `notes` column populated with the submitted text
+- Re-log same day WITHOUT a new note: existing note is preserved (defensive upsert)
+**Edge cases**:
+- Empty notes field on submit → mutation passes null → DB column stays NULL → display shows entry without italic line
+- Long notes → wraps in card with `text-xs` (no overflow)
+- 0 weight history entries → section is hidden entirely (defensive)
+**Current state**: ✅ PASSING (v0.9.17 fix)
+**Validated**: User-confirmed E2E test2goaliq — 8 entries rendered + live log of 67.5kg + "Después de entreno" note appeared correctly
+
 ## Flow 11: Subgroup cards + anatomical sub-muscles validation (v0.9.16)
 **Test**:
 1. Login + navigate to /progress → tab "Por subgrupo"

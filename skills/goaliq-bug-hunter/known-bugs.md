@@ -2,9 +2,13 @@
 
 ## Active Bugs
 
-[No active bugs — all resolved through v0.9.17. See "Resolved Bugs" below.]
+**🏆 ZERO active bugs (historic milestone, v0.9.17).**
 
-## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, G, H, I, J, K, M, N)
+All identified bugs have been resolved through v0.9.17. See "Resolved Bugs" below for the historical record (20 entries).
+
+The next entry here should appear only when a new bug is identified — until then, this section serves as the proud watermark of a clean backlog.
+
+## Resolved Bugs (#1-#9, A, B, C, D, E, F partial, F.tooltip, G, H, I, J, K, L, M, N)
 
 ### BUG #1 - Pace copy goal-aware
 - **Discovered**: 2026-06-05 (E2E test)
@@ -73,6 +77,37 @@
   - Race conditions in auth rehydration are easy to miss
   - Verbose logs are your superpower for diagnosis
 - **Added column**: profiles.onboarding_completed_at TIMESTAMPTZ (replaces fragile age proxy)
+
+### BUG L - Weight log notes invisible (RESOLVED v0.9.17)
+- **Discovered**: 2026-06-07 (during E2E test)
+- **Severity**: 🟡 Low (data not lost, but not displayed)
+- **Symptom**: Notes field saved with weight logs was not rendered/visible in "Peso Corporal" tab. On investigation, the chain was broken in 4 separate places — a classic "data dropped at multiple hops" bug.
+- **Root cause** (4-link broken chain):
+  1. UI captured `note` in state but did NOT forward it to the mutation call
+  2. `useLogWeight` mutation accepted only `weightKg: number`, dropping notes silently
+  3. `weightHistory` mapping in `useProgressStats` selected only `date + weightKg`, dropping the `notes` column
+  4. WeightTab had no UI element to render historic entries (only the chart) — even if notes had made it through, there was nowhere to display them
+- **Fix**: fbd5241 — Repaired all 4 links AND added a new "Historial reciente" section to WeightTab so notes have a UX home:
+  - LogWeightSheet.handleSubmit forwards `{ weightKg, notes }` payload
+  - useLogWeight mutation accepts the payload, conditionally upserts notes (preserves existing on re-log without note)
+  - ProgressStats.weightHistory type extended with `notes: string | null`
+  - weightHistory mapping includes `notes` from `progress_logs.notes` column
+  - WeightTab renders last 8 entries with date + weight + delta + note rendering
+- **Tag**: v0.9.17
+- **Lesson**:
+  - Pattern 16 (Bug Field Saved But Never Displayed): trace the FULL pipeline UI → mutation → DB → query → render. Missing ANY link = invisible feature.
+  - When a "feature exists but doesn't work", inventory each step from input to display. The bug may be in any one of them, or in multiple steps.
+  - Schema check is necessary but not sufficient — the column existing in DB only means storage is ready, not that the pipeline reaches it.
+
+### BUG F.tooltip - /progress subgroup chart tooltip (RESOLVED obsolete v0.9.17)
+- **Discovered**: 2026-06-07 (after BUG D fix), partially fixed in v0.9.9
+- **Severity**: 🟡 Low (UX nice-to-have)
+- **Original symptom**: Subgroup line chart showed `week_start` on X-axis with no way to see individual `logged_at` dates on hover. Suggested fix was a custom Recharts Tooltip component.
+- **Resolution**: v0.9.17 — Closed as **obsolete**. The target LineChart was completely removed in v0.9.16 redesign (SubgroupTab now uses cards with mini BarCharts that don't render Tooltips at all). The feature the original bug requested no longer has a place to live; the data it wanted to surface is now available through the per-muscle cards themselves.
+- **Tag**: v0.9.17
+- **Lesson**:
+  - Bugs can become obsolete when the surrounding code is redesigned. Don't blindly fix every backlog item — sometimes the right move is "this no longer applies, close it".
+  - When closing as obsolete, document WHY (which redesign made it moot, what replaced the original code path) so future readers understand the history.
 
 ### BUG N - Subgroup tab visual inconsistency + anatomical sub-muscles (RESOLVED v0.9.16)
 - **Discovered**: 2026-06-08 during v0.9.15 E2E validation

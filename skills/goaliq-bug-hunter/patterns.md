@@ -62,6 +62,28 @@
 - The 17 other routers used relative paths
 - When you see ONE file doing something different, investigate immediately
 
+## Pattern 16: Bug Field Saved But Never Displayed (Broken Pipeline)
+**Symptom**: A user-facing field "exists" — there's an input in the UI, the schema has a column for it, but the user never sees the value reflected back in the app. Often described as "the notes field doesn't work" or "I typed something but it disappeared".
+**How to detect**:
+- Field has input UI somewhere (form, modal, sheet)
+- Schema has the column (confirmed via DDL or query)
+- BUT users say the field is "invisible" or "doesn't save"
+- Don't trust either end in isolation — it often "saves" but is never read, or "reads" but UI never renders it, or anything in between
+**Approach (battle-tested in v0.9.17 — BUG L)**:
+1. **Trace the FULL pipeline link-by-link**: UI state → mutation payload → mutation handler → DB write → DB read query → API/hook return → component prop → render JSX. Five to eight hops typically.
+2. **Inventory each link**: at each hop, does the field exist with the right name and type? Is it being passed forward, or dropped?
+3. **Find the broken link(s)** — could be ONE or MULTIPLE. BUG L had FOUR simultaneously broken links:
+   - UI captured input but never sent it to mutation
+   - Mutation accepted only weight, ignored notes
+   - Read query SELECT dropped notes column
+   - No display component for the notes anywhere
+4. **Fix all of them in one release** — fixing 3 of 4 leaves the feature still invisible. The fourth link discovered last is often the most important.
+**Lesson learned (from v0.9.17 — BUG L)**:
+- Schema check is necessary but not sufficient. "The column exists" only proves storage is ready, not that the pipeline reaches it.
+- A "saved but invisible" bug often masquerades as a "feature doesn't save" bug. The user's symptom is correct (they can't see their input) but their model is wrong (they assume save failed when actually the chain has multiple breaks).
+- This pattern is the silent cousin of Pattern 4 (Silent Failures). Silent failures throw errors that get swallowed; broken pipelines don't throw at all — data just quietly evaporates between layers.
+- Always commit to fixing ALL the broken links in one release. Half-fixes deepen user confusion ("it still doesn't work — did you actually fix anything?").
+
 ## Pattern 15: Mirror Helpers FE/BE for Hybrid Canonical+Legacy Strategy
 **Symptom**: A piece of logic (e.g., classify exercise by anatomical sub-muscle, normalize a user input) needs to apply at TWO points in the data lifecycle: write-time on the backend (so new data is canonical going forward) AND read-time on the frontend (so legacy data without the transformation is reclassified on-the-fly). Without applying both, you face the migration problem: either migrate old data (expensive, error-prone) or only apply going forward (legacy stays stale forever).
 **How to detect**:
