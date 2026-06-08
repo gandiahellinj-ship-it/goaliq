@@ -20,6 +20,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.17] — 2026-06-09
+
+### 🧹 Cleanup release — ACTIVE BUGS = 0 (HISTORIC MILESTONE)
+
+Bundle de cleanup cerrando los últimos 2 bugs activos. **Por primera vez en el histórico del proyecto, ACTIVE BUGS = 0**. Foundation cristalina para beta launch.
+
+### Fixed
+
+**BUG L (100%) — Weight log notes invisible:**
+
+Cadena rota en 4 puntos completamente fixed:
+1. UI captures note → forwards to mutation
+2. Mutation accepts notes payload
+3. Read path includes notes field
+4. WeightTab renders new 'Historial reciente' section
+
+Implementation:
+- `ProgressStats.weightHistory` type extended with `notes: string | null`
+- `useLogWeight` mutation accepts `{ weightKg, notes }`
+- Defensive upsert preserves existing notes on re-log
+- Last 8 entries rendered (newest first)
+- Each entry: fecha + peso + delta + nota (si existe)
+- Delta colors semantic: verde si bajó, coral si subió
+- Notes italic + quoted styling
+
+**BUG F.tooltip (Closed obsolete):**
+- LineChart target removed in v0.9.16 redesign
+- SubgroupTab now uses cards with mini BarCharts (no Tooltip element)
+- Original bug no longer applies
+- Documented closure with lesson on obsolete bugs
+
+### Added
+
+**'Historial reciente' section en WeightTab:**
+- Last 8 weight entries with full context
+- Date + weight + delta + note rendering
+- Semantic colors (verde down, coral up)
+- Defensive: notes only render if present
+- Backward compat: existing entries without notes display cleanly
+
+### Verified — E2E validation (commit `fbd5241` in production)
+
+**Real user data (test2goaliq):**
+
+TEST 1 (visual check):
+- 8 entries visible (May 4 → June 7)
+- Mix of with/without deltas
+- Colors correct (verde -0.3kg, coral +0.2kg)
+
+TEST 2 (LIVE feature test):
+- User logged: 67.5 kg + nota "Después de entreno"
+- Entry appeared instantly in Historial
+- Note displayed italic + quoted
+- Delta -0.3 kg in verde (bajó)
+- Stats updated (60% → 64% progress)
+- Cadena E2E funcionando perfectamente
+
+### Pattern 16 (new) — Bug Field Saved But Never Displayed
+
+Pattern crítico para identificar cadenas rotas:
+- Field exists in DB schema
+- UI captures field input
+- BUT: write path drops it, OR read path drops it, OR display missing
+- Result: data invisible to user despite being technically saved
+- Always trace: UI → mutation → DB → query → render
+- Missing ANY link = invisible feature
+
+Lesson: don't just check schema, trace the FULL pipeline.
+
+### Schema verification
+
+Pre-step SQL confirmed:
+- `progress_logs.notes TEXT` column EXISTS (line 119 schema)
+- `progress_logs.condition` column NOT exists (skipped, future iteration)
+
+### Files modified
+
+3 files:
+- `artifacts/nutricoach/src/lib/supabase-queries.ts` (+25 lines)
+- `artifacts/nutricoach/src/pages/Progress.tsx` (+60 lines)
+- `skills/goaliq-bug-hunter/known-bugs.md` (Active section cleaned)
+
+### Notes
+
+- 🏆 **ACTIVE BUGS = 0** (mínimo histórico absoluto)
+- 7 releases consecutivas (v0.9.11 → v0.9.17, 2 días)
+- 20 bugs cerrados totales
+- Pattern 16 documented
+- Flow 12 added (Weight log notes E2E validation)
+- Foundation 100% lista para **BETA LAUNCH PREP**
+
+---
+
 ## [0.9.16] — 2026-06-08
 
 ### 🏆 Anatomical sub-muscles + Subgroup cards redesign (BUG N closed)
@@ -1093,7 +1186,8 @@ Sin críticos pendientes. Solo low priority.
 
 ---
 
-[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.16...HEAD
+[Unreleased]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.17...HEAD
+[0.9.17]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.16...v0.9.17
 [0.9.16]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.15...v0.9.16
 [0.9.15]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.14...v0.9.15
 [0.9.14]: https://github.com/gandiahellinj-ship-it/goaliq/compare/v0.9.13...v0.9.14
