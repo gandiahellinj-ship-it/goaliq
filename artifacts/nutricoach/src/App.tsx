@@ -26,6 +26,7 @@ import Settings from "@/pages/Settings";
 import AppLayout from "@/components/layout/AppLayout";
 import NotFound from "@/pages/not-found";
 import TestCinematic from "@/pages/TestCinematic";
+import TestMesa from "@/pages/TestMesa";
 import { GenerationOverlay } from "@/components/GenerationOverlay";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Landing} />
       <Route path="/test-cinematic" component={TestCinematic} />
+      <Route path="/test-mesa" component={TestMesa} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/privacy" component={Privacy} />
       <Route path="/terms" component={Terms} />
