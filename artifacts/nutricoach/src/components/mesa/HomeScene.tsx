@@ -20,15 +20,25 @@ import type { Group, Mesh } from "three";
  */
 
 const TEXTURE_URL = "/mesa/home_mesa.png";
-const IMG_ASPECT = 1536 / 2752; // ancho / alto del render (vertical 9:16)
+const IMG_W = 1536;
+const IMG_H = 2752;
+const IMG_ASPECT = IMG_W / IMG_H; // ancho / alto del render (vertical 9:16)
 
-// --- Geometría del aro, medida sobre el render (fracciones de la imagen) ---
+// --- Geometría del aro, RE-MEDIDA pixel a pixel sobre home_mesa.png (Pillow) ---
+// Scanlines por el centro del aro antracita horneado (imagen 1536×2752):
+//   centro (768, 1579.5)
+//   elipse EXTERIOR  rx=174  ry=32.5
+//   elipse INTERIOR  rx=121  ry=19.5
+// El aro cian se construye con ESTAS MISMAS elipses (exterior e interior
+// independientes), por lo que se superpone exactamente sobre el aro de la mesa
+// sin dejar asomar antracita ni desbordarse. Para reposicionar, edita estos px.
 const RING = {
-  centerX: 0.498, // fracción del ANCHO desde la izquierda
-  centerY: 0.574, // fracción del ALTO desde arriba
-  outerRadiusX: 0.11, // radio exterior horizontal, fracción del ANCHO
-  ellipseRatio: 0.19, // radio vertical / radio horizontal (perspectiva)
-  innerFrac: 0.82, // radio interior como fracción del exterior (banda fina)
+  cx: 768,
+  cy: 1579.5,
+  rxOuter: 174,
+  ryOuter: 32.5,
+  rxInner: 121,
+  ryInner: 19.5,
 };
 
 // --- Datos de ejemplo (mock). §6.1: meta_mes = 17, hechos = 12. ---
@@ -55,86 +65,116 @@ function MesaPlane({ planeW, planeH }: { planeW: number; planeH: number }) {
   );
 }
 
+/**
+ * Construye una banda anular ELÍPTICA (sector) entre dos elipses concéntricas
+ * con radios independientes, barriendo de `a0` a `a1`. Con un barrido completo
+ * (2π) genera el anillo entero; con un barrido parcial, el arco de progreso.
+ * Ángulo medido como en cos/sin: π/2 = arriba (12h); decrecer = sentido horario.
+ */
+function ellipseBand(
+  rxO: number,
+  ryO: number,
+  rxI: number,
+  ryI: number,
+  a0: number,
+  a1: number,
+  segments: number,
+): THREE.ShapeGeometry {
+  const shape = new THREE.Shape();
+  for (let i = 0; i <= segments; i++) {
+    const t = a0 + ((a1 - a0) * i) / segments;
+    const x = rxO * Math.cos(t);
+    const y = ryO * Math.sin(t);
+    if (i === 0) shape.moveTo(x, y);
+    else shape.lineTo(x, y);
+  }
+  for (let i = 0; i <= segments; i++) {
+    const t = a1 + ((a0 - a1) * i) / segments;
+    shape.lineTo(rxI * Math.cos(t), ryI * Math.sin(t));
+  }
+  shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+}
+
 /** Aro de progreso 3D: pista antracita + arco cian + respiración sutil. */
 function ProgressRing({ planeW, planeH }: { planeW: number; planeH: number }) {
   const breatheRef = useRef<Group>(null);
   const glowRef = useRef<Mesh>(null);
 
-  // Posición y tamaño del aro en coordenadas del mundo, derivados del render.
-  const layout = useMemo(() => {
-    const outerRx = RING.outerRadiusX * planeW;
-    const outerRy = outerRx * RING.ellipseRatio;
-    const x = (RING.centerX - 0.5) * planeW;
-    const y = (0.5 - RING.centerY) * planeH;
-    return { outerRx, outerRy, x, y };
+  const { x, y, geomTrack, geomProgress, geomGlow } = useMemo(() => {
+    const s = planeW / IMG_W; // unidades de mundo por píxel de imagen (isótropo)
+    const rxO = RING.rxOuter * s;
+    const ryO = RING.ryOuter * s;
+    const rxI = RING.rxInner * s;
+    const ryI = RING.ryInner * s;
+    const top = Math.PI / 2; // 12 en punto
+    const end = top - HOME_PROGRESS * Math.PI * 2; // sentido horario
+    return {
+      x: (RING.cx / IMG_W - 0.5) * planeW,
+      y: (0.5 - RING.cy / IMG_H) * planeH,
+      geomTrack: ellipseBand(rxO, ryO, rxI, ryI, top, top - Math.PI * 2, 192),
+      geomProgress: ellipseBand(rxO, ryO, rxI, ryI, top, end, 192),
+      geomGlow: ellipseBand(
+        rxO * 1.05,
+        ryO * 1.05,
+        rxI * 0.95,
+        ryI * 0.95,
+        top,
+        end,
+        192,
+      ),
+    };
   }, [planeW, planeH]);
-
-  const progressAngle = HOME_PROGRESS * Math.PI * 2;
 
   // Respiración (§ "idle sutil: leve respiración/pulso") + shimmer del glow.
   useFrame((state) => {
     const t = state.clock.elapsedTime;
     if (breatheRef.current) {
-      const s = 1 + Math.sin(t * 1.1) * 0.015;
-      breatheRef.current.scale.set(s, s, 1);
+      const sc = 1 + Math.sin(t * 1.1) * 0.015;
+      breatheRef.current.scale.set(sc, sc, 1);
     }
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshBasicMaterial;
-      mat.opacity = 0.18 + Math.sin(t * 1.1) * 0.07;
+      mat.opacity = 0.16 + Math.sin(t * 1.1) * 0.06;
     }
   });
 
   return (
-    <group position={[layout.x, layout.y, 0.01]}>
-      {/* Escala a la elipse del render; un grupo interior aplica la respiración */}
-      <group scale={[layout.outerRx, layout.outerRy, 1]}>
-        <group ref={breatheRef}>
-          {/* Pista completa en antracita (estado base / vacío) */}
-          <mesh renderOrder={1}>
-            <ringGeometry args={[RING.innerFrac, 1, 128]} />
-            <meshBasicMaterial
-              color={COLOR_ANTHRACITE}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={0.9}
-              depthTest={false}
-            />
-          </mesh>
+    <group position={[x, y, 0.01]}>
+      <group ref={breatheRef}>
+        {/* Pista completa en antracita (29% restante / estado base) */}
+        <mesh geometry={geomTrack} renderOrder={1}>
+          <meshBasicMaterial
+            color={COLOR_ANTHRACITE}
+            side={THREE.DoubleSide}
+            transparent
+            opacity={0.92}
+            depthTest={false}
+          />
+        </mesh>
 
-          {/* Arco de progreso en cian, desde arriba (12h) en sentido horario */}
-          <mesh renderOrder={3} scale={[-1, 1, 1]} position={[0, 0, 0.002]}>
-            <ringGeometry
-              args={[
-                RING.innerFrac,
-                1,
-                128,
-                1,
-                Math.PI / 2,
-                progressAngle,
-              ]}
-            />
-            <meshBasicMaterial
-              color={COLOR_CYAN}
-              side={THREE.DoubleSide}
-              toneMapped={false}
-              depthTest={false}
-            />
-          </mesh>
+        {/* Glow cian suave alrededor del arco (shimmer animado) */}
+        <mesh ref={glowRef} geometry={geomGlow} renderOrder={2} position={[0, 0, 0.001]}>
+          <meshBasicMaterial
+            color={COLOR_CYAN}
+            side={THREE.DoubleSide}
+            transparent
+            opacity={0.16}
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+            depthTest={false}
+          />
+        </mesh>
 
-          {/* Glow suave detrás del arco cian (shimmer animado) */}
-          <mesh ref={glowRef} renderOrder={2} position={[0, 0, 0.001]}>
-            <ringGeometry args={[RING.innerFrac * 0.96, 1.04, 128]} />
-            <meshBasicMaterial
-              color={COLOR_CYAN}
-              side={THREE.DoubleSide}
-              transparent
-              opacity={0.18}
-              blending={THREE.AdditiveBlending}
-              depthWrite={false}
-              depthTest={false}
-            />
-          </mesh>
-        </group>
+        {/* Arco de progreso en cian (12 h → horario, 71%) */}
+        <mesh geometry={geomProgress} renderOrder={3} position={[0, 0, 0.002]}>
+          <meshBasicMaterial
+            color={COLOR_CYAN}
+            side={THREE.DoubleSide}
+            toneMapped={false}
+            depthTest={false}
+          />
+        </mesh>
       </group>
     </group>
   );
