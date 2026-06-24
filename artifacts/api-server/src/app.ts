@@ -279,18 +279,29 @@ app.post("/api/diets/visualize", async (req, res) => {
   try {
     const mealName: string = req.body?.meal_name;
     const ingredients: unknown = req.body?.ingredients;
+    const proportionsInput: unknown = req.body?.proportions;
     if (!mealName) return res.status(400).json({ error: "Falta meal_name" });
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("GEMINI_API_KEY no configurada");
 
-    const ingredientList = Array.isArray(ingredients)
-      ? ingredients.join(", ")
-      : String(ingredients ?? "");
+    const ingredientsList =
+      (Array.isArray(ingredients)
+        ? ingredients.join(", ")
+        : String(ingredients ?? "").trim()) || "los ingredientes habituales del plato";
+
+    // Proporciones visuales del plato (p. ej. "50% verdura, 25% proteína,
+    // 25% carbohidrato"). Opcional: si no llega, se deja a criterio del modelo.
+    const proportions =
+      (Array.isArray(proportionsInput)
+        ? proportionsInput.join(", ")
+        : String(proportionsInput ?? "").trim()) || "equilibradas según el plato";
 
     const prompt =
       `Fotografía de producto profesional de "${mealName}". ` +
-      (ingredientList ? `Ingredientes: ${ingredientList}. ` : "") +
+      `Ingredientes exactos: ${ingredientsList}. ` +
+      `Proporciones visuales: ${proportions}. ` +
+      "Servir en plato de cerámica blanca/beige mate (mismo estilo siempre). " +
       "Fondo blanco sólido y limpio. Luz profesional cenital. " +
       "Solo el plato visible, sin contexto, sin cubiertos, sin accesorios. " +
       "Composición vertical 9:16 (retrato), el plato centrado y destacado.";
