@@ -47,3 +47,13 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Env files (local secrets, never commit). Patterns follow Vite convention:
+# .env and .env.production-like files are intentionally NOT ignored so a
+# committed example/scaffold can live there if desired in the future.
+.env.local
+.env.*.local
+
+# api-server local secrets (Spoonacular key, PORT, etc.) — never commit.
+artifacts/api-server/.env
+

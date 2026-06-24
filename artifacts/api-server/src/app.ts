@@ -103,6 +103,51 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(authMiddleware);
 
+// ── GET /api/recipes/random ──────────────────────────────────────────────────
+// Proxies Spoonacular's random recipe endpoint. Defined before the main router
+// so it resolves regardless of the modular routes mounted below.
+app.get("/api/recipes/random", async (_req, res) => {
+  const apiKey = process.env.SPOONACULAR_API_KEY;
+  if (!apiKey) {
+    logger.error("SPOONACULAR_API_KEY not set");
+    res.status(500).json({ error: "Recipe service not configured" });
+    return;
+  }
+
+  const params = new URLSearchParams({
+    apiKey,
+    addRecipeInformation: "true",
+    includeNutrition: "true",
+    number: "1",
+  });
+
+  try {
+    const upstream = await fetch(
+      `https://api.spoonacular.com/recipes/random?${params}`,
+    );
+    if (!upstream.ok) {
+      logger.error(
+        { status: upstream.status },
+        "Spoonacular random recipe request failed",
+      );
+      res.status(500).json({ error: "Failed to fetch recipe" });
+      return;
+    }
+
+    const data = (await upstream.json()) as { recipes?: unknown[] };
+    const recipe = data.recipes?.[0];
+    if (!recipe) {
+      res.status(500).json({ error: "No recipe returned" });
+      return;
+    }
+
+    res.json(recipe);
+  } catch (err) {
+    logger.error({ err }, "Spoonacular random recipe error");
+    res.status(500).json({ error: "Failed to fetch recipe" });
+  }
+});
+
 app.use("/api", router);
 
 export default app;
