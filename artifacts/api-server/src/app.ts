@@ -289,10 +289,11 @@ app.post("/api/diets/visualize", async (req, res) => {
       : String(ingredients ?? "");
 
     const prompt =
-      `Fotografía cenital y apetitosa de "${mealName}". ` +
+      `Fotografía de producto profesional de "${mealName}". ` +
       (ingredientList ? `Ingredientes: ${ingredientList}. ` : "") +
-      "Estilo food photography profesional, luz natural, fondo limpio. " +
-      "Composición vertical en formato 9:16 (retrato), el plato centrado.";
+      "Fondo blanco sólido y limpio. Luz profesional cenital. " +
+      "Solo el plato visible, sin contexto, sin cubiertos, sin accesorios. " +
+      "Composición vertical 9:16 (retrato), el plato centrado y destacado.";
 
     const model = "gemini-2.5-flash-image";
     const url =
