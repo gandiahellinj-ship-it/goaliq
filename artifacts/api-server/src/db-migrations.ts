@@ -114,4 +114,30 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
       END IF;
     END $$
   `);
+
+  // 5. meal_logs — validated meal registrations ("Mi comida real"). Meals live as
+  //    JSONB inside meal_plans (no meals table), so a row is keyed by
+  //    meal_plan_id + meal_type + date. Macros are nullable for now (the plan
+  //    JSONB doesn't carry per-meal macros yet).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.meal_logs (
+      id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id              UUID NOT NULL,
+      meal_plan_id         UUID,
+      meal_type            TEXT NOT NULL,
+      date                 DATE NOT NULL,
+      match_percentage     INTEGER,
+      status               TEXT,
+      calories             INTEGER,
+      protein_g            INTEGER,
+      carbs_g              INTEGER,
+      fat_g                INTEGER,
+      detected_ingredients JSONB NOT NULL DEFAULT '[]'::jsonb,
+      feedback             TEXT,
+      created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS meal_logs_user_date_idx ON public.meal_logs (user_id, date)`,
+  );
 }

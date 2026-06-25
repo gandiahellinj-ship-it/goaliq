@@ -9,6 +9,7 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Navigation ────────────────────────────────────────────────────────────
     nav_home: "Home",
     nav_meals: "Meals",
+    nav_comidas: "My Meal",
     nav_shopping: "Shopping",
     nav_workouts: "Workouts",
     nav_calendar: "Calendar",
@@ -624,6 +625,7 @@ const T: Record<Lang, Record<string, string>> = {
     // ── Navigation ────────────────────────────────────────────────────────────
     nav_home: "Inicio",
     nav_meals: "Comidas",
+    nav_comidas: "Mi comida",
     nav_shopping: "Compra",
     nav_workouts: "Entrenos",
     nav_calendar: "Calendario",

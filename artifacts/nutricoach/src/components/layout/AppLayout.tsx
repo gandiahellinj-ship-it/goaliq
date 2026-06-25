@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   Utensils,
+  Camera,
   Dumbbell,
   CalendarDays,
   TrendingUp,
@@ -37,11 +38,12 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const GATED_ROUTES = new Set(["/meals", "/workouts", "/calendar", "/progress", "/shopping"]);
+const GATED_ROUTES = new Set(["/meals", "/comidas", "/workouts", "/calendar", "/progress", "/shopping"]);
 
 const navItems = [
   { href: "/dashboard",  icon: LayoutDashboard, labelKey: "nav_home",      gated: false },
   { href: "/meals",      icon: Utensils,        labelKey: "nav_meals",     gated: true  },
+  { href: "/comidas",    icon: Camera,          labelKey: "nav_comidas",   gated: true  },
   { href: "/shopping",   icon: ShoppingCart,    labelKey: "nav_shopping",  gated: true  },
   { href: "/workouts",   icon: Dumbbell,        labelKey: "nav_workouts",  gated: true  },
   { href: "/calendar",   icon: CalendarDays,    labelKey: "nav_calendar",  gated: true  },

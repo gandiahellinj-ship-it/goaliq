@@ -15,6 +15,7 @@ import CheckoutSuccess from "@/pages/CheckoutSuccess";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
 import Meals from "@/pages/Meals";
+import Comidas from "@/pages/Comidas";
 import ShoppingList from "@/pages/ShoppingList";
 import Workouts from "@/pages/Workouts";
 import CalendarPage from "@/pages/Calendar";
@@ -55,6 +56,7 @@ function Router() {
       {/* Protected Routes wrapped in AppLayout */}
       <Route path="/dashboard"><AppLayout><Dashboard /></AppLayout></Route>
       <Route path="/meals"><AppLayout><Meals /></AppLayout></Route>
+      <Route path="/comidas"><AppLayout><Comidas /></AppLayout></Route>
       <Route path="/shopping"><AppLayout><ShoppingList /></AppLayout></Route>
       <Route path="/workouts"><AppLayout><Workouts /></AppLayout></Route>
       <Route path="/calendar"><AppLayout><CalendarPage /></AppLayout></Route>

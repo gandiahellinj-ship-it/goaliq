@@ -297,4 +297,94 @@ router.post("/meals/replace-ingredient", aiBurstLimiter, aiLimiter, async (req, 
   res.json(ReplaceIngredientResponse.parse(meal));
 });
 
+// POST /meals/log — register a validated ("Mi comida real") meal.
+// Meals live as JSONB inside meal_plans (no meals table), so a log row is keyed
+// by meal_plan_id + meal_type + date. Macros are nullable for now.
+router.post("/meals/log", normalLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const b = req.body ?? {};
+  const mealType = typeof b.meal_type === "string" ? b.meal_type : "";
+  const date = typeof b.date === "string" ? b.date : "";
+  if (!mealType || !date) {
+    res.status(400).json({ error: "meal_type and date are required" });
+    return;
+  }
+  const toInt = (v: unknown): number | null =>
+    v == null || v === "" || !Number.isFinite(Number(v)) ? null : Math.round(Number(v));
+  const status = ["match", "partial", "mismatch"].includes(b.status) ? b.status : null;
+  const detected = Array.isArray(b.detected_ingredients) ? b.detected_ingredients : [];
+  const mealPlanId =
+    typeof b.meal_plan_id === "string" && b.meal_plan_id ? b.meal_plan_id : null;
+
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO public.meal_logs
+         (user_id, meal_plan_id, meal_type, date, match_percentage, status,
+          calories, protein_g, carbs_g, fat_g, detected_ingredients, feedback)
+       VALUES ($1::uuid, $2::uuid, $3, $4::date, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+       RETURNING id`,
+      [
+        req.user.id,
+        mealPlanId,
+        mealType,
+        date,
+        toInt(b.match_percentage),
+        status,
+        toInt(b.calories),
+        toInt(b.protein_g),
+        toInt(b.carbs_g),
+        toInt(b.fat_g),
+        JSON.stringify(detected),
+        typeof b.feedback === "string" ? b.feedback : null,
+      ],
+    );
+    res.json({ success: true, logged_id: rows[0].id });
+  } catch (err) {
+    req.log.error({ err }, "[meals] log insert failed");
+    res.status(500).json({ error: "Failed to log meal" });
+  }
+});
+
+// GET /meals/log — daily macro totals from meal_logs (defaults to today).
+router.get("/meals/log", normalLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const date =
+    typeof req.query.date === "string" && req.query.date
+      ? req.query.date
+      : new Date().toISOString().split("T")[0];
+  const pool = getPool();
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         COALESCE(SUM(calories), 0)::int  AS kcal,
+         COALESCE(SUM(protein_g), 0)::int AS protein,
+         COALESCE(SUM(carbs_g), 0)::int   AS carbs,
+         COALESCE(SUM(fat_g), 0)::int     AS fat,
+         COUNT(*)::int                    AS count
+       FROM public.meal_logs
+       WHERE user_id = $1::uuid AND date = $2::date`,
+      [req.user.id, date],
+    );
+    const r = rows[0];
+    res.json({
+      date,
+      kcalToday: r.kcal,
+      proteinToday: r.protein,
+      carbsToday: r.carbs,
+      fatsToday: r.fat,
+      count: r.count,
+    });
+  } catch (err) {
+    req.log.error({ err }, "[meals] log totals failed");
+    res.status(500).json({ error: "Failed to fetch meal logs" });
+  }
+});
+
 export default router;

@@ -1448,3 +1448,76 @@ export function useSaveWorkoutHistory() {
     },
   });
 }
+
+// ─── Meal logging (BALANZ "Mi comida real") ──────────────────────────────────
+
+export type LogMealInput = {
+  meal_plan_id?: string | null;
+  meal_type: string;
+  date: string; // YYYY-MM-DD
+  calories?: number | null;
+  protein_g?: number | null;
+  carbs_g?: number | null;
+  fat_g?: number | null;
+  match_percentage?: number | null;
+  status?: "match" | "partial" | "mismatch" | null;
+  detected_ingredients?: string[];
+  feedback?: string | null;
+};
+
+export function useLogMeal() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: LogMealInput) => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/meals/log", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) throw new Error("Failed to log meal");
+      return (await res.json()) as { success: boolean; logged_id: string };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["meal_plans"] });
+      queryClient.invalidateQueries({ queryKey: ["daily_macros"] });
+    },
+  });
+}
+
+export type DailyMacros = {
+  kcalToday: number;
+  proteinToday: number;
+  carbsToday: number;
+  fatsToday: number;
+  count: number;
+};
+
+// Suma macros de meal_logs para una fecha (por defecto hoy). Reemplaza la
+// heurística por hora de Meals.tsx por consumo real registrado.
+export function useDailyMacros(date?: string) {
+  return useQuery({
+    queryKey: ["daily_macros", date ?? "today"],
+    queryFn: async (): Promise<DailyMacros> => {
+      const token = await getAccessToken();
+      const url = date
+        ? `/api/meals/log?date=${encodeURIComponent(date)}`
+        : "/api/meals/log";
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Failed to fetch daily macros");
+      const d = await res.json();
+      return {
+        kcalToday: d.kcalToday ?? 0,
+        proteinToday: d.proteinToday ?? 0,
+        carbsToday: d.carbsToday ?? 0,
+        fatsToday: d.fatsToday ?? 0,
+        count: d.count ?? 0,
+      };
+    },
+  });
+}
