@@ -1452,7 +1452,7 @@ export function useSaveWorkoutHistory() {
 // ─── Meal logging (BALANZ "Mi comida real") ──────────────────────────────────
 
 export type LogMealInput = {
-  meal_plan_id?: string | null;
+  meal_plan_id?: number | null;
   meal_type: string;
   date: string; // YYYY-MM-DD
   calories?: number | null;

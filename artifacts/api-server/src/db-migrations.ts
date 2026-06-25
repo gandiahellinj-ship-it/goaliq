@@ -123,7 +123,7 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     CREATE TABLE IF NOT EXISTS public.meal_logs (
       id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id              UUID NOT NULL,
-      meal_plan_id         UUID,
+      meal_plan_id         INTEGER,
       meal_type            TEXT NOT NULL,
       date                 DATE NOT NULL,
       match_percentage     INTEGER,
@@ -140,4 +140,22 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS meal_logs_user_date_idx ON public.meal_logs (user_id, date)`,
   );
+
+  // Fix: meal_plans.id is an INTEGER (serial), not a UUID. The column was first
+  // created as UUID, so inserts of integer plan ids failed the uuid cast. Convert
+  // in place if the existing column is still uuid (the table is empty — every
+  // insert had failed). Idempotent: skips once the column is already integer.
+  await pool.query(`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'meal_logs'
+          AND column_name = 'meal_plan_id'
+          AND data_type = 'uuid'
+      ) THEN
+        ALTER TABLE public.meal_logs ALTER COLUMN meal_plan_id TYPE INTEGER USING NULL;
+      END IF;
+    END $$
+  `);
 }

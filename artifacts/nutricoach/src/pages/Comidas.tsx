@@ -3,7 +3,7 @@ import ComidasTab from "@/components/tabs/ComidasTab";
 import { useLogMeal } from "@/lib/supabase-queries";
 
 type RegisteredPayload = {
-  mealPlanId: string | null;
+  mealPlanId: number | null;
   mealType: string;
   date: string;
   calories: number | null;

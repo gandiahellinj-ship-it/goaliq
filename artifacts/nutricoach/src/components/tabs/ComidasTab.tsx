@@ -75,7 +75,7 @@ export interface ComidasTabProps {
    * (Supabase), actualiza el contador diario y suma macros al aro mensual.
    */
   onMealRegistered?: (payload: {
-    mealPlanId: string | null;
+    mealPlanId: number | null;
     mealType: string;
     date: string;
     calories: number | null;
@@ -185,7 +185,7 @@ export default function ComidasTab({ onMealRegistered }: ComidasTabProps) {
     setValidationOpen(false);
     const today = new Date().toISOString().split("T")[0];
     onMealRegistered?.({
-      mealPlanId: plan?.id != null ? String(plan.id) : null,
+      mealPlanId: plan?.id ?? null,
       mealType: meal.meal_type,
       date: today,
       calories: meal.calories,

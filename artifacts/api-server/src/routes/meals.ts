@@ -316,8 +316,8 @@ router.post("/meals/log", normalLimiter, async (req, res) => {
     v == null || v === "" || !Number.isFinite(Number(v)) ? null : Math.round(Number(v));
   const status = ["match", "partial", "mismatch"].includes(b.status) ? b.status : null;
   const detected = Array.isArray(b.detected_ingredients) ? b.detected_ingredients : [];
-  const mealPlanId =
-    typeof b.meal_plan_id === "string" && b.meal_plan_id ? b.meal_plan_id : null;
+  // meal_plans.id is an INTEGER (serial) — parse it as such, not as a uuid.
+  const mealPlanId = toInt(b.meal_plan_id);
 
   const pool = getPool();
   try {
@@ -325,7 +325,7 @@ router.post("/meals/log", normalLimiter, async (req, res) => {
       `INSERT INTO public.meal_logs
          (user_id, meal_plan_id, meal_type, date, match_percentage, status,
           calories, protein_g, carbs_g, fat_g, detected_ingredients, feedback)
-       VALUES ($1::uuid, $2::uuid, $3, $4::date, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
+       VALUES ($1::uuid, $2::int, $3, $4::date, $5, $6, $7, $8, $9, $10, $11::jsonb, $12)
        RETURNING id`,
       [
         req.user.id,
