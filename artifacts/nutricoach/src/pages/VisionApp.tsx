@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
+import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog, Check } from "lucide-react";
 import { visionData } from "@/data";
+import type { MealItem } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
 import SupplementsBadge from "@/components/vision/SupplementsBadge";
 import SupplementsModal from "@/components/vision/SupplementsModal";
 import HomeTab, { type DayTask } from "@/components/vision/HomeTab";
+import MealsTab from "@/components/vision/MealsTab";
 
 /**
  * GOALIQ Vision — 3-zone fixed viewport (no vertical scroll), migrated from the
@@ -77,9 +79,25 @@ export default function VisionApp() {
   const next = tasks.find((t) => !t.done);
   const doneCount = tasks.filter((t) => t.done).length;
 
+  // COMIDAS — meal check state (local/ephemeral), shared by the tab + its timeline.
+  const [mealOverrides, setMealOverrides] = useState<Record<string, boolean>>({});
+  const meals: MealItem[] = useMemo(
+    () => visionData.meal.meals.map((m) => ({ ...m, done: mealOverrides[m.id] ?? m.done })),
+    [mealOverrides],
+  );
+  const toggleMeal = (id: string) =>
+    setMealOverrides((o) => ({ ...o, [id]: !(meals.find((m) => m.id === id)?.done ?? false) }));
+
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
-    meals: <Placeholder label="Comidas" phase={2} />,
+    meals: (
+      <MealsTab
+        meals={meals}
+        macros={visionData.meal.macros}
+        caloriesGoal={visionData.meal.caloriesGoal}
+        onToggle={toggleMeal}
+      />
+    ),
     workout: <Placeholder label="Entrenos" phase={3} />,
     progress: <Placeholder label="Progreso" phase={4} />,
     settings: <Placeholder label="Ajustes" phase={5} />,
@@ -105,7 +123,37 @@ export default function VisionApp() {
     ) : (
       <div className="font-display text-2xl text-[var(--color-brand-accent)]">Día completo ✓</div>
     ),
-    meals: <ContextStub phase={2} />,
+    meals: (
+      <div>
+        <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">HOY</div>
+        <div className="relative mx-1 mt-6">
+          <div className="h-0.5 bg-[var(--color-brand-border)]" />
+          <div className="absolute inset-x-0 flex justify-between" style={{ top: -11 }}>
+            {meals.map((m) => (
+              <div key={m.id} className="flex flex-col items-center gap-1">
+                <span
+                  className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
+                  style={{
+                    background: m.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
+                    border: `1.5px solid ${m.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
+                    color: m.done ? "#fff" : "var(--color-brand-grey)",
+                  }}
+                >
+                  {m.done ? <Check className="h-3 w-3" /> : null}
+                </span>
+                <span
+                  className="text-[10px] font-semibold"
+                  style={{ color: m.done ? "var(--color-brand-text-lbl)" : "var(--color-brand-grey)" }}
+                >
+                  {m.time}
+                </span>
+                <span className="text-[9px] text-[var(--color-brand-grey)]">{m.tag}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    ),
     workout: <ContextStub phase={3} />,
     progress: <ContextStub phase={4} />,
     settings: <ContextStub phase={5} />,
