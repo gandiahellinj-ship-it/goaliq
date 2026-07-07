@@ -6,7 +6,7 @@ actualiza al cerrar trabajo.
 ## Migración layout 3 zonas (`feature/layout-3-zonas`)
 - [x] Fase 1 — HOME (checklist del día, chips de aros, filas SUPLEMENTO compactas)
 - [x] Fase 2 — COMIDAS (calorías + macros + bloque educativo + lista)
-- [ ] Fase 3 — ENTRENOS (en curso)
+- [x] Fase 3 — ENTRENOS (rutina + 3 stats + lista; contextual: indicadores + botón "Entreno completado")
 - [ ] Fase 2b — rediseño de COMIDAS con plato seleccionado + carrusel (tras OK de ENTRENOS)
 - [ ] Fase 4 — PROGRESO
 - [ ] Fase 5 — AJUSTES
