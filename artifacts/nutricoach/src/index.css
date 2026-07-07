@@ -390,3 +390,23 @@ html.theme-light {
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
+
+/* ── GOALIQ Vision — warm-beige palette (scoped to /vision only) ─────────
+   Additive: these tokens live under `.goaliq-vision` so they never affect
+   the rest of the app's design system above. */
+.goaliq-vision {
+  --color-brand-bg: #F4F4F4;
+  --color-brand-card: #FAFAFA;
+  --color-brand-cyan: #BA9D79; /* warm beige accent (legacy name kept) */
+  --color-brand-accent-soft: #EFE8DC; /* light beige fill (educational blocks, soft bg) */
+  --color-brand-grey: #888888;
+  --color-brand-text-lbl: #1A1A1A;
+  --color-brand-border: #E5E5E5;
+  --color-brand-red: #E5484D; /* destructive actions (logout, errors) */
+
+  font-family: var(--app-font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
+}
+
+.goaliq-vision .font-display {
+  font-family: var(--app-font-display, "Barlow Condensed", system-ui, sans-serif);
+}
