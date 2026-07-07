@@ -14,7 +14,7 @@ function SmallRing({ ring, delay }: { ring: ActivityRing; delay: number }) {
         <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90">
           <circle cx="32" cy="32" r={r} fill="none" stroke="var(--color-brand-border)" strokeWidth="6" />
           <motion.circle
-            cx="32" cy="32" r={r} fill="none" stroke="var(--color-brand-cyan)" strokeWidth="6"
+            cx="32" cy="32" r={r} fill="none" stroke="var(--color-brand-accent)" strokeWidth="6"
             strokeLinecap="round" strokeDasharray={c}
             initial={{ strokeDashoffset: c }}
             whileInView={{ strokeDashoffset: c * (1 - pct) }}
@@ -52,8 +52,8 @@ export default function Floor1Home({
             {data.greeting},<br />{data.userName}
           </h2>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand-cyan)]/15 px-3 py-1.5">
-          <Flame className="h-4 w-4 text-[var(--color-brand-cyan)]" />
+        <div className="flex items-center gap-1.5 rounded-full bg-[var(--color-brand-accent)]/15 px-3 py-1.5">
+          <Flame className="h-4 w-4 text-[var(--color-brand-accent)]" />
           <span className="text-sm font-bold text-[var(--color-brand-text-lbl)]">{data.streak}</span>
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function Floor1Home({
           <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
             <circle cx="100" cy="100" r={R} fill="none" stroke="var(--color-brand-border)" strokeWidth="14" />
             <motion.circle
-              cx="100" cy="100" r={R} fill="none" stroke="var(--color-brand-cyan)" strokeWidth="14"
+              cx="100" cy="100" r={R} fill="none" stroke="var(--color-brand-accent)" strokeWidth="14"
               strokeLinecap="round" strokeDasharray={C}
               initial={{ strokeDashoffset: C }}
               whileInView={{ strokeDashoffset: C * (1 - pct) }}
@@ -118,7 +118,7 @@ function QuickButton({
       onClick={onClick}
       className={`flex flex-col items-center gap-1.5 rounded-2xl border py-4 text-xs font-semibold transition-colors ${
         primary
-          ? "border-transparent bg-[var(--color-brand-cyan)] text-white"
+          ? "border-transparent bg-[var(--color-brand-accent)] text-white"
           : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] text-[var(--color-brand-text-lbl)]"
       }`}
     >

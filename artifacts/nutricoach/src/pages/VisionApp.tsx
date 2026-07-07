@@ -89,7 +89,7 @@ export default function VisionApp() {
     home: next ? (
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-cyan)]">SIGUIENTE</div>
+          <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">SIGUIENTE</div>
           <div className="font-display text-4xl leading-none text-[var(--color-brand-text-lbl)]">{next.time}</div>
           <div className="mt-0.5 text-sm font-semibold text-[var(--color-brand-text-lbl)]">{next.name}</div>
           <div className="text-xs text-[var(--color-brand-grey)]">{next.detail}</div>
@@ -103,7 +103,7 @@ export default function VisionApp() {
         </div>
       </div>
     ) : (
-      <div className="font-display text-2xl text-[var(--color-brand-cyan)]">Día completo ✓</div>
+      <div className="font-display text-2xl text-[var(--color-brand-accent)]">Día completo ✓</div>
     ),
     meals: <ContextStub phase={2} />,
     workout: <ContextStub phase={3} />,

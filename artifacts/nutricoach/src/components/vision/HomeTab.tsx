@@ -42,7 +42,7 @@ export default function HomeTab({
           </h2>
         </div>
         <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3 py-1">
-          <Flame className="h-4 w-4 text-[var(--color-brand-cyan)]" />
+          <Flame className="h-4 w-4 text-[var(--color-brand-accent)]" />
           <span className="text-sm font-bold text-[var(--color-brand-text-lbl)]">{data.streak}</span>
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function HomeTab({
         <div className="absolute w-0.5 bg-[var(--color-brand-border)]" style={{ left: 67, top: 13, bottom: 13 }} />
         {/* Fill */}
         <div
-          className="absolute w-0.5 bg-[var(--color-brand-cyan)]"
+          className="absolute w-0.5 bg-[var(--color-brand-accent)]"
           style={{ left: 67, top: 13, height: `calc(${fillFrac} * (100% - 26px))`, transition: "height 400ms ease" }}
         />
         <ul className="flex h-full flex-col justify-between">
@@ -85,8 +85,8 @@ export default function HomeTab({
                 <span
                   className="z-10 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-xs font-semibold"
                   style={{
-                    background: t.done ? "var(--color-brand-cyan)" : "var(--color-brand-card)",
-                    border: `1.5px solid ${t.done ? "var(--color-brand-cyan)" : "var(--color-brand-border)"}`,
+                    background: t.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
+                    border: `1.5px solid ${t.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
                     color: t.done ? "#fff" : "var(--color-brand-grey)",
                     transition: "all 250ms ease",
                   }}
@@ -94,7 +94,7 @@ export default function HomeTab({
                   {t.done ? "✓" : ""}
                 </span>
                 <span style={{ opacity: t.done ? 0.45 : 1, transition: "opacity 250ms" }}>
-                  <span className="block text-[9px] font-semibold tracking-[0.16em] text-[var(--color-brand-cyan)]">
+                  <span className="block text-[9px] font-semibold tracking-[0.16em] text-[var(--color-brand-accent)]">
                     {t.type}
                   </span>
                   <span className="block text-sm font-semibold text-[var(--color-brand-text-lbl)]">{t.name}</span>

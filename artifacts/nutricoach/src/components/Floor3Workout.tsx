@@ -37,7 +37,7 @@ export default function Floor3Workout({ data }: { data: WorkoutData }) {
             <div
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                 ex.done
-                  ? "bg-[var(--color-brand-cyan)] text-white"
+                  ? "bg-[var(--color-brand-accent)] text-white"
                   : "border border-[var(--color-brand-border)] text-[var(--color-brand-grey)]"
               }`}
             >
@@ -62,7 +62,7 @@ export default function Floor3Workout({ data }: { data: WorkoutData }) {
 function Stat({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
   return (
     <div className="flex flex-col items-center gap-1 rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] py-3">
-      <span className="text-[var(--color-brand-cyan)]">{icon}</span>
+      <span className="text-[var(--color-brand-accent)]">{icon}</span>
       <span className="text-lg font-bold text-[var(--color-brand-text-lbl)]">{value}</span>
       <span className="text-[11px] text-[var(--color-brand-grey)]">{label}</span>
     </div>

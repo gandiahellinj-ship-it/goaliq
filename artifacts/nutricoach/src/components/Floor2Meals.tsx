@@ -11,7 +11,7 @@ function Bar({ current, goal }: { current: number; goal: number }) {
         whileInView={{ width: `${pct}%` }}
         viewport={{ once: false, amount: 0.6 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
-        className="h-full rounded-full bg-[var(--color-brand-cyan)]"
+        className="h-full rounded-full bg-[var(--color-brand-accent)]"
       />
     </div>
   );
@@ -68,7 +68,7 @@ export default function Floor2Meals({ data }: { data: MealData }) {
             <div
               className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
                 meal.done
-                  ? "bg-[var(--color-brand-cyan)] text-white"
+                  ? "bg-[var(--color-brand-accent)] text-white"
                   : "border border-[var(--color-brand-border)] text-[var(--color-brand-grey)]"
               }`}
             >

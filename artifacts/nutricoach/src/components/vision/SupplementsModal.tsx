@@ -90,7 +90,7 @@ export default function SupplementsModal({ onClose }: { onClose: () => void }) {
           <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--color-brand-border)]" />
           <div className="flex items-center justify-between">
             <h2 className="flex items-center gap-2 font-display text-2xl font-extrabold text-[var(--color-brand-text-lbl)]">
-              <Pill className="h-5 w-5 text-[var(--color-brand-cyan)]" />
+              <Pill className="h-5 w-5 text-[var(--color-brand-accent)]" />
               {isES ? "Suplementos" : "Supplements"}
             </h2>
             <button
@@ -224,7 +224,7 @@ function ReminderTab({
 
         <button
           onClick={onAddFirst}
-          className="mt-1 rounded-full bg-[var(--color-brand-cyan)] px-5 py-2.5 text-sm font-semibold text-white"
+          className="mt-1 rounded-full bg-[var(--color-brand-accent)] px-5 py-2.5 text-sm font-semibold text-white"
         >
           {isES ? "Añadir suplementos" : "Add supplements"}
         </button>
@@ -236,7 +236,7 @@ function ReminderTab({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-cyan)]/15 text-[var(--color-brand-cyan)]">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-brand-accent)]/15 text-[var(--color-brand-accent)]">
             {reminderOn ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
           </div>
           <div>
@@ -277,7 +277,7 @@ function ReminderTab({
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                     reminderOn
-                      ? "bg-[var(--color-brand-cyan)]/15 text-[var(--color-brand-cyan)]"
+                      ? "bg-[var(--color-brand-accent)]/15 text-[var(--color-brand-accent)]"
                       : "bg-[var(--color-brand-bg)] text-[var(--color-brand-grey)]"
                   }`}
                 >
@@ -307,7 +307,7 @@ function ReminderSwitch({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-        checked ? "bg-[var(--color-brand-cyan)]" : "bg-[var(--color-brand-border)]"
+        checked ? "bg-[var(--color-brand-accent)]" : "bg-[var(--color-brand-border)]"
       } ${disabled ? "cursor-not-allowed opacity-50" : ""}`}
     >
       <motion.span

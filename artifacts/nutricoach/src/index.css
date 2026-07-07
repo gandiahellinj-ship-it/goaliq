@@ -397,7 +397,7 @@ html.theme-light {
 .goaliq-vision {
   --color-brand-bg: #F4F4F4;
   --color-brand-card: #FAFAFA;
-  --color-brand-cyan: #BA9D79; /* warm beige accent (legacy name kept) */
+  --color-brand-accent: #BA9D79; /* warm beige accent (legacy name kept) */
   --color-brand-accent-soft: #EFE8DC; /* light beige fill (educational blocks, soft bg) */
   --color-brand-grey: #888888;
   --color-brand-text-lbl: #1A1A1A;

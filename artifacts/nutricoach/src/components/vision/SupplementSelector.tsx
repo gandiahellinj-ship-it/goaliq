@@ -55,7 +55,7 @@ export default function SupplementSelector({
             key={supp.id}
             className={`overflow-hidden rounded-2xl border transition-colors ${
               selected
-                ? "border-[var(--color-brand-cyan)] bg-[var(--color-brand-card)]"
+                ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-card)]"
                 : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)]"
             }`}
           >
@@ -79,7 +79,7 @@ export default function SupplementSelector({
                   }`}
                 />
               ) : (
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-cyan)]/15 text-[var(--color-brand-cyan)]">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-accent)]/15 text-[var(--color-brand-accent)]">
                   <Plus className="h-4 w-4" />
                 </span>
               )}
@@ -113,7 +113,7 @@ export default function SupplementSelector({
                                 title={v.info}
                                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                                   active
-                                    ? "border-transparent bg-[var(--color-brand-cyan)] text-white"
+                                    ? "border-transparent bg-[var(--color-brand-accent)] text-white"
                                     : "border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)]"
                                 }`}
                               >
@@ -149,14 +149,14 @@ export default function SupplementSelector({
                               }
                               className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors ${
                                 active
-                                  ? "border-[var(--color-brand-cyan)] bg-[var(--color-brand-cyan)]/10"
+                                  ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent)]/10"
                                   : "border-[var(--color-brand-border)]"
                               }`}
                             >
                               <span
                                 className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
                                   active
-                                    ? "border-[var(--color-brand-cyan)] bg-[var(--color-brand-cyan)]"
+                                    ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent)]"
                                     : "border-[var(--color-brand-grey)]"
                                 }`}
                               >

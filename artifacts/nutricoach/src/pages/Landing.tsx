@@ -35,7 +35,7 @@ export default function Landing() {
           )}
           <button
             onClick={login}
-            className="text-sm font-semibold px-4 py-2 rounded-lg bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] hover:border-[var(--color-brand-cyan)] transition-colors"
+            className="text-sm font-semibold px-4 py-2 rounded-lg bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] hover:border-[var(--color-brand-accent)] transition-colors"
           >
             Iniciar sesión
           </button>
@@ -51,14 +51,14 @@ export default function Landing() {
           className="w-full"
         >
           {/* Pill badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-cyan)] text-xs font-bold mb-8 uppercase tracking-widest">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-cyan)] animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-accent)] text-xs font-bold mb-8 uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-accent)] animate-pulse" />
             Coaching con Inteligencia Artificial
           </div>
 
           <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-black uppercase leading-[0.9] text-[var(--color-brand-text-lbl)] mb-6 tracking-tight">
             Entrena más inteligente.<br />
-            <span className="text-[var(--color-brand-cyan)]">Alcanza tus objetivos.</span>
+            <span className="text-[var(--color-brand-accent)]">Alcanza tus objetivos.</span>
           </h1>
 
           <p className="text-base text-[var(--color-brand-grey)] mb-10 leading-relaxed max-w-lg mx-auto">
@@ -68,7 +68,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-5">
             <button
               onClick={login}
-              className="px-8 py-4 rounded-lg font-bold bg-[var(--color-brand-cyan)] text-white hover:opacity-90 transition-all duration-150 flex items-center justify-center gap-2 text-base"
+              className="px-8 py-4 rounded-lg font-bold bg-[var(--color-brand-accent)] text-white hover:opacity-90 transition-all duration-150 flex items-center justify-center gap-2 text-base"
             >
               Empezar prueba gratis
               <ArrowRight className="w-5 h-5" />
@@ -76,7 +76,7 @@ export default function Landing() {
             {!isBetaMode() && (
               <Link
                 href="/pricing"
-                className="px-8 py-4 rounded-lg font-semibold bg-transparent text-[var(--color-brand-text-lbl)] border border-[var(--color-brand-border)] hover:border-[var(--color-brand-cyan)] transition-colors text-base text-center"
+                className="px-8 py-4 rounded-lg font-semibold bg-transparent text-[var(--color-brand-text-lbl)] border border-[var(--color-brand-border)] hover:border-[var(--color-brand-accent)] transition-colors text-base text-center"
               >
                 Ver qué incluye
               </Link>
@@ -95,7 +95,7 @@ export default function Landing() {
               "Cancela antes de que termine la prueba",
             ].map(feat => (
               <div key={feat} className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[var(--color-brand-cyan)]" />
+                <CheckCircle2 className="w-4 h-4 text-[var(--color-brand-accent)]" />
                 {feat}
               </div>
             ))}
@@ -118,8 +118,8 @@ export default function Landing() {
               transition={{ delay: 0.1 + idx * 0.08 }}
               className="bg-[var(--color-brand-card)] rounded-lg p-6 border border-[var(--color-brand-border)]"
             >
-              <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-cyan)]/10 flex items-center justify-center mb-4">
-                <card.icon className="w-5 h-5 text-[var(--color-brand-cyan)]" />
+              <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-accent)]/10 flex items-center justify-center mb-4">
+                <card.icon className="w-5 h-5 text-[var(--color-brand-accent)]" />
               </div>
               <h3 className="font-display font-bold text-[var(--color-brand-text-lbl)] text-lg uppercase mb-1">{card.title}</h3>
               <p className="text-[var(--color-brand-grey)] text-sm leading-relaxed">{card.desc}</p>

@@ -142,7 +142,7 @@ function Segment({
       onClick={onClick}
       className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
         active
-          ? "border-transparent bg-[var(--color-brand-cyan)] text-white"
+          ? "border-transparent bg-[var(--color-brand-accent)] text-white"
           : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] text-[var(--color-brand-text-lbl)]"
       }`}
     >
