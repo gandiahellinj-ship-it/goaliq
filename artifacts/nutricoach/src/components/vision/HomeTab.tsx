@@ -70,39 +70,62 @@ export default function HomeTab({
           style={{ left: 67, top: 13, height: `calc(${fillFrac} * (100% - 26px))`, transition: "height 400ms ease" }}
         />
         <ul className="flex h-full flex-col justify-between">
-          {tasks.map((t) => (
-            <li key={t.id}>
-              <button
-                onClick={() => onToggle(t.id)}
-                className="relative flex w-full items-center gap-3 text-left"
-              >
-                <span
-                  className="w-11 shrink-0 text-xs font-semibold"
-                  style={{ color: t.done ? "var(--color-brand-text-lbl)" : "var(--color-brand-grey)" }}
+          {tasks.map((t) => {
+            // SUPLEMENTO rows are compact: half height, single line (time + name),
+            // smaller dot + smaller type. Comidas/entreno keep their full size.
+            const compact = t.type === "SUPLEMENTO";
+            return (
+              <li key={t.id}>
+                <button
+                  onClick={() => onToggle(t.id)}
+                  className="relative flex w-full items-center gap-3 text-left"
                 >
-                  {t.time}
-                </span>
-                <span
-                  className="z-10 flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-                  style={{
-                    background: t.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
-                    border: `1.5px solid ${t.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
-                    color: t.done ? "#fff" : "var(--color-brand-grey)",
-                    transition: "all 250ms ease",
-                  }}
-                >
-                  {t.done ? "✓" : ""}
-                </span>
-                <span style={{ opacity: t.done ? 0.45 : 1, transition: "opacity 250ms" }}>
-                  <span className="block text-[9px] font-semibold tracking-[0.16em] text-[var(--color-brand-accent)]">
-                    {t.type}
+                  <span
+                    className={`w-11 shrink-0 font-semibold ${compact ? "text-[10px]" : "text-xs"}`}
+                    style={{ color: t.done ? "var(--color-brand-text-lbl)" : "var(--color-brand-grey)" }}
+                  >
+                    {t.time}
                   </span>
-                  <span className="block text-sm font-semibold text-[var(--color-brand-text-lbl)]">{t.name}</span>
-                  <span className="block text-xs text-[var(--color-brand-grey)]">{t.detail}</span>
-                </span>
-              </button>
-            </li>
-          ))}
+                  {/* Fixed 26px-wide slot keeps every dot centered on the progress line */}
+                  <span
+                    className="z-10 flex w-[26px] shrink-0 items-center justify-center"
+                    style={{ height: compact ? 22 : 26 }}
+                  >
+                    <span
+                      className="flex items-center justify-center rounded-full font-semibold"
+                      style={{
+                        width: compact ? 16 : 26,
+                        height: compact ? 16 : 26,
+                        fontSize: compact ? 9 : 12,
+                        background: t.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
+                        border: `1.5px solid ${t.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
+                        color: t.done ? "#fff" : "var(--color-brand-grey)",
+                        transition: "all 250ms ease",
+                      }}
+                    >
+                      {t.done ? "✓" : ""}
+                    </span>
+                  </span>
+                  {compact ? (
+                    <span
+                      className="truncate text-[11px] font-medium text-[var(--color-brand-text-lbl)]"
+                      style={{ opacity: t.done ? 0.45 : 1, transition: "opacity 250ms" }}
+                    >
+                      {t.name}
+                    </span>
+                  ) : (
+                    <span style={{ opacity: t.done ? 0.45 : 1, transition: "opacity 250ms" }}>
+                      <span className="block text-[9px] font-semibold tracking-[0.16em] text-[var(--color-brand-accent)]">
+                        {t.type}
+                      </span>
+                      <span className="block text-sm font-semibold text-[var(--color-brand-text-lbl)]">{t.name}</span>
+                      <span className="block text-xs text-[var(--color-brand-grey)]">{t.detail}</span>
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </div>
