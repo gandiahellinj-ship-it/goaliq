@@ -6,7 +6,7 @@
 - [x] Fase 1 — HOME (aprobada, con filas de suplemento compactas)
 - [x] Fase 2 — COMIDAS versión inicial (barra calorías + 3 macros + bloque educativo + lista togglable)
 - [x] Fase 3 — ENTRENOS (rutina + 3 stats + lista; contextual: indicadores numerados + botón "Entreno completado")
-- [ ] Fase 2b — COMIDAS rediseño: plato protagonista (imagen + ingredientes + preparación + educativo + botón marcar) + franja fina única kcal/macros + carrusel horizontal scroll-snap. Las 4 fotos YA están en `D:\goaliq\design\dishes\` (recorte a PNG transparente + optimización con Sharp pendiente). Espera OK de ENTRENOS.
+- [x] Fase 2b — COMIDAS rediseño: plato protagonista (imagen + ingredientes + preparación + educativo + botón marcar) + franja fina única kcal/macros + carrusel horizontal scroll-snap. 4 fotos recortadas con rembg (sin sombra) + optimizadas → `public/images/dishes/`. Verificado a 390×844 con el caso peor (Cena 8 ingr + 4 pasos), sin scroll.
 - [ ] Fase 4 — PROGRESO
 - [ ] Fase 5 — AJUSTES
 - [ ] Fase 6 — Limpieza (borrar Floor*.tsx viejos) + revisión escritorio

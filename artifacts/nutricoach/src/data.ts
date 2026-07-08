@@ -38,10 +38,30 @@ export const visionData: VisionData = {
       { label: "Grasas", current: 44, goal: 70, unit: "g" },
     ],
     meals: [
-      { id: "m1", name: "Yogur griego con frutos rojos", time: "08:30", kcal: 320, tag: "Desayuno", done: true },
-      { id: "m2", name: "Bowl de pollo y arroz", time: "13:00", kcal: 640, tag: "Comida", done: true },
-      { id: "m3", name: "Batido de proteína", time: "16:30", kcal: 220, tag: "Snack", done: true },
-      { id: "m4", name: "Salmón con verduras", time: "20:00", kcal: 520, tag: "Cena", done: false },
+      {
+        id: "m1", name: "Yogur griego con frutos rojos", time: "08:30", kcal: 320, tag: "Desayuno", done: true,
+        image: "/images/dishes/desayuno.png",
+        ingredients: ["200 g yogur griego natural", "60 g frambuesas", "50 g arándanos", "20 g nueces", "15 g miel", "10 g copos de avena"],
+        preparation: ["Pon el yogur en un bol.", "Reparte los frutos rojos y las nueces.", "Riega con miel y espolvorea la avena."],
+      },
+      {
+        id: "m2", name: "Bowl de pollo y arroz", time: "13:00", kcal: 640, tag: "Comida", done: true,
+        image: "/images/dishes/comida.png",
+        ingredients: ["150 g pechuga de pollo", "120 g arroz cocido", "80 g brócoli", "10 ml aceite de oliva", "1 diente de ajo", "sal y pimienta"],
+        preparation: ["Cocina el arroz.", "Saltea el pollo con ajo, sal y pimienta.", "Cuece el brócoli al vapor.", "Monta el bol y aliña con aceite."],
+      },
+      {
+        id: "m3", name: "Batido de proteína", time: "16:30", kcal: 220, tag: "Snack", done: true,
+        image: "/images/dishes/snack.png",
+        ingredients: ["250 ml leche desnatada", "30 g proteína de suero (cacao)", "1 plátano", "5 g cacao puro", "hielo"],
+        preparation: ["Añade todo a la batidora.", "Bate 30 s hasta que espume."],
+      },
+      {
+        id: "m4", name: "Salmón con verduras", time: "20:00", kcal: 520, tag: "Cena", done: false,
+        image: "/images/dishes/cena.png",
+        ingredients: ["160 g salmón fresco", "100 g espárragos verdes", "80 g coles de Bruselas", "60 g brócoli", "10 ml aceite de oliva", "½ limón", "eneldo fresco", "sal"],
+        preparation: ["Precalienta el horno a 200 °C.", "Coloca el salmón y las verduras en la bandeja.", "Aliña con aceite, limón y eneldo.", "Hornea 15–18 min."],
+      },
     ],
   },
 

@@ -7,7 +7,7 @@ import { useUserSupplements } from "@/lib/supplements-service";
 import SupplementsBadge from "@/components/vision/SupplementsBadge";
 import SupplementsModal from "@/components/vision/SupplementsModal";
 import HomeTab, { type DayTask } from "@/components/vision/HomeTab";
-import MealsTab from "@/components/vision/MealsTab";
+import MealsTab, { MealsCarousel } from "@/components/vision/MealsTab";
 import WorkoutTab from "@/components/vision/WorkoutTab";
 
 /**
@@ -88,6 +88,9 @@ export default function VisionApp() {
   );
   const toggleMeal = (id: string) =>
     setMealOverrides((o) => ({ ...o, [id]: !(meals.find((m) => m.id === id)?.done ?? false) }));
+  // Selected dish for the COMIDAS hero; defaults to the first meal not yet done.
+  const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
+  const selectedMeal = meals.find((m) => m.id === selectedMealId) ?? meals.find((m) => !m.done) ?? meals[0];
 
   // ENTRENOS — exercise check state (local/ephemeral), shared by the tab + contextual.
   const [exOverrides, setExOverrides] = useState<Record<string, boolean>>({});
@@ -108,6 +111,7 @@ export default function VisionApp() {
         meals={meals}
         macros={visionData.meal.macros}
         caloriesGoal={visionData.meal.caloriesGoal}
+        selected={selectedMeal}
         onToggle={toggleMeal}
       />
     ),
@@ -138,33 +142,8 @@ export default function VisionApp() {
     ),
     meals: (
       <div>
-        <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">HOY</div>
-        <div className="relative mx-1 mt-6">
-          <div className="h-0.5 bg-[var(--color-brand-border)]" />
-          <div className="absolute inset-x-0 flex justify-between" style={{ top: -11 }}>
-            {meals.map((m) => (
-              <div key={m.id} className="flex flex-col items-center gap-1">
-                <span
-                  className="flex h-[22px] w-[22px] items-center justify-center rounded-full"
-                  style={{
-                    background: m.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
-                    border: `1.5px solid ${m.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
-                    color: m.done ? "#fff" : "var(--color-brand-grey)",
-                  }}
-                >
-                  {m.done ? <Check className="h-3 w-3" /> : null}
-                </span>
-                <span
-                  className="text-[10px] font-semibold"
-                  style={{ color: m.done ? "var(--color-brand-text-lbl)" : "var(--color-brand-grey)" }}
-                >
-                  {m.time}
-                </span>
-                <span className="text-[9px] text-[var(--color-brand-grey)]">{m.tag}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">TUS COMIDAS DE HOY</div>
+        <MealsCarousel meals={meals} selectedId={selectedMeal.id} onSelect={setSelectedMealId} />
       </div>
     ),
     workout: (

@@ -15,6 +15,7 @@
 - **2026-07-07** — Prompt maestro de imágenes de plato fijado en [`docs/PROMPT_PLATOS.md`](PROMPT_PLATOS.md): fuente de verdad. En producción se copia al servidor; cualquier cambio del prompt se hace AHÍ primero.
 - **2026-07-07** — Regla de bebidas: para bebidas se sustituye la frase del bol por el recipiente propio (vaso), según la variante «Bebidas» del prompt maestro.
 - **2026-07-07** — El plan genera por plato un campo `descripcion_imagen` en inglés (ingredientes visibles + cocinado) que rellena `[PLATO]`/`[BEBIDA]`; el nombre en español es para la UI y clave de caché.
+- **2026-07-08** — Recorte de imágenes de plato con **rembg** (segmentación IA), no flood-fill por color: elimina también la sombra de contacto que el generador pinta bajo el bol. La sombra de profundidad la pone la app por CSS (`drop-shadow`); las imágenes llegan sin sombra. El prompt maestro lo refuerza («flat even lighting with no contact shadow»).
 
 ## Producto y datos
 - **2026-07-06** — Migración visual y cableado de datos son proyectos SEPARADOS. La migración usa datos mock (src/data.ts); solo suplementos y ajustes son reales.

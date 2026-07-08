@@ -50,6 +50,12 @@ export interface MealItem {
   kcal: number;
   tag: "Desayuno" | "Comida" | "Cena" | "Snack";
   done: boolean;
+  /** Transparent-PNG dish photo under /images/dishes/ (optional → initials fallback). */
+  image?: string;
+  /** 5–8 ingredients with quantity, e.g. "200 g yogur griego". */
+  ingredients?: string[];
+  /** 2–4 short preparation steps. */
+  preparation?: string[];
 }
 
 export interface MealData {
