@@ -1,71 +1,98 @@
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import type { ProgressData, ProgressStat } from "@/types";
+import type { ProgressData } from "@/types";
 
-function StatCard({ stat }: { stat: ProgressStat }) {
-  const positive = stat.delta >= 0;
-  const isGood = (stat.goodWhen === "up") === positive;
-  const Icon = positive ? ArrowUpRight : ArrowDownRight;
-  return (
-    <div className="rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3.5 py-2.5">
-      <p className="text-[11px] text-[var(--color-brand-grey)]">{stat.label}</p>
-      <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">{stat.value}</p>
-      <span
-        className="inline-flex items-center gap-0.5 text-[11px] font-semibold"
-        style={{ color: isGood ? "var(--color-brand-accent)" : "var(--color-brand-grey)" }}
-      >
-        <Icon className="h-3 w-3" />
-        {Math.abs(stat.delta)}
-      </span>
-    </div>
-  );
+/** Interpolate between two #rrggbb colours. */
+function lerpHex(a: string, b: string, t: number): string {
+  const ca = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16));
+  const cb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  const c = ca.map((v, i) => Math.round(v + (cb[i] - v) * t));
+  return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
-/** PROGRESO (Phase 4) — top zone. Weight evolution chart + goal, and the 4 metric cards. */
+/**
+ * PROGRESO 4b — "Tu paisaje muscular". Overlapping bell-shaped mountains, one per
+ * muscle group; height = series this week, colour from light sand (least worked)
+ * to --color-brand-accent (most worked). Peaks joined by a thin dotted line.
+ * Flat style, cream background. Below: educational block + two weight mini-cards.
+ */
 export default function ProgressTab({ data }: { data: ProgressData }) {
-  const w = 300, h = 96, pad = 10;
-  const weights = data.weightSeries.map((p) => p.weight);
-  const min = Math.min(...weights, data.goalWeight) - 0.5;
-  const max = Math.max(...weights) + 0.5;
-  const span = max - min || 1;
-  const points = data.weightSeries.map((p, i) => ({
-    x: pad + (i * (w - pad * 2)) / (data.weightSeries.length - 1),
-    y: pad + (1 - (p.weight - min) / span) * (h - pad * 2),
-  }));
-  const line = points.map((p) => `${p.x},${p.y}`).join(" ");
-  const goalY = pad + (1 - (data.goalWeight - min) / span) * (h - pad * 2);
+  const groups = data.muscleGroups;
+  const maxS = Math.max(...groups.map((g) => g.series));
+  const minS = Math.min(...groups.map((g) => g.series));
+
+  const W = 360, H = 150, M = 24, base = 112, maxH = 88, hw = 46;
+  const cellW = (W - 2 * M) / groups.length;
+  const peaks = groups.map((g, i) => {
+    const x = M + (i + 0.5) * cellW;
+    const y = base - (g.series / maxS) * maxH;
+    const t = maxS === minS ? 1 : (g.series - minS) / (maxS - minS);
+    return { ...g, x, y, color: lerpHex("#ECDFCB", "#BA9D79", t) };
+  });
+  const bell = (x: number, y: number) =>
+    `M ${x - hw} ${base} C ${x - hw * 0.45} ${base} ${x - hw * 0.45} ${y} ${x} ${y} ` +
+    `C ${x + hw * 0.45} ${y} ${x + hw * 0.45} ${base} ${x + hw} ${base} Z`;
+  const drawOrder = [...peaks].sort((a, b) => a.y - b.y); // tallest (smallest y) first → behind
+
+  // Weight mini-cards (derived from existing data).
+  const peso = data.stats.find((s) => s.label === "Peso");
+  const last = data.weightSeries[data.weightSeries.length - 1]?.weight ?? data.goalWeight;
+  const remaining = (last - data.goalWeight).toFixed(1);
 
   return (
     <div className="flex h-full flex-col">
       <div className="pr-14">
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">Progreso</p>
-        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">Progreso</h2>
+        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">Tu paisaje muscular</h2>
       </div>
 
-      {/* Weight chart */}
-      <div className="mt-3 rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] p-4">
-        <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[12px] text-[var(--color-brand-grey)]">Evolución del peso</span>
-          <span className="text-[12px] font-semibold text-[var(--color-brand-accent)]">Meta {data.goalWeight} kg</span>
-        </div>
-        <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 96 }}>
-          <line x1={pad} y1={goalY} x2={w - pad} y2={goalY} stroke="var(--color-brand-grey)" strokeWidth="1" strokeDasharray="4 4" opacity="0.5" />
-          <polyline points={line} fill="none" stroke="var(--color-brand-accent)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          {points.map((p, i) => (
-            <circle key={i} cx={p.x} cy={p.y} r="3" fill="var(--color-brand-accent)" />
+      <p className="mt-1.5 text-[12px] text-[var(--color-brand-grey)]">
+        <span className="font-semibold text-[var(--color-brand-text-lbl)]">{data.weekLabel}</span> · {data.weekSeriesTotal} series completadas
+      </p>
+
+      {/* Muscle landscape */}
+      <div className="mt-2 min-h-0 flex-1">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="xMidYMid meet" style={{ maxHeight: "100%" }}>
+          {drawOrder.map((p) => (
+            <path key={p.name} d={bell(p.x, p.y)} fill={p.color} opacity={0.96} />
+          ))}
+          <polyline
+            points={peaks.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke="var(--color-brand-accent)"
+            strokeWidth="1.2"
+            strokeDasharray="3 3"
+            opacity="0.75"
+          />
+          {peaks.map((p) => (
+            <circle key={p.name} cx={p.x} cy={p.y} r="3" fill="var(--color-brand-accent)" />
+          ))}
+          {peaks.map((p) => (
+            <g key={p.name}>
+              <text x={p.x} y={130} textAnchor="middle" fontSize="9" fill="var(--color-brand-grey)">{p.name}</text>
+              <text x={p.x} y={145} textAnchor="middle" fontSize="13" fontWeight="700" fill="var(--color-brand-text-lbl)">{p.series}</text>
+            </g>
           ))}
         </svg>
-        <div className="mt-1 flex justify-between text-[10px] text-[var(--color-brand-grey)]">
-          {data.weightSeries.map((p) => (
-            <span key={p.week}>{p.week}</span>
-          ))}
-        </div>
       </div>
 
-      {/* Metric cards */}
+      {/* Educational block */}
+      <div className="mt-2 rounded-xl px-3 py-1.5 text-[11px] leading-snug" style={{ background: "var(--color-brand-accent-soft)", color: "#6B5B3E" }}>
+        Tu espalda va 8 series por detrás del pecho. Equilibrar el tirón protege tus hombros y mejora la postura.
+      </div>
+
+      {/* Weight mini-cards */}
       <div className="mt-2 grid grid-cols-2 gap-2">
-        {data.stats.map((s) => (
-          <StatCard key={s.label} stat={s} />
-        ))}
+        <div className="rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3.5 py-2.5">
+          <p className="text-[11px] text-[var(--color-brand-grey)]">Peso tendencia</p>
+          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">{peso?.value ?? "—"}</p>
+          {peso && (
+            <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">↘ {Math.abs(peso.delta)}</span>
+          )}
+        </div>
+        <div className="rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3.5 py-2.5">
+          <p className="text-[11px] text-[var(--color-brand-grey)]">Meta</p>
+          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">{data.goalWeight} kg</p>
+          <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">−{Math.abs(Number(remaining))}</span>
+        </div>
       </div>
     </div>
   );

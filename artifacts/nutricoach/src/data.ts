@@ -91,6 +91,16 @@ export const visionData: VisionData = {
 
   progress: {
     goalWeight: 78,
+    weekLabel: "Semana 4",
+    weekSeriesTotal: 81,
+    muscleGroups: [
+      { name: "Pecho", series: 22 },
+      { name: "Espalda", series: 14 },
+      { name: "Piernas", series: 18 },
+      { name: "Hombros", series: 12 },
+      { name: "Core", series: 6 },
+      { name: "Brazos", series: 9 },
+    ],
     stats: [
       { label: "Peso", value: "82.4 kg", delta: -1.2, goodWhen: "down" },
       { label: "Grasa corporal", value: "16.8%", delta: -0.6, goodWhen: "down" },

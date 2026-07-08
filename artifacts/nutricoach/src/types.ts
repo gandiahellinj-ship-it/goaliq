@@ -103,10 +103,20 @@ export interface WeightPoint {
   weight: number;
 }
 
+export interface MuscleGroup {
+  name: string;
+  /** Series completed this week (drives mountain height + colour). */
+  series: number;
+}
+
 export interface ProgressData {
   stats: ProgressStat[];
   weightSeries: WeightPoint[];
   goalWeight: number;
+  /** Muscle-landscape (Phase 4b). */
+  weekLabel: string;
+  weekSeriesTotal: number;
+  muscleGroups: MuscleGroup[];
 }
 
 /* ── Aggregate (Floor 5 · Ajustes uses live hooks, no mock) ─────────── */
