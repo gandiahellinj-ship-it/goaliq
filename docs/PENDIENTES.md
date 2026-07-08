@@ -7,6 +7,7 @@
 - [x] Fase 2 — COMIDAS versión inicial (barra calorías + 3 macros + bloque educativo + lista togglable)
 - [x] Fase 3 — ENTRENOS (rutina + 3 stats + lista; contextual: indicadores numerados + botón "Entreno completado")
 - [x] Fase 2b — COMIDAS rediseño: plato protagonista (imagen + ingredientes + preparación + educativo + botón marcar) + franja fina única kcal/macros + carrusel horizontal scroll-snap. 4 fotos recortadas con rembg (sin sombra) + optimizadas → `public/images/dishes/`. Verificado a 390×844 con el caso peor (Cena 8 ingr + 4 pasos), sin scroll.
+- [x] Fase 3b — ENTRENOS rediseño: ejercicio protagonista (clip + series×reps + tip + botón) + franja fina + carrusel horizontal (mismo patrón que 2b). Clips = placeholder animado (sin assets reales aún). Verificado a 390×844 sin scroll.
 - [ ] Fase 4 — PROGRESO
 - [ ] Fase 5 — AJUSTES
 - [ ] Fase 6 — Limpieza (borrar Floor*.tsx viejos) + revisión escritorio
@@ -24,6 +25,7 @@
 - Copia de seguridad de D:\GoalIQ-Production (assets cinematográficos, solo existen en el disco D:): disco externo o Drive/Dropbox mensual con _SELECTED y _OPTIMIZED. Tarea de José, ~20 min.
 
 ## Decisiones abiertas (no bloqueantes hoy)
+- Fuente definitiva de clips de ejercicios sin decidir — opciones: pack con licencia comercial, wger CC-BY-SA (exige atribución), ExerciseDB (revisar licencia). Decidir antes de la fase de datos reales.
 - Desajuste visual intro cinematográfica (cian, oscura) ↔ app interna (beige, clara). Sin resolver.
 - Lógica de SIGUIENTE en HOME: ¿primera tarea pendiente o próxima por hora? (fase datos reales)
 - Dónde viven en las 5 pestañas las secciones de la app antigua: Mi comida (foto), Compra, Calendario.

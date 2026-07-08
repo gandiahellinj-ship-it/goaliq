@@ -27,3 +27,12 @@ square 1:1, ultra high resolution
   servidor. Si el prompt cambia, se cambia AQUÍ primero.
 - La sombra de profundidad NO va en la imagen: la pone la app por
   CSS (drop-shadow). Las imágenes deben llegar sin sombra.
+- `descripcion_imagen` se construye DESDE la lista de ingredientes
+  del plato: todos los ingredientes VISIBLES en el resultado final
+  deben aparecer en la descripción (ej.: yogur con nueces y avena →
+  "Greek yogurt topped with raspberries, blueberries, chopped
+  walnuts, rolled oats and honey"). Se omiten condimentos e
+  ingredientes no visibles tras cocinar (sal, aceite, ajo disuelto).
+- Clave de caché en producción: nombre normalizado + hash de los
+  ingredientes visibles. Recetas distintas con el mismo nombre →
+  fotos distintas; misma receta → foto compartida.

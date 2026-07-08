@@ -74,6 +74,10 @@ export interface Exercise {
   reps: string;
   muscle: string;
   done: boolean;
+  /** Looping demo clip under /clips/exercises/ (optional → animated placeholder). */
+  clip?: string;
+  /** 1–2 short technique cues. */
+  tip?: string;
 }
 
 export interface WorkoutData {

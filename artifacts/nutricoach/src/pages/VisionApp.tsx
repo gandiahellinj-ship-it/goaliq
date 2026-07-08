@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog, Check } from "lucide-react";
+import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
 import { visionData } from "@/data";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
@@ -8,7 +8,7 @@ import SupplementsBadge from "@/components/vision/SupplementsBadge";
 import SupplementsModal from "@/components/vision/SupplementsModal";
 import HomeTab, { type DayTask } from "@/components/vision/HomeTab";
 import MealsTab, { MealsCarousel } from "@/components/vision/MealsTab";
-import WorkoutTab from "@/components/vision/WorkoutTab";
+import WorkoutTab, { WorkoutCarousel } from "@/components/vision/WorkoutTab";
 
 /**
  * GOALIQ Vision — 3-zone fixed viewport (no vertical scroll), migrated from the
@@ -103,6 +103,9 @@ export default function VisionApp() {
   const completeWorkout = () =>
     setExOverrides(Object.fromEntries(visionData.workout.exercises.map((e) => [e.id, true])));
   const allExDone = exercises.every((e) => e.done);
+  // Selected exercise for the ENTRENOS hero; defaults to the first one not done.
+  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
+  const selectedExercise = exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
 
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
@@ -115,7 +118,7 @@ export default function VisionApp() {
         onToggle={toggleMeal}
       />
     ),
-    workout: <WorkoutTab data={visionData.workout} exercises={exercises} onToggle={toggleEx} />,
+    workout: <WorkoutTab data={visionData.workout} exercises={exercises} selected={selectedExercise} onToggle={toggleEx} />,
     progress: <Placeholder label="Progreso" phase={4} />,
     settings: <Placeholder label="Ajustes" phase={5} />,
   };
@@ -148,31 +151,14 @@ export default function VisionApp() {
     ),
     workout: (
       <div>
-        <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">EJERCICIOS</div>
-        <div className="mt-3 flex gap-2">
-          {exercises.map((e, i) => (
-            <div key={e.id} className="flex flex-1 flex-col items-center gap-1">
-              <span
-                className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[11px] font-bold"
-                style={{
-                  background: e.done ? "var(--color-brand-accent)" : "var(--color-brand-card)",
-                  border: `1.5px solid ${e.done ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
-                  color: e.done ? "#fff" : "var(--color-brand-grey)",
-                }}
-              >
-                {e.done ? <Check className="h-3.5 w-3.5" /> : i + 1}
-              </span>
-              <span className="text-center text-[9px] text-[var(--color-brand-grey)]">{e.sets}×{e.reps}</span>
-            </div>
-          ))}
-        </div>
-        <button
-          onClick={completeWorkout}
-          className="mt-3 w-full rounded-xl py-2.5 text-[13px] font-bold text-white"
-          style={{ background: "var(--color-brand-accent)" }}
-        >
-          {allExDone ? "Entreno completado ✓" : "Entreno completado"}
-        </button>
+        <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">EJERCICIOS</div>
+        <WorkoutCarousel
+          exercises={exercises}
+          selectedId={selectedExercise.id}
+          onSelect={setSelectedExerciseId}
+          onCompleteAll={completeWorkout}
+          allDone={allExDone}
+        />
       </div>
     ),
     progress: <ContextStub phase={4} />,
