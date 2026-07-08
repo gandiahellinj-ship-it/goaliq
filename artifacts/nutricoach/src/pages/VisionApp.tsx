@@ -9,6 +9,8 @@ import SupplementsModal from "@/components/vision/SupplementsModal";
 import HomeTab, { type DayTask } from "@/components/vision/HomeTab";
 import MealsTab, { MealsCarousel } from "@/components/vision/MealsTab";
 import WorkoutTab, { WorkoutCarousel } from "@/components/vision/WorkoutTab";
+import ProgressTab from "@/components/vision/ProgressTab";
+import SettingsTab, { SettingsContext } from "@/components/vision/SettingsTab";
 
 /**
  * GOALIQ Vision — 3-zone fixed viewport (no vertical scroll), migrated from the
@@ -107,6 +109,13 @@ export default function VisionApp() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const selectedExercise = exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
 
+  // PROGRESO — distance-to-goal + week variation for the contextual panel.
+  const progGoal = visionData.progress.goalWeight;
+  const progSeries = visionData.progress.weightSeries;
+  const progLast = progSeries[progSeries.length - 1]?.weight ?? progGoal;
+  const progRemaining = Math.max(0, progLast - progGoal).toFixed(1);
+  const progWeekDelta = visionData.progress.stats[0]?.delta ?? 0;
+
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
     meals: (
@@ -119,8 +128,8 @@ export default function VisionApp() {
       />
     ),
     workout: <WorkoutTab data={visionData.workout} exercises={exercises} selected={selectedExercise} onToggle={toggleEx} />,
-    progress: <Placeholder label="Progreso" phase={4} />,
-    settings: <Placeholder label="Ajustes" phase={5} />,
+    progress: <ProgressTab data={visionData.progress} />,
+    settings: <SettingsTab />,
   };
 
   const contextual: Record<TabId, React.ReactNode> = {
@@ -161,8 +170,24 @@ export default function VisionApp() {
         />
       </div>
     ),
-    progress: <ContextStub phase={4} />,
-    settings: <ContextStub phase={5} />,
+    progress: (
+      <div className="flex items-end justify-between">
+        <div>
+          <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">HACIA LA META</div>
+          <div className="font-display text-4xl leading-none text-[var(--color-brand-text-lbl)]">
+            {progRemaining} <span className="text-xl">kg</span>
+          </div>
+          <div className="text-xs text-[var(--color-brand-grey)]">restantes para {progGoal} kg</div>
+        </div>
+        <div className="text-right">
+          <div className="font-display text-3xl text-[var(--color-brand-text-lbl)]">
+            {progWeekDelta > 0 ? "+" : ""}{progWeekDelta}
+          </div>
+          <div className="text-[9px] tracking-[0.2em] text-[var(--color-brand-grey)]">ESTA SEMANA</div>
+        </div>
+      </div>
+    ),
+    settings: <SettingsContext />,
   };
 
   return (
@@ -215,22 +240,5 @@ export default function VisionApp() {
 
       {suppOpen && <SupplementsModal onClose={() => setSuppOpen(false)} />}
     </div>
-  );
-}
-
-function Placeholder({ label, phase }: { label: string; phase: number }) {
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
-      <div className="font-display text-3xl text-[var(--color-brand-text-lbl)]">{label}</div>
-      <div className="rounded-full border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3 py-1 text-xs font-medium text-[var(--color-brand-grey)]">
-        Se migra en la Fase {phase}
-      </div>
-    </div>
-  );
-}
-
-function ContextStub({ phase }: { phase: number }) {
-  return (
-    <div className="text-xs text-[var(--color-brand-grey)]">Panel contextual · Fase {phase}</div>
   );
 }
