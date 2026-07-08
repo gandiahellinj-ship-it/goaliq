@@ -391,6 +391,21 @@ html.theme-light {
   .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 }
 
+/* ── Legal pages (prose) — follow the active theme instead of a hard-coded
+   `prose-invert`. Without this, headings/body/bold stayed white and became
+   illegible on the light theme's light background. Only used by Privacy/Terms. */
+.prose {
+  --tw-prose-body: var(--giq-text-secondary);
+  --tw-prose-headings: var(--giq-text-primary);
+  --tw-prose-bold: var(--giq-text-primary);
+  --tw-prose-links: var(--giq-accent);
+  --tw-prose-bullets: var(--giq-text-secondary);
+  --tw-prose-counters: var(--giq-text-secondary);
+  --tw-prose-hr: var(--giq-border);
+  --tw-prose-quotes: var(--giq-text-primary);
+  --tw-prose-quote-borders: var(--giq-border);
+}
+
 /* ── GOALIQ Vision — warm-beige palette (scoped to /vision only) ─────────
    Additive: these tokens live under `.goaliq-vision` so they never affect
    the rest of the app's design system above. */
