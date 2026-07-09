@@ -9,7 +9,7 @@ import SupplementsModal from "@/components/vision/SupplementsModal";
 import HomeTab, { type DayTask } from "@/components/vision/HomeTab";
 import MealsTab, { MealsCarousel } from "@/components/vision/MealsTab";
 import WorkoutTab, { WorkoutCarousel } from "@/components/vision/WorkoutTab";
-import ProgressTab from "@/components/vision/ProgressTab";
+import ProgressTab, { ProgressAnalysis } from "@/components/vision/ProgressTab";
 import SettingsTab, { SettingsContext } from "@/components/vision/SettingsTab";
 
 /**
@@ -109,12 +109,10 @@ export default function VisionApp() {
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
   const selectedExercise = exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
 
-  // PROGRESO — distance-to-goal + week variation for the contextual panel.
-  const progGoal = visionData.progress.goalWeight;
-  const progSeries = visionData.progress.weightSeries;
-  const progLast = progSeries[progSeries.length - 1]?.weight ?? progGoal;
-  const progRemaining = Math.max(0, progLast - progGoal).toFixed(1);
-  const progWeekDelta = visionData.progress.stats[0]?.delta ?? 0;
+  // PROGRESO — selected muscle group (chart highlight + chip + contextual analysis).
+  const [selectedGroup, setSelectedGroup] = useState<string>(visionData.progress.muscleGroups[0].name);
+  const selectedGroupObj =
+    visionData.progress.muscleGroups.find((g) => g.name === selectedGroup) ?? visionData.progress.muscleGroups[0];
 
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
@@ -128,7 +126,7 @@ export default function VisionApp() {
       />
     ),
     workout: <WorkoutTab data={visionData.workout} exercises={exercises} selected={selectedExercise} onToggle={toggleEx} />,
-    progress: <ProgressTab data={visionData.progress} />,
+    progress: <ProgressTab data={visionData.progress} selectedGroup={selectedGroup} onSelectGroup={setSelectedGroup} />,
     settings: <SettingsTab />,
   };
 
@@ -170,23 +168,7 @@ export default function VisionApp() {
         />
       </div>
     ),
-    progress: (
-      <div className="flex items-end justify-between">
-        <div>
-          <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">HACIA LA META</div>
-          <div className="font-display text-4xl leading-none text-[var(--color-brand-text-lbl)]">
-            {progRemaining} <span className="text-xl">kg</span>
-          </div>
-          <div className="text-xs text-[var(--color-brand-grey)]">restantes para {progGoal} kg</div>
-        </div>
-        <div className="text-right">
-          <div className="font-display text-3xl text-[var(--color-brand-text-lbl)]">
-            {progWeekDelta > 0 ? "+" : ""}{progWeekDelta}
-          </div>
-          <div className="text-[9px] tracking-[0.2em] text-[var(--color-brand-grey)]">ESTA SEMANA</div>
-        </div>
-      </div>
-    ),
+    progress: <ProgressAnalysis group={selectedGroupObj} />,
     settings: <SettingsContext />,
   };
 

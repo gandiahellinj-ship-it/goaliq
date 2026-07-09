@@ -103,10 +103,20 @@ export interface WeightPoint {
   weight: number;
 }
 
+export interface MuscleSubgroup {
+  name: string;
+  series: number;
+  /** Share of the group's series, 0–100. */
+  pct: number;
+}
+
 export interface MuscleGroup {
   name: string;
   /** Series completed this week (drives mountain height + colour). */
   series: number;
+  subgroups: MuscleSubgroup[];
+  /** Coach advice (verbatim mock), shown in the contextual analysis. */
+  advice: string;
 }
 
 export interface ProgressData {
