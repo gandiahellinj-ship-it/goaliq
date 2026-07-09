@@ -12,7 +12,7 @@
 - [x] Fase 5 — AJUSTES (perfil/idioma/tema/enlaces/logout REALES reestilados, logout rojo tokenizado; contextual: versión + privacidad)
 - [x] Fase 4b v2 — PROGRESO «paisaje muscular» DEFINITIVO: tarjeta blanca + selector de chips + selección resalta montaña y actualiza la contextual con análisis por subgrupos (barras + consejo del entrenador). Verificado Piernas (4 subgrupos) y Hombros (consejo largo) sin scroll. Sin verde, sin tarjeta oscura.
 - [x] Fix — páginas legales (Privacidad/Términos) legibles en tema claro y oscuro (prose mapeado al tema)
-- [ ] Fase 6 — Limpieza (borrar Floor*.tsx viejos) + revisión escritorio
+- [x] Fase 6 — Limpieza: borrados los 5 `Floor*.tsx` sin uso (tsc + build de producción OK); revisión escritorio: en ≥640px la app se muestra como columna centrada con marco redondeado + sombra sobre lienzo neutro (#E4DFD6); móvil sin cambios.
 - [ ] Al aprobar todo: fusionar a main (= publicar en Replit)
 
 ## Siguiente gran fase (tras la migración) — Bucle diario / registro real

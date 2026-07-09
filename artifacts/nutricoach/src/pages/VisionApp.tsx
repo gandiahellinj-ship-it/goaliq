@@ -173,7 +173,8 @@ export default function VisionApp() {
   };
 
   return (
-    <div className="goaliq-vision relative mx-auto flex h-screen w-full max-w-[430px] select-none flex-col overflow-hidden bg-[var(--color-brand-bg)] text-[var(--color-brand-text-lbl)]">
+    <div className="goaliq-vision flex min-h-screen w-full justify-center sm:items-center" style={{ background: "#E4DFD6" }}>
+      <div className="relative flex h-screen w-full max-w-[430px] select-none flex-col overflow-hidden bg-[var(--color-brand-bg)] text-[var(--color-brand-text-lbl)] sm:h-[900px] sm:max-h-[94vh] sm:rounded-[32px] sm:shadow-2xl">
       {/* ── Zone 1 · content (~65%) ── */}
       <div className="relative flex flex-col overflow-hidden px-5 pt-5" style={{ flexBasis: "65%", minHeight: 0 }}>
         <SupplementsBadge onClick={() => setSuppOpen(true)} />
@@ -221,6 +222,7 @@ export default function VisionApp() {
       </div>
 
       {suppOpen && <SupplementsModal onClose={() => setSuppOpen(false)} />}
+      </div>
     </div>
   );
 }
