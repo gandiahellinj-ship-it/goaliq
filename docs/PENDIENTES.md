@@ -15,6 +15,9 @@
 - [ ] Fase 6 — Limpieza (borrar Floor*.tsx viejos) + revisión escritorio
 - [ ] Al aprobar todo: fusionar a main (= publicar en Replit)
 
+## Siguiente gran fase (tras la migración) — Bucle diario / registro real
+- Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).
+
 ## Después — Prioridad marcada: camino a validación
 1. **Fase 3 del producto: verificación de comidas por foto** (Claude Vision, match ≥75%) — es el diferencial + lo que valida el producto.
 2. **Beta con usuarios reales y precio fundador** — única fuente de verdad sobre precio y demanda.
