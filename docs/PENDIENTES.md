@@ -13,7 +13,7 @@
 - [x] Fase 4b v2 — PROGRESO «paisaje muscular» DEFINITIVO: tarjeta blanca + selector de chips + selección resalta montaña y actualiza la contextual con análisis por subgrupos (barras + consejo del entrenador). Verificado Piernas (4 subgrupos) y Hombros (consejo largo) sin scroll. Sin verde, sin tarjeta oscura.
 - [x] Fix — páginas legales (Privacidad/Términos) legibles en tema claro y oscuro (prose mapeado al tema)
 - [x] Fase 6 — Limpieza: borrados los 5 `Floor*.tsx` sin uso (tsc + build de producción OK); revisión escritorio: en ≥640px la app se muestra como columna centrada con marco redondeado + sombra sobre lienzo neutro (#E4DFD6); móvil sin cambios.
-- [ ] Al aprobar todo: fusionar a main (= publicar en Replit)
+- [ ] **Fusionar feature/layout-3-zonas a main** (= publicar en Replit), PREVIA verificación del problema Windows/Linux detectado en el punto 3 de la auditoría del 22/07/2026 (`docs/AUDITORIA.md`): la configuración de pnpm anula los binarios de Linux y la instalación en Replit puede fallar. Probar instalación limpia en entorno Linux antes de fusionar.
 
 ## Siguiente gran fase (tras la migración) — Bucle diario / registro real
 - Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).
@@ -27,11 +27,9 @@
 - Seguir en Replit hasta señal de dolor real (primera factura anómala o límites). Configurar límite de gasto en el panel de Replit — tarea de 2 min, pendiente de confirmar.
 - Si toca migrar: destino **Render** (plan Starter ~7 $/mes, servidor Frankfurt/UE) — precio fijo, panel simple, compatible con el stack sin cambios. Descartados: Railway (cobra por uso), Fly.io (línea de comandos), AWS directo.
 - Si GoalIQ escala mucho: subir de plan DENTRO de Render primero; AWS/Google Cloud solo con cientos de miles de usuarios, y esa migración la decidirá el perfil técnico que se contrate entonces. Los cuellos de botella llegarán antes por Supabase y límites de las APIs de IA que por el hosting.
-- Copia de seguridad de D:\GoalIQ-Production (assets cinematográficos, solo existen en el disco D:): disco externo o Drive/Dropbox mensual con _SELECTED y _OPTIMIZED. Tarea de José, ~20 min.
 
 ## Decisiones abiertas (no bloqueantes hoy)
 - Fuente definitiva de clips de ejercicios sin decidir — opciones: pack con licencia comercial, wger CC-BY-SA (exige atribución), ExerciseDB (revisar licencia). Decidir antes de la fase de datos reales.
-- Desajuste visual intro cinematográfica (cian, oscura) ↔ app interna (beige, clara). Sin resolver.
 - Lógica de SIGUIENTE en HOME: ¿primera tarea pendiente o próxima por hora? (fase datos reales)
 - Dónde viven en las 5 pestañas las secciones de la app antigua: Mi comida (foto), Compra, Calendario.
 - Fórmula del % de Cumplimiento para objetivo "perder grasa" (solo está definida para ganar músculo).
@@ -40,7 +38,5 @@
 - Microtexto legal "imagen orientativa" junto a las fotos de platos.
 - App antigua (dashboard verde oscuro) — decidir su futuro cuando /vision esté completo.
 
-## Cinemática (aparcada, no borrar)
-- Escenas pendientes: KF0 mapa-inicio, apertura bosque + dash, entrada al círculo, primer brote, wormhole cian.
-- Variantes de cielo (amanecer/día/atardecer/noche) en Higgsfield.
-- Versiones escritorio 16:9 — SOLO tras validar toda la secuencia vertical.
+## Cinemática
+- Todo lo cinematográfico (escenas, assets, desajuste visual intro↔app, copia de seguridad) se movió a [`docs/ARCHIVO_IDEAS.md`](ARCHIVO_IDEAS.md) el 22/07/2026. Aparcado, no borrado.

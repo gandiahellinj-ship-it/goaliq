@@ -2,6 +2,12 @@
 
 Este archivo se lee AUTOMÁTICAMENTE al inicio de cada sesión. No esperes a que José lo pida.
 
+## Regla suprema: el código manda
+
+El código implementado manda sobre cualquier documento (incluido este). Si un
+documento contradice lo que hay en el código, se corrige EL DOCUMENTO, no el
+código. Antes de afirmar cómo funciona algo, verifícalo en el código.
+
 ## Protocolo de INICIO de sesión (obligatorio, sin que José lo pida)
 
 1. Lee estos archivos en este orden:
@@ -27,15 +33,28 @@ José quiere que TÚ ejecutes las acciones (arrancar el servidor, instalar, edit
 4. **Al terminar, confirma el resultado** en 1-2 frases: "✅ Hecho: [qué]. Puedes verlo en [dónde]."
 5. **Propón inmediatamente la SIGUIENTE acción** con una frase de justificación, y vuelve al paso 2.
 
-Nunca dejes la conversación sin una propuesta de siguiente paso. Nunca encadenes varias acciones sin aprobación entre ellas (excepto micro-pasos inseparables de una misma acción aprobada). Si una acción falla, explica en llano qué pasó y propón la solución — no muestres errores técnicos sin traducción.
+Nunca dejes la conversación sin una propuesta de siguiente paso. Nunca encadenes varias acciones sin aprobación entre ellas (excepto micro-pasos inseparables de una misma acción aprobada). Si una acción falla, explica en llano qué pasó y propón la solución — no muestres errores técnicos sin traducción. Nunca pidas a José pegar claves o contraseñas en el chat: si una prueba las necesita, propón una alternativa que no las exponga.
 
 ## Protocolo de CIERRE de sesión (obligatorio)
 
 Cuando José escriba `/cierre` o diga que termina:
 1. Actualiza `docs/PENDIENTES.md` (marca lo hecho, añade lo nuevo que quedó).
 2. Actualiza `docs/DECISIONES.md` si hoy se tomó alguna decisión.
-3. Haz commit con mensaje descriptivo en español y push a `main`.
+3. Haz commit con mensaje descriptivo en español y push a la rama en la que se esté trabajando (nunca fusionar ramas en un /cierre; la fusión es una tarea aparte que decide José).
 4. Confirma a José en una frase qué se guardó.
+
+## Estado de las ramas (verificado el 22/07/2026)
+
+- **`main`**: interfaz ANTIGUA (tema oscuro, acento verde lima #AAFF45, barra
+  lateral + barra inferior), pendiente de sustituir. Aquí también viven el
+  backend, el registro de comidas por foto (función "BALANZ") y los
+  experimentos 3D (rutas /test-*).
+- **`feature/layout-3-zonas`**: la interfaz `/vision` beige de 3 zonas — la
+  DIRECCIÓN VISUAL DEFINITIVA. Las 5 pestañas están migradas y aprobadas
+  (Fase 6 incluida). Pendiente de fusionar a main PREVIA verificación del
+  problema Windows/Linux (punto 3 de `docs/AUDITORIA.md`).
+- Trabajo visual nuevo → en la rama. Trabajo de backend/datos → donde diga
+  José al arrancar la sesión.
 
 ## Reglas técnicas fijas (no negociables)
 
@@ -44,7 +63,15 @@ Cuando José escriba `/cierre` o diga que termina:
 - Servidor de desarrollo:
   `$env:PORT='5173'; $env:BASE_PATH='/'; corepack pnpm --filter @workspace/nutricoach dev`
 - Repo: `D:\goaliq`, rama `main`, sincroniza con Replit vía GitHub (no git pull directo en Replit).
-- Colores de marca: cian #50F0E4 (reposo) / #0AF7EE (energizado). Naranja #FF7A2F solo Entrenos. Verde ELIMINADO.
-- UI actual real: navegación vertical por "pisos", paleta beige/dorado. El layout BALANZ 65/5/30 NO está implementado todavía.
+- Dirección visual definitiva (la de `/vision`, tokens reales en `index.css` de la rama):
+  fondo #F4F4F4, tarjetas #FAFAFA, acento beige cálido #BA9D79
+  (`--color-brand-accent`), relleno beige claro #EFE8DC, texto #1A1A1A,
+  bordes #E5E5E5, rojo #E5484D solo para acciones destructivas. Lienzo de
+  escritorio #E4DFD6. Tipografías: Barlow Condensed (titulares) + Plus
+  Jakarta Sans (cuerpo). El VERDE está prohibido en /vision. No inventar
+  colores nuevos: los tokens del `index.css` son la fuente de verdad.
+- Proveedores de IA: Claude (Anthropic) para texto y visión; Gemini SOLO para
+  generar imágenes de platos (ver DECISIONES 07/07/2026).
 - José no es programador: explica cada cambio en lenguaje llano antes de aplicarlo y define cualquier término técnico.
 - Una tarea por sesión. No abrir frentes nuevos sin que José lo apruebe.
+- Ideas aparcadas (cinemática, etc.): `docs/ARCHIVO_IDEAS.md` — no borrar, no retomar sin que José lo pida.
