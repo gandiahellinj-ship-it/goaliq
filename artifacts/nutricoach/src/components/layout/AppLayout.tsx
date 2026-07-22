@@ -31,6 +31,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
+import GoalIQLogo from "@/components/GoalIQLogo";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -49,17 +50,6 @@ const navItems = [
   { href: "/calendar",   icon: CalendarDays,    labelKey: "nav_calendar",  gated: true  },
   { href: "/progress",   icon: TrendingUp,      labelKey: "nav_progress",  gated: true  },
 ];
-
-function GoalIQLogo({ size = "md" }: { size?: "sm" | "md" }) {
-  const h = 28;
-  return (
-    <img
-      src="/images/GOALIQ.png"
-      alt="GoalIQ"
-      style={{ height: h, width: "auto", objectFit: "contain", display: "block" }}
-    />
-  );
-}
 
 // ─── QA Types ─────────────────────────────────────────────────────────────────
 
@@ -485,7 +475,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       >
         <div className="p-5" style={{ borderBottom: "1px solid var(--giq-border)" }}>
-          <GoalIQLogo />
+          <GoalIQLogo size="xs" />
         </div>
 
         <nav className="flex-1 px-3 py-5 space-y-0.5">
@@ -663,7 +653,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           borderBottom: "1px solid var(--giq-border)",
         }}
       >
-        <GoalIQLogo size="sm" />
+        <GoalIQLogo size="xs" />
 
         <div className="flex items-center gap-2">
           {/* QA button — dev only */}

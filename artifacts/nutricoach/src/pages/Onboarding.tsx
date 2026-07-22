@@ -2045,7 +2045,7 @@ function TagInput({
 function Logo() {
   return (
     <img
-      src="/images/GOALIQ.png"
+      src="/images/goaliq-logo-full.png"
       alt="GoalIQ"
       style={{ height: 48, width: "auto", objectFit: "contain", display: "block" }}
     />

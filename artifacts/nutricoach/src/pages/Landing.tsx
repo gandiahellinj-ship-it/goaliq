@@ -4,18 +4,7 @@ import { isBetaMode } from "@/lib/beta";
 import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2, Dumbbell, Utensils, TrendingUp } from "lucide-react";
 import { useEffect } from "react";
-
-function GoalIQLogo({ size = "md", className }: { size?: "sm" | "md" | "lg"; className?: string }) {
-  const heights: Record<string, number> = { sm: 36, md: 48, lg: 48 };
-  return (
-    <img
-      src={`${import.meta.env.BASE_URL}images/GOALIQ.png`}
-      alt="GoalIQ"
-      className={className}
-      style={{ height: heights[size], width: "auto", objectFit: "contain", display: "block" }}
-    />
-  );
-}
+import GoalIQLogo from "@/components/GoalIQLogo";
 
 export default function Landing() {
   const { isAuthenticated, login, isLoading } = useAuth();
@@ -30,23 +19,23 @@ export default function Landing() {
   if (isLoading) return null;
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] font-sans flex flex-col">
+    <div className="goaliq-vision min-h-screen bg-[var(--color-brand-bg)] font-sans flex flex-col">
 
       {/* Header */}
-      <header className="px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full border-b border-[#1A1A1A]">
+      <header className="px-6 py-4 flex items-center justify-between max-w-5xl mx-auto w-full border-b border-[var(--color-brand-border)]">
         <>
           <GoalIQLogo size="sm" className="sm:hidden" />
           <GoalIQLogo size="md" className="hidden sm:block" />
         </>
         <div className="flex items-center gap-3">
           {!isBetaMode() && (
-            <Link href="/pricing" className="text-sm font-medium text-[#A0A0A0] hover:text-white transition-colors hidden sm:block">
+            <Link href="/pricing" className="text-sm font-medium text-[var(--color-brand-grey)] hover:text-[var(--color-brand-text-lbl)] transition-colors hidden sm:block">
               Precios
             </Link>
           )}
           <button
             onClick={login}
-            className="text-sm font-semibold px-4 py-2 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A] text-white hover:border-[#AAFF45] transition-colors"
+            className="text-sm font-semibold px-4 py-2 rounded-lg bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] hover:border-[var(--color-brand-accent)] transition-colors"
           >
             Iniciar sesión
           </button>
@@ -62,24 +51,24 @@ export default function Landing() {
           className="w-full"
         >
           {/* Pill badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1A1A1A] border border-[#2A2A2A] text-[#AAFF45] text-xs font-bold mb-8 uppercase tracking-widest">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#AAFF45] animate-pulse" />
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--color-brand-card)] border border-[var(--color-brand-border)] text-[var(--color-brand-accent)] text-xs font-bold mb-8 uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-brand-accent)] animate-pulse" />
             Coaching con Inteligencia Artificial
           </div>
 
-          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-black uppercase leading-[0.9] text-white mb-6 tracking-tight">
+          <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-black uppercase leading-[0.9] text-[var(--color-brand-text-lbl)] mb-6 tracking-tight">
             Entrena más inteligente.<br />
-            <span className="text-[#AAFF45]">Alcanza tus objetivos.</span>
+            <span className="text-[var(--color-brand-accent)]">Alcanza tus objetivos.</span>
           </h1>
 
-          <p className="text-base text-[#A0A0A0] mb-10 leading-relaxed max-w-lg mx-auto">
+          <p className="text-base text-[var(--color-brand-grey)] mb-10 leading-relaxed max-w-lg mx-auto">
             Obtén un plan de comidas y rutina de entrenamiento orientativos según tu cuerpo, objetivos y estilo de vida — generados por IA en segundos.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-5">
             <button
               onClick={login}
-              className="px-8 py-4 rounded-lg font-bold bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] transition-all duration-150 flex items-center justify-center gap-2 text-base"
+              className="px-8 py-4 rounded-lg font-bold bg-[var(--color-brand-accent)] text-white hover:opacity-90 transition-all duration-150 flex items-center justify-center gap-2 text-base"
             >
               Empezar prueba gratis
               <ArrowRight className="w-5 h-5" />
@@ -87,26 +76,26 @@ export default function Landing() {
             {!isBetaMode() && (
               <Link
                 href="/pricing"
-                className="px-8 py-4 rounded-lg font-semibold bg-transparent text-white border border-[#2A2A2A] hover:border-[#AAFF45] transition-colors text-base text-center"
+                className="px-8 py-4 rounded-lg font-semibold bg-transparent text-[var(--color-brand-text-lbl)] border border-[var(--color-brand-border)] hover:border-[var(--color-brand-accent)] transition-colors text-base text-center"
               >
                 Ver qué incluye
               </Link>
             )}
           </div>
 
-          <p className="text-sm text-[#555555] font-medium mb-12">
+          <p className="text-sm text-[var(--color-brand-grey)] font-medium mb-12">
             3 días gratis · Sin cargo hoy · Cancela cuando quieras
           </p>
 
           {/* Trust features */}
-          <div className="flex flex-wrap justify-center gap-6 text-sm text-[#A0A0A0] font-medium">
+          <div className="flex flex-wrap justify-center gap-6 text-sm text-[var(--color-brand-grey)] font-medium">
             {[
               "Adaptado a tus preferencias",
               "Planes de comida y entrenamientos incluidos",
               "Cancela antes de que termine la prueba",
             ].map(feat => (
               <div key={feat} className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-[#AAFF45]" />
+                <CheckCircle2 className="w-4 h-4 text-[var(--color-brand-accent)]" />
                 {feat}
               </div>
             ))}
@@ -127,13 +116,13 @@ export default function Landing() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + idx * 0.08 }}
-              className="bg-[#1A1A1A] rounded-lg p-6 border border-[#2A2A2A]"
+              className="bg-[var(--color-brand-card)] rounded-lg p-6 border border-[var(--color-brand-border)]"
             >
-              <div className="w-10 h-10 rounded-lg bg-[#AAFF45]/10 flex items-center justify-center mb-4">
-                <card.icon className="w-5 h-5 text-[#AAFF45]" />
+              <div className="w-10 h-10 rounded-lg bg-[var(--color-brand-accent)]/10 flex items-center justify-center mb-4">
+                <card.icon className="w-5 h-5 text-[var(--color-brand-accent)]" />
               </div>
-              <h3 className="font-display font-bold text-white text-lg uppercase mb-1">{card.title}</h3>
-              <p className="text-[#A0A0A0] text-sm leading-relaxed">{card.desc}</p>
+              <h3 className="font-display font-bold text-[var(--color-brand-text-lbl)] text-lg uppercase mb-1">{card.title}</h3>
+              <p className="text-[var(--color-brand-grey)] text-sm leading-relaxed">{card.desc}</p>
             </motion.div>
           ))}
         </div>

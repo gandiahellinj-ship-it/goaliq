@@ -274,3 +274,111 @@ export const SUPPLEMENT_TIMING: Record<string, SupplementTiming> = {
     tip: "La cafeína mejora el rendimiento hasta un 12%. No la tomes después de las 14:00 — tiene vida media de 5-6 horas y puede arruinar tu sueño.",
   },
 };
+
+/* ── Supplement variants ─────────────────────────────────────────────────
+   Mirrors the inline SUPPLEMENT_VARIANTS in pages/Onboarding.tsx so the
+   Vision supplements modal shows exactly the same options as onboarding.
+   (Single source could be enforced by importing this from Onboarding too.) */
+
+export interface SupplementVariant {
+  name: string;
+  info: string;
+}
+
+export function getSupplementVariants(
+  isES: boolean,
+): Record<string, SupplementVariant[]> {
+  return {
+    proteina_polvo: [
+      { name: isES ? "Whey concentrada" : "Concentrated whey", info: isES ? "Económica. Contiene lactosa." : "Budget-friendly. Contains lactose." },
+      { name: isES ? "Whey isolada" : "Whey isolate", info: isES ? "Sin lactosa. >90% proteína." : "Lactose-free. >90% protein." },
+      { name: isES ? "Proteína vegana" : "Vegan protein", info: isES ? "Guisante/arroz. Plant-based." : "Pea/rice. Plant-based." },
+      { name: isES ? "Caseína" : "Casein", info: isES ? "Digestión lenta. Ideal antes de dormir." : "Slow digestion. Ideal before bed." },
+    ],
+    creatina: [
+      { name: isES ? "Monohidrato" : "Monohydrate", info: isES ? "La más estudiada y eficaz." : "Most studied and effective." },
+      { name: isES ? "HCl (clorhidrato)" : "HCl (hydrochloride)", info: isES ? "Mayor solubilidad, dosis menor." : "Higher solubility, smaller dose." },
+      { name: "Kre-Alkalyn", info: isES ? "Sin fase de carga obligatoria." : "No loading phase required." },
+      { name: isES ? "Etil éster" : "Ethyl ester", info: isES ? "Absorción más rápida." : "Faster absorption." },
+    ],
+    colageno: [
+      { name: isES ? "Marino (tipo I)" : "Marine (type I)", info: isES ? "Mayor biodisponibilidad. Piel y tendones." : "Higher bioavailability. Skin and tendons." },
+      { name: isES ? "Bovino (tipo I/III)" : "Bovine (type I/III)", info: isES ? "Económico. Piel y articulaciones." : "Budget-friendly. Skin and joints." },
+      { name: isES ? "Tipo II" : "Type II", info: isES ? "Específico para cartílago." : "Specific for cartilage." },
+      { name: isES ? "Péptidos hidrolizados" : "Hydrolyzed peptides", info: isES ? "Fácil absorción en líquidos." : "Easy absorption in liquids." },
+    ],
+    magnesio: [
+      { name: "Bisglicinato", info: isES ? "Máxima absorción y tolerancia digestiva." : "Maximum absorption and digestive tolerance." },
+      { name: "Citrato", info: isES ? "Buena biodisponibilidad." : "Good bioavailability." },
+      { name: "Malato", info: isES ? "Ideal para energía y fatiga." : "Ideal for energy and fatigue." },
+      { name: "L-treonato", info: isES ? "Mejora sueño y memoria." : "Improves sleep and memory." },
+    ],
+    omega_3: [
+      { name: isES ? "Aceite de pescado" : "Fish oil", info: isES ? "Buena relación EPA/DHA." : "Good EPA/DHA ratio." },
+      { name: isES ? "Aceite de krill" : "Krill oil", info: isES ? "En fosfolípidos, mejor absorción." : "In phospholipids, better absorption." },
+      { name: isES ? "Algas (vegano)" : "Algae (vegan)", info: isES ? "Fuente directa de DHA." : "Direct DHA source." },
+      { name: isES ? "EPA/DHA concentrado" : "Concentrated EPA/DHA", info: isES ? "Alta dosis en cápsulas pequeñas." : "High dose in small capsules." },
+    ],
+    vitamina_d: [
+      { name: isES ? "Vitamina D3" : "Vitamin D3", info: isES ? "Forma más activa y biodisponible." : "Most active and bioavailable form." },
+      { name: "D3 + K2", info: isES ? "K2 dirige el calcio a los huesos." : "K2 directs calcium to bones." },
+      { name: isES ? "D2 (vegano)" : "D2 (vegan)", info: isES ? "Origen vegetal. Menos potente." : "Plant-based. Less potent." },
+    ],
+    zinc: [
+      { name: "Picolinato", info: isES ? "La forma mejor absorbida." : "Best absorbed form." },
+      { name: "Citrato", info: isES ? "Buena tolerancia digestiva." : "Good digestive tolerance." },
+      { name: "Gluconato", info: isES ? "Económico, menor biodisponibilidad." : "Budget-friendly, lower bioavailability." },
+      { name: "ZMA (Zinc+Mg+B6)", info: isES ? "Popular para recuperación nocturna." : "Popular for nighttime recovery." },
+    ],
+    hierro: [
+      { name: "Bisglicinato", info: isES ? "El más suave para el estómago." : "Easiest on the stomach." },
+      { name: isES ? "Sulfato ferroso" : "Ferrous sulfate", info: isES ? "Económico, puede irritar." : "Budget-friendly, may cause irritation." },
+      { name: isES ? "Hierro hemo" : "Heme iron", info: isES ? "Mayor biodisponibilidad natural." : "Higher natural bioavailability." },
+    ],
+    vitamina_c: [
+      { name: isES ? "Ácido ascórbico" : "Ascorbic acid", info: isES ? "Forma básica y económica." : "Basic and budget-friendly form." },
+      { name: isES ? "Ascorbato sódico" : "Sodium ascorbate", info: isES ? "Sin acidez, para estómagos sensibles." : "No acidity, for sensitive stomachs." },
+      { name: "Liposomal", info: isES ? "Mayor biodisponibilidad celular." : "Higher cellular bioavailability." },
+    ],
+    vitamina_b: [
+      { name: isES ? "Complejo B completo" : "Full B complex", info: isES ? "Cubre todas las vitaminas B." : "Covers all B vitamins." },
+      { name: isES ? "Solo B12" : "B12 only", info: isES ? "Esencial para veganos." : "Essential for vegans." },
+      { name: "B6+B12+ácido fólico", info: isES ? "Trío clave para energía." : "Key trio for energy." },
+    ],
+    calcio: [
+      { name: isES ? "Carbonato de calcio" : "Calcium carbonate", info: isES ? "Económico. Tomar con comida." : "Budget-friendly. Take with food." },
+      { name: isES ? "Citrato de calcio" : "Calcium citrate", info: isES ? "Se absorbe en ayunas." : "Absorbs on empty stomach." },
+      { name: "Calcio + D3 + K2", info: isES ? "Sinergia ideal para huesos." : "Ideal synergy for bones." },
+    ],
+    vitamina_a: [
+      { name: "Retinol", info: isES ? "Forma preformada, absorción directa." : "Preformed form, direct absorption." },
+      { name: "Beta-caroteno", info: isES ? "El cuerpo la convierte según necesite." : "Body converts as needed." },
+    ],
+    vitamina_e: [
+      { name: isES ? "Tocoferol mixto" : "Mixed tocopherols", info: isES ? "La forma más completa y natural." : "Most complete and natural form." },
+      { name: "Alfa-tocoferol", info: isES ? "La más estudiada. Forma estándar." : "Most studied. Standard form." },
+    ],
+    cafeina: [
+      { name: "L-teanina + cafeína", info: isES ? "Alerta sin ansiedad ni crash." : "Alert without anxiety or crash." },
+      { name: isES ? "Cafeína anhidra" : "Anhydrous caffeine", info: isES ? "Pura y potente. Dosis exacta." : "Pure and potent. Exact dose." },
+      { name: isES ? "Té verde natural" : "Natural green tea", info: isES ? "Liberación gradual, menor crash." : "Gradual release, less crash." },
+      { name: isES ? "Pre-entreno completo" : "Full pre-workout", info: isES ? "Cafeína + beta-alanina + citrulina." : "Caffeine + beta-alanine + citrulline." },
+    ],
+  };
+}
+
+/* ── Stored shape (matches food_preferences.supplements JSONB) ───────────── */
+
+export interface StoredSupplement {
+  id: string;
+  timingIndex: number;
+  variantIndex: number;
+  /** "HH:MM" — the exact hour the reminder fires. */
+  notificationTime: string;
+}
+
+/** Default notification time string for a supplement+timing, e.g. "08:00". */
+export function defaultNotificationTime(id: string, timingIndex: number): string {
+  const hour = SUPPLEMENT_TIMING[id]?.options[timingIndex]?.notificationHour ?? 8;
+  return `${String(hour).padStart(2, "0")}:00`;
+}

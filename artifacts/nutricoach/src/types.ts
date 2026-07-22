@@ -1,0 +1,139 @@
+/**
+ * GOALIQ Vision — type definitions for the 5-floor swipeable dashboard.
+ * Floors: Home · Comidas · Entrenos · Progreso · Ajustes.
+ */
+
+export type FloorId = "home" | "meals" | "workout" | "progress" | "settings";
+
+export interface Floor {
+  id: FloorId;
+  /** 1-based index, used for the side dot-nav and aria labels. */
+  index: number;
+  label: string;
+}
+
+/* ── Floor 1 · Home ─────────────────────────────────────────────────── */
+
+export interface ActivityRing {
+  label: string;
+  value: number;
+  goal: number;
+  unit: string;
+}
+
+export interface HomeData {
+  greeting: string;
+  userName: string;
+  phrase: string;
+  dateLabel: string;
+  streak: number;
+  /** Big central ring (overall daily completion). */
+  dailyGoal: ActivityRing;
+  /** Secondary rings shown smaller below. */
+  rings: ActivityRing[];
+}
+
+/* ── Floor 2 · Comidas ──────────────────────────────────────────────── */
+
+export interface Macro {
+  label: string;
+  current: number;
+  goal: number;
+  unit: string;
+}
+
+export interface MealItem {
+  id: string;
+  name: string;
+  /** e.g. "08:30" */
+  time: string;
+  kcal: number;
+  tag: "Desayuno" | "Comida" | "Cena" | "Snack";
+  done: boolean;
+  /** Transparent-PNG dish photo under /images/dishes/ (optional → initials fallback). */
+  image?: string;
+  /** 5–8 ingredients with quantity, e.g. "200 g yogur griego". */
+  ingredients?: string[];
+  /** 2–4 short preparation steps. */
+  preparation?: string[];
+}
+
+export interface MealData {
+  caloriesCurrent: number;
+  caloriesGoal: number;
+  macros: Macro[];
+  meals: MealItem[];
+}
+
+/* ── Floor 3 · Entrenos ─────────────────────────────────────────────── */
+
+export interface Exercise {
+  id: string;
+  name: string;
+  sets: number;
+  reps: string;
+  muscle: string;
+  done: boolean;
+  /** Looping demo clip under /clips/exercises/ (optional → animated placeholder). */
+  clip?: string;
+  /** 1–2 short technique cues. */
+  tip?: string;
+}
+
+export interface WorkoutData {
+  title: string;
+  focus: string;
+  durationMin: number;
+  totalKcal: number;
+  exercises: Exercise[];
+}
+
+/* ── Floor 4 · Progreso ─────────────────────────────────────────────── */
+
+export interface ProgressStat {
+  label: string;
+  value: string;
+  delta: number;
+  /** Direction the delta is "good" — used only for color, not the sign. */
+  goodWhen: "up" | "down";
+}
+
+export interface WeightPoint {
+  week: string;
+  weight: number;
+}
+
+export interface MuscleSubgroup {
+  name: string;
+  series: number;
+  /** Share of the group's series, 0–100. */
+  pct: number;
+}
+
+export interface MuscleGroup {
+  name: string;
+  /** Series completed this week (drives mountain height + colour). */
+  series: number;
+  subgroups: MuscleSubgroup[];
+  /** Coach advice (verbatim mock), shown in the contextual analysis. */
+  advice: string;
+}
+
+export interface ProgressData {
+  stats: ProgressStat[];
+  weightSeries: WeightPoint[];
+  goalWeight: number;
+  /** Muscle-landscape (Phase 4b). */
+  weekLabel: string;
+  weekSeriesTotal: number;
+  muscleGroups: MuscleGroup[];
+}
+
+/* ── Aggregate (Floor 5 · Ajustes uses live hooks, no mock) ─────────── */
+
+export interface VisionData {
+  home: HomeData;
+  meal: MealData;
+  workout: WorkoutData;
+  progress: ProgressData;
+}

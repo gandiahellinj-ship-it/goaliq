@@ -3,7 +3,7 @@ import { Link } from "wouter";
 export default function Terms() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white">
-      <div className="max-w-3xl mx-auto px-4 py-8 prose prose-sm prose-invert max-w-none">
+      <div className="max-w-3xl mx-auto px-4 py-8 prose prose-sm max-w-none">
         <h1 className="text-3xl font-bold mb-2">Términos de Uso</h1>
         <p className="text-sm text-[#A0A0A0] mb-6">
           GoalIQ Beta · Última actualización: 30 de mayo de 2026 · Versión 1.0
