@@ -1,15 +1,15 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Punto 3 de la auditoría — verificar que el repositorio instala limpio en Linux (la configuración de pnpm está clavada a Windows y Replit es Linux). Es el requisito previo para poder fusionar `feature/layout-3-zonas` a `main`.
+**PRÓXIMA SESIÓN:** Fusionar `feature/layout-3-zonas` a `main` (ya desbloqueada: ambas ramas en verde en Linux). Antes de tocar nada, presentar un plan que incluya: verificación del despliegue en Replit y plan de marcha atrás si algo sale mal. Los puntos 4 y 5 de la auditoría se harán DESPUÉS de la fusión, una sola vez sobre el proyecto unificado.
 
 > Lo que está abierto, en orden. Sacar de aquí y pasar a DECISIONES.md cuando se cierre.
 
 ## Auditoría 22/07/2026 (informe completo: [`docs/AUDITORIA.md`](AUDITORIA.md))
 - [x] Punto 1 — Endpoints de IA cerrados: sesión obligatoria + límite 3/min y 10/hora (probado en local: 401 sin sesión, paso con sesión, 429 en ráfaga; usuario temporal de prueba borrado). Commit `6f721c9`.
 - [x] Punto 2 — `docs/` traído de la rama a `main` + CLAUDE.md corregido (regla "el código manda", estado de ramas, colores beige reales). Commits `a15d119` y `5626bba`.
-- [ ] Punto 3 — Verificar instalación en Linux (requisito de la fusión). ← PRÓXIMA SESIÓN
-- [ ] Punto 4 — Actualizar dependencias con avisos de seguridad (8 avisos, 3 altos). Rápido.
-- [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día.
+- [x] Punto 3 — Instalación en Linux VERIFICADA Y CORREGIDA (22/07/2026): eliminados los ~80 vetos de binarios de `pnpm-workspace.yaml` (config heredada de Replit que solo permitía linux-x64), quitados los 3 parches win32 de nutricoach, fijado `packageManager` pnpm@10.33.2. Chequeo automático de GitHub Actions (`.github/workflows/linux-check.yml`) en TODAS las ramas, para siempre. Ambas ramas en verde 🟢. Commits `9ede2e6` + `1ad6756` (main), `c154c20` + `f7ca904` (rama). La fusión queda desbloqueada.
+- [ ] Punto 4 — Actualizar dependencias con avisos de seguridad (8 avisos, 3 altos). Rápido. **Tras la fusión.**
+- [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día. **Tras la fusión.**
 - Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
 
 ## En curso — Migración visual /vision (rama feature/layout-3-zonas)
@@ -23,7 +23,7 @@
 - [x] Fase 4b v2 — PROGRESO «paisaje muscular» DEFINITIVO: tarjeta blanca + selector de chips + selección resalta montaña y actualiza la contextual con análisis por subgrupos (barras + consejo del entrenador). Verificado Piernas (4 subgrupos) y Hombros (consejo largo) sin scroll. Sin verde, sin tarjeta oscura.
 - [x] Fix — páginas legales (Privacidad/Términos) legibles en tema claro y oscuro (prose mapeado al tema)
 - [x] Fase 6 — Limpieza: borrados los 5 `Floor*.tsx` sin uso (tsc + build de producción OK); revisión escritorio: en ≥640px la app se muestra como columna centrada con marco redondeado + sombra sobre lienzo neutro (#E4DFD6); móvil sin cambios.
-- [ ] **Fusionar feature/layout-3-zonas a main** (= publicar en Replit), PREVIA verificación del problema Windows/Linux detectado en el punto 3 de la auditoría del 22/07/2026 (`docs/AUDITORIA.md`): la configuración de pnpm anula los binarios de Linux y la instalación en Replit puede fallar. Probar instalación limpia en entorno Linux antes de fusionar.
+- [ ] **Fusionar feature/layout-3-zonas a main** (= publicar en Replit). Desbloqueada el 22/07/2026 (punto 3 de la auditoría resuelto, ambas ramas en verde en Linux). Requiere plan previo con: verificación del despliegue en Replit y plan de marcha atrás. ← PRÓXIMA SESIÓN
 
 ## Siguiente gran fase (tras la migración) — Bucle diario / registro real
 - Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).

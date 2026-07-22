@@ -44,3 +44,5 @@
 - **2026-07-22** — `/cierre` hace push SOLO a la rama activa; nunca fusiona ramas. La fusión es una tarea aparte que decide José. La fusión de feature/layout-3-zonas queda condicionada a verificar antes la instalación en Linux (punto 3 de la auditoría).
 - **2026-07-22** — Claude Code nunca pide a José pegar claves o contraseñas en el chat; si una prueba las necesita, se propone una alternativa que no las exponga.
 - **2026-07-22** — Lo cinematográfico se aparca en `docs/ARCHIVO_IDEAS.md` (sin borrarlo); no se retoma sin que José lo pida.
+- **2026-07-22** — Instalación multiplataforma: eliminados los vetos de binarios de `pnpm-workspace.yaml` y los parches win32; `packageManager` fijado a pnpm@10.33.2. Chequeo permanente de GitHub Actions ("Linux check") en TODAS las ramas: si está en rojo, no se fusiona ni se publica.
+- **2026-07-22** — Orden de trabajo tras la auditoría: la PRÓXIMA tarea es la fusión de feature/layout-3-zonas a main (con plan previo: verificación del despliegue en Replit + plan de marcha atrás). Los puntos 4 (dependencias) y 5 (limpieza) de la auditoría se hacen DESPUÉS de la fusión, una sola vez sobre el proyecto unificado.
