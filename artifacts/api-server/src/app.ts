@@ -6,6 +6,11 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import {
+  aiLimiter,
+  aiBurstLimiter,
+  externalApiLimiter,
+} from "./middlewares/rate-limiters";
 import { WebhookHandlers } from "./webhookHandlers";
 
 const app: Express = express();
@@ -106,7 +111,7 @@ app.use(authMiddleware);
 // ── GET /api/recipes/random ──────────────────────────────────────────────────
 // Proxies Spoonacular's random recipe endpoint. Defined before the main router
 // so it resolves regardless of the modular routes mounted below.
-app.get("/api/recipes/random", async (_req, res) => {
+app.get("/api/recipes/random", externalApiLimiter, async (_req, res) => {
   const apiKey = process.env.SPOONACULAR_API_KEY;
   if (!apiKey) {
     logger.error("SPOONACULAR_API_KEY not set");
@@ -204,7 +209,11 @@ async function callClaude(opts: {
 }
 
 // 1) POST /api/diets/generate — genera una semana de comidas a partir del perfil.
-app.post("/api/diets/generate", async (req, res) => {
+app.post("/api/diets/generate", aiBurstLimiter, aiLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const profile = req.body?.user_profile ?? req.body;
     if (!profile || typeof profile !== "object") {
@@ -275,7 +284,11 @@ app.post("/api/diets/generate", async (req, res) => {
 });
 
 // 2) POST /api/diets/visualize — genera una imagen 9:16 del plato con Gemini.
-app.post("/api/diets/visualize", async (req, res) => {
+app.post("/api/diets/visualize", aiBurstLimiter, aiLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const mealName: string = req.body?.meal_name;
     const ingredients: unknown = req.body?.ingredients;
@@ -345,7 +358,11 @@ app.post("/api/diets/visualize", async (req, res) => {
 });
 
 // 3) POST /api/meals/validate — compara la foto del usuario con la comida esperada.
-app.post("/api/meals/validate", async (req, res) => {
+app.post("/api/meals/validate", aiBurstLimiter, aiLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
   try {
     const photoBase64: string = req.body?.photo_base64;
     const expectedMeal: string = req.body?.expected_meal;
