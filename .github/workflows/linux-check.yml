@@ -1,0 +1,38 @@
+# Chequeo de instalación y construcción en Linux (el entorno de Replit).
+# Se ejecuta en TODAS las ramas en cada push. Si esto está en verde, el
+# proyecto instala y construye limpio en Linux; si está en rojo, fusionar
+# o publicar puede romper la web.
+#
+# Nota: no ejecuta el typecheck del workspace porque tiene 17 errores
+# preexistentes documentados (ver CHANGELOG "TypeScript preexistentes").
+name: Linux check
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  install-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Activar pnpm (corepack)
+        run: corepack enable
+
+      - name: Instalar dependencias (lockfile congelado)
+        run: corepack pnpm install --frozen-lockfile
+
+      - name: Construir api-server (esbuild)
+        run: corepack pnpm --filter @workspace/api-server build
+
+      - name: Construir nutricoach (vite + rollup + tailwind)
+        env:
+          PORT: "8080"
+          BASE_PATH: "/"
+        run: corepack pnpm --filter @workspace/nutricoach build
