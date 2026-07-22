@@ -39,3 +39,8 @@
 ## Flujo de trabajo
 - **2026-07-06** — Pauta permanente con Claude Code: commit + push a origin al cerrar CADA fase. Nunca acumular trabajo sin subir.
 - **2026-07-06** — Trabajar siempre en rama (actual: feature/layout-3-zonas). No fusionar a main hasta que las 5 pestañas estén aprobadas. Main = lo que Replit publica.
+- **2026-07-22** — Regla suprema en CLAUDE.md: el código implementado manda sobre cualquier documento; ante contradicción se corrige el documento, no el código.
+- **2026-07-22** — Seguridad: los 3 endpoints de IA (`/api/diets/generate`, `/api/diets/visualize`, `/api/meals/validate`) exigen sesión y tienen límite de uso (3/min, 10/hora por usuario); `/api/recipes/random` capado a 30/min por IP. Nadie sin cuenta puede gastar crédito de IA.
+- **2026-07-22** — `/cierre` hace push SOLO a la rama activa; nunca fusiona ramas. La fusión es una tarea aparte que decide José. La fusión de feature/layout-3-zonas queda condicionada a verificar antes la instalación en Linux (punto 3 de la auditoría).
+- **2026-07-22** — Claude Code nunca pide a José pegar claves o contraseñas en el chat; si una prueba las necesita, se propone una alternativa que no las exponga.
+- **2026-07-22** — Lo cinematográfico se aparca en `docs/ARCHIVO_IDEAS.md` (sin borrarlo); no se retoma sin que José lo pida.

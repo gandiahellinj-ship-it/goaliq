@@ -1,6 +1,16 @@
 # GoalIQ — Pendientes y hoja de ruta
 
+**PRÓXIMA SESIÓN:** Punto 3 de la auditoría — verificar que el repositorio instala limpio en Linux (la configuración de pnpm está clavada a Windows y Replit es Linux). Es el requisito previo para poder fusionar `feature/layout-3-zonas` a `main`.
+
 > Lo que está abierto, en orden. Sacar de aquí y pasar a DECISIONES.md cuando se cierre.
+
+## Auditoría 22/07/2026 (informe completo: [`docs/AUDITORIA.md`](AUDITORIA.md))
+- [x] Punto 1 — Endpoints de IA cerrados: sesión obligatoria + límite 3/min y 10/hora (probado en local: 401 sin sesión, paso con sesión, 429 en ráfaga; usuario temporal de prueba borrado). Commit `6f721c9`.
+- [x] Punto 2 — `docs/` traído de la rama a `main` + CLAUDE.md corregido (regla "el código manda", estado de ramas, colores beige reales). Commits `a15d119` y `5626bba`.
+- [ ] Punto 3 — Verificar instalación en Linux (requisito de la fusión). ← PRÓXIMA SESIÓN
+- [ ] Punto 4 — Actualizar dependencias con avisos de seguridad (8 avisos, 3 altos). Rápido.
+- [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día.
+- Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
 
 ## En curso — Migración visual /vision (rama feature/layout-3-zonas)
 - [x] Fase 1 — HOME (aprobada, con filas de suplemento compactas)
