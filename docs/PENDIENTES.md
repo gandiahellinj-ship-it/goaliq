@@ -1,0 +1,46 @@
+# GoalIQ — Pendientes y hoja de ruta
+
+> Lo que está abierto, en orden. Sacar de aquí y pasar a DECISIONES.md cuando se cierre.
+
+## En curso — Migración visual /vision (rama feature/layout-3-zonas)
+- [x] Fase 1 — HOME (aprobada, con filas de suplemento compactas)
+- [x] Fase 2 — COMIDAS versión inicial (barra calorías + 3 macros + bloque educativo + lista togglable)
+- [x] Fase 3 — ENTRENOS (rutina + 3 stats + lista; contextual: indicadores numerados + botón "Entreno completado")
+- [x] Fase 2b — COMIDAS rediseño: plato protagonista (imagen + ingredientes + preparación + educativo + botón marcar) + franja fina única kcal/macros + carrusel horizontal scroll-snap. 4 fotos recortadas con rembg (sin sombra) + optimizadas → `public/images/dishes/`. Verificado a 390×844 con el caso peor (Cena 8 ingr + 4 pasos), sin scroll.
+- [x] Fase 3b — ENTRENOS rediseño: ejercicio protagonista (clip + series×reps + tip + botón) + franja fina + carrusel horizontal (mismo patrón que 2b). Clips = placeholder animado (sin assets reales aún). Verificado a 390×844 sin scroll.
+- [x] Fase 4 — PROGRESO (gráfica peso + meta + 4 métricas; contextual: distancia a meta + variación semanal)
+- [x] Fase 5 — AJUSTES (perfil/idioma/tema/enlaces/logout REALES reestilados, logout rojo tokenizado; contextual: versión + privacidad)
+- [x] Fase 4b v2 — PROGRESO «paisaje muscular» DEFINITIVO: tarjeta blanca + selector de chips + selección resalta montaña y actualiza la contextual con análisis por subgrupos (barras + consejo del entrenador). Verificado Piernas (4 subgrupos) y Hombros (consejo largo) sin scroll. Sin verde, sin tarjeta oscura.
+- [x] Fix — páginas legales (Privacidad/Términos) legibles en tema claro y oscuro (prose mapeado al tema)
+- [x] Fase 6 — Limpieza: borrados los 5 `Floor*.tsx` sin uso (tsc + build de producción OK); revisión escritorio: en ≥640px la app se muestra como columna centrada con marco redondeado + sombra sobre lienzo neutro (#E4DFD6); móvil sin cambios.
+- [ ] Al aprobar todo: fusionar a main (= publicar en Replit)
+
+## Siguiente gran fase (tras la migración) — Bucle diario / registro real
+- Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).
+
+## Después — Prioridad marcada: camino a validación
+1. **Fase 3 del producto: verificación de comidas por foto** (Claude Vision, match ≥75%) — es el diferencial + lo que valida el producto.
+2. **Beta con usuarios reales y precio fundador** — única fuente de verdad sobre precio y demanda.
+3. Cableado de datos reales al /vision (proyecto separado, tras validar).
+
+## Hosting (decidido el criterio, sin ejecutar)
+- Seguir en Replit hasta señal de dolor real (primera factura anómala o límites). Configurar límite de gasto en el panel de Replit — tarea de 2 min, pendiente de confirmar.
+- Si toca migrar: destino **Render** (plan Starter ~7 $/mes, servidor Frankfurt/UE) — precio fijo, panel simple, compatible con el stack sin cambios. Descartados: Railway (cobra por uso), Fly.io (línea de comandos), AWS directo.
+- Si GoalIQ escala mucho: subir de plan DENTRO de Render primero; AWS/Google Cloud solo con cientos de miles de usuarios, y esa migración la decidirá el perfil técnico que se contrate entonces. Los cuellos de botella llegarán antes por Supabase y límites de las APIs de IA que por el hosting.
+- Copia de seguridad de D:\GoalIQ-Production (assets cinematográficos, solo existen en el disco D:): disco externo o Drive/Dropbox mensual con _SELECTED y _OPTIMIZED. Tarea de José, ~20 min.
+
+## Decisiones abiertas (no bloqueantes hoy)
+- Fuente definitiva de clips de ejercicios sin decidir — opciones: pack con licencia comercial, wger CC-BY-SA (exige atribución), ExerciseDB (revisar licencia). Decidir antes de la fase de datos reales.
+- Desajuste visual intro cinematográfica (cian, oscura) ↔ app interna (beige, clara). Sin resolver.
+- Lógica de SIGUIENTE en HOME: ¿primera tarea pendiente o próxima por hora? (fase datos reales)
+- Dónde viven en las 5 pestañas las secciones de la app antigua: Mi comida (foto), Compra, Calendario.
+- Fórmula del % de Cumplimiento para objetivo "perder grasa" (solo está definida para ganar músculo).
+- Plan anual: fijar precio exacto (~99-119 €) y precio fundador de la beta.
+- Mecanismo de "regenerar imagen" cuando una foto de plato salga mal.
+- Microtexto legal "imagen orientativa" junto a las fotos de platos.
+- App antigua (dashboard verde oscuro) — decidir su futuro cuando /vision esté completo.
+
+## Cinemática (aparcada, no borrar)
+- Escenas pendientes: KF0 mapa-inicio, apertura bosque + dash, entrada al círculo, primer brote, wormhole cian.
+- Variantes de cielo (amanecer/día/atardecer/noche) en Higgsfield.
+- Versiones escritorio 16:9 — SOLO tras validar toda la secuencia vertical.
