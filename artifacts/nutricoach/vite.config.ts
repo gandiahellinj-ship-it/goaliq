@@ -63,9 +63,12 @@ export default defineConfig({
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
-      // Forward API calls to the local Express api-server (PORT 8080).
+      // Forward API calls to the local Express api-server (PORT 8080) by
+      // default. Set API_PROXY_TARGET to point elsewhere — e.g. production
+      // (https://nutrition-tracker-pwa.replit.app) to verify /vision locally
+      // with REAL data when the local server has no database access.
       "/api": {
-        target: "http://localhost:8080",
+        target: process.env.API_PROXY_TARGET || "http://localhost:8080",
         changeOrigin: true,
       },
     },

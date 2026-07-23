@@ -1,5 +1,5 @@
 import { Check } from "lucide-react";
-import type { MealItem, Macro } from "@/types";
+import type { MealItem } from "@/types";
 
 function Bar({ frac }: { frac: number }) {
   return (
@@ -36,12 +36,17 @@ function DishImage({ meal, className, style }: { meal: MealItem; className?: str
   );
 }
 
-const EDU: Record<MealItem["tag"], string> = {
-  Desayuno: "Proteína + frutos rojos: energía estable y antioxidantes para empezar el día.",
+/* Textos educativos GENÉRICOS por tipo de comida (los datos reales traen
+   cualquier plato; nada específico de un plato concreto). */
+const EDU: Record<string, string> = {
+  Desayuno: "Empieza el día con proteína: energía estable y menos antojos a media mañana.",
+  "Media mañana": "Un tentempié ligero con proteína mantiene el apetito a raya hasta la comida.",
   Comida: "Proteína magra con carbohidrato complejo: combustible para rendir y recuperar.",
-  Snack: "Batido de proteína rápido: cubre el aporte entre comidas casi sin grasa.",
-  Cena: "Salmón rico en omega-3 y proteína: favorece la recuperación mientras duermes.",
+  Merienda: "La merienda es el puente perfecto: proteína o fruta, sin picoteo vacío.",
+  Cena: "Cena con proteína y verdura: favorece la recuperación mientras duermes.",
+  Snack: "Un snack con proteína cubre el aporte entre comidas casi sin grasa.",
 };
+const EDU_FALLBACK = "Come despacio, prioriza la proteína y acompaña siempre con agua.";
 
 /**
  * COMIDAS 2b — top zone. Thin kcal/macros strip + the SELECTED dish as the hero
@@ -50,20 +55,19 @@ const EDU: Record<MealItem["tag"], string> = {
  */
 export default function MealsTab({
   meals,
-  macros,
+  macrosToday,
   caloriesGoal,
   selected,
   onToggle,
 }: {
   meals: MealItem[];
-  macros: Macro[];
+  /** Macros consumidos hoy de verdad (meal_logs); null → aún sin registros. */
+  macrosToday: { protein: number; carbs: number; fats: number } | null;
   caloriesGoal: number;
   selected: MealItem;
   onToggle: (id: string) => void;
 }) {
   const kcal = meals.filter((m) => m.done).reduce((s, m) => s + m.kcal, 0);
-  const macro = (p: string) => macros.find((m) => m.label.toLowerCase().startsWith(p));
-  const P = macro("prote"), C = macro("carb"), G = macro("gras");
 
   return (
     <div className="flex h-full flex-col">
@@ -76,11 +80,16 @@ export default function MealsTab({
       <div className="mt-2">
         <div className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-[var(--color-brand-grey)]">
           <span className="font-bold text-[var(--color-brand-text-lbl)]">{kcal}/{caloriesGoal}</span> kcal
-          {P && <span>· P {P.current}/{P.goal}</span>}
-          {C && <span>· C {C.current}/{C.goal}</span>}
-          {G && <span>· G {G.current}/{G.goal}</span>}
+          {macrosToday && (
+            <>
+              <span>· P {macrosToday.protein}g</span>
+              <span>· C {macrosToday.carbs}g</span>
+              <span>· G {macrosToday.fats}g</span>
+              <span className="text-[9px] tracking-wide">(registrado hoy)</span>
+            </>
+          )}
         </div>
-        <div className="mt-1"><Bar frac={kcal / caloriesGoal} /></div>
+        <div className="mt-1"><Bar frac={caloriesGoal > 0 ? kcal / caloriesGoal : 0} /></div>
       </div>
 
       {/* Hero dish image (shrinks first) */}
@@ -127,7 +136,7 @@ export default function MealsTab({
         className="mt-2 rounded-xl px-3 py-1.5 text-[11px] leading-snug"
         style={{ background: "var(--color-brand-accent-soft)", color: "#6B5B3E" }}
       >
-        {EDU[selected.tag]}
+        {EDU[selected.tag] ?? EDU_FALLBACK}
       </div>
 
       {/* Mark button */}

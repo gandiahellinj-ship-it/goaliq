@@ -48,7 +48,9 @@ export interface MealItem {
   /** e.g. "08:30" */
   time: string;
   kcal: number;
-  tag: "Desayuno" | "Comida" | "Cena" | "Snack";
+  /** Etiqueta del tipo de comida ("Desayuno", "Media mañana", …). Datos reales
+   *  usan los 5 tipos del plan; la maqueta usaba 4 fijos. */
+  tag: string;
   done: boolean;
   /** Transparent-PNG dish photo under /images/dishes/ (optional → initials fallback). */
   image?: string;

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
 import { visionData } from "@/data";
+import { useVisionMeals } from "@/lib/vision-data";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
@@ -22,6 +23,22 @@ import SettingsTab, { SettingsContext } from "@/components/vision/SettingsTab";
  */
 
 type TabId = "home" | "meals" | "workout" | "progress" | "settings";
+
+/** Estado de carga/vacío de COMIDAS — mantiene la cabecera de la pestaña. */
+function MealsEmptyState({ text, hint }: { text: string; hint?: string }) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="pr-14">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">Comidas</p>
+        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">Nutrición</h2>
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
+        <div className="text-sm font-semibold text-[var(--color-brand-text-lbl)]">{text}</div>
+        {hint && <div className="max-w-[260px] text-xs text-[var(--color-brand-grey)]">{hint}</div>}
+      </div>
+    </div>
+  );
+}
 
 const NAV: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "home", label: "HOME", icon: Home },
@@ -82,17 +99,20 @@ export default function VisionApp() {
   const next = tasks.find((t) => !t.done);
   const doneCount = tasks.filter((t) => t.done).length;
 
-  // COMIDAS — meal check state (local/ephemeral), shared by the tab + its timeline.
+  // COMIDAS — DATOS REALES (Fase A): plan semanal del usuario vía adaptador.
+  // El check sigue siendo local/efímero (el registro real llega con FLUJO_DIARIO).
+  const visionMeals = useVisionMeals();
   const [mealOverrides, setMealOverrides] = useState<Record<string, boolean>>({});
   const meals: MealItem[] = useMemo(
-    () => visionData.meal.meals.map((m) => ({ ...m, done: mealOverrides[m.id] ?? m.done })),
-    [mealOverrides],
+    () => visionMeals.meals.map((m) => ({ ...m, done: mealOverrides[m.id] ?? m.done })),
+    [visionMeals.meals, mealOverrides],
   );
   const toggleMeal = (id: string) =>
     setMealOverrides((o) => ({ ...o, [id]: !(meals.find((m) => m.id === id)?.done ?? false) }));
   // Selected dish for the COMIDAS hero; defaults to the first meal not yet done.
   const [selectedMealId, setSelectedMealId] = useState<string | null>(null);
-  const selectedMeal = meals.find((m) => m.id === selectedMealId) ?? meals.find((m) => !m.done) ?? meals[0];
+  const selectedMeal: MealItem | undefined =
+    meals.find((m) => m.id === selectedMealId) ?? meals.find((m) => !m.done) ?? meals[0];
 
   // ENTRENOS — exercise check state (local/ephemeral), shared by the tab + contextual.
   const [exOverrides, setExOverrides] = useState<Record<string, boolean>>({});
@@ -116,11 +136,18 @@ export default function VisionApp() {
 
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
-    meals: (
+    meals: visionMeals.loading ? (
+      <MealsEmptyState text="Cargando tu plan de comidas…" />
+    ) : !visionMeals.hasPlan || !selectedMeal ? (
+      <MealsEmptyState
+        text="Aún no tienes plan de comidas esta semana."
+        hint="Genera tu plan en la pestaña Comidas de la app actual y aparecerá aquí."
+      />
+    ) : (
       <MealsTab
         meals={meals}
-        macros={visionData.meal.macros}
-        caloriesGoal={visionData.meal.caloriesGoal}
+        macrosToday={visionMeals.macrosToday}
+        caloriesGoal={visionMeals.caloriesGoal}
         selected={selectedMeal}
         onToggle={toggleMeal}
       />
@@ -150,12 +177,15 @@ export default function VisionApp() {
     ) : (
       <div className="font-display text-2xl text-[var(--color-brand-accent)]">Día completo ✓</div>
     ),
-    meals: (
-      <div>
-        <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">TUS COMIDAS DE HOY</div>
-        <MealsCarousel meals={meals} selectedId={selectedMeal.id} onSelect={setSelectedMealId} />
-      </div>
-    ),
+    meals:
+      visionMeals.hasPlan && selectedMeal ? (
+        <div>
+          <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">TUS COMIDAS DE HOY</div>
+          <MealsCarousel meals={meals} selectedId={selectedMeal.id} onSelect={setSelectedMealId} />
+        </div>
+      ) : (
+        <div className="text-xs text-[var(--color-brand-grey)]">Tus comidas del día aparecerán aquí.</div>
+      ),
     workout: (
       <div>
         <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">EJERCICIOS</div>
