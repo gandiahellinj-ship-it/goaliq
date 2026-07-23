@@ -192,46 +192,46 @@ export function AuthModal() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 16 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 16 }}
             transition={{ duration: 0.2 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-[#1A1A1A] rounded-xl shadow-2xl z-50 p-7 border border-[#2A2A2A]"
+            className="goaliq-vision fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-[var(--color-brand-card)] rounded-xl shadow-2xl z-50 p-7 border border-[var(--color-brand-border)]"
           >
             {/* Header */}
             <div className="flex items-start justify-between mb-6">
               <div>
                 <span className="font-display font-black italic text-2xl leading-none block mb-2">
-                  <span className="text-white">Goal</span><span className="text-[#AAFF45]">IQ</span>
+                  <span className="text-[var(--color-brand-text-lbl)]">Goal</span><span className="text-[var(--color-brand-accent)]">IQ</span>
                 </span>
-                <h2 className="text-xl font-bold text-white">
+                <h2 className="text-xl font-bold text-[var(--color-brand-text-lbl)]">
                   {mode === "login" ? "Bienvenido de nuevo" : "Crea tu cuenta"}
                 </h2>
-                <p className="text-sm text-[#555555] mt-0.5">
+                <p className="text-sm text-[var(--color-brand-grey)] mt-0.5">
                   {mode === "login" ? "Inicia sesión para continuar" : "Empieza tu prueba gratis hoy"}
                 </p>
               </div>
               <button
                 onClick={handleClose}
-                className="p-2 rounded-lg hover:bg-[#2A2A2A] transition-colors text-[#555555] hover:text-white"
+                className="p-2 rounded-lg hover:bg-[var(--color-brand-accent-soft)] transition-colors text-[var(--color-brand-grey)] hover:text-[var(--color-brand-text-lbl)]"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-[#0A0A0A] p-1 rounded-lg mb-6 border border-[#2A2A2A]">
+            <div className="flex bg-[var(--color-brand-bg)] p-1 rounded-lg mb-6 border border-[var(--color-brand-border)]">
               {(["login", "signup"] as Mode[]).map(m => (
                 <button
                   key={m}
                   onClick={() => switchMode(m)}
                   className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${
                     mode === m
-                      ? "bg-[#2A2A2A] text-white"
-                      : "text-[#555555] hover:text-[#A0A0A0]"
+                      ? "bg-[var(--color-brand-text-lbl)] text-white"
+                      : "text-[var(--color-brand-grey)] hover:text-[var(--color-brand-text-lbl)]"
                   }`}
                 >
                   {m === "login" ? "Iniciar sesión" : "Registrarse"}
@@ -243,7 +243,7 @@ export function AuthModal() {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === "signup" && (
                 <div>
-                  <label className="text-sm font-semibold text-[#A0A0A0] block mb-1.5">Nombre</label>
+                  <label className="text-sm font-semibold text-[var(--color-brand-grey)] block mb-1.5">Nombre</label>
                   <input
                     type="text"
                     required
@@ -256,7 +256,7 @@ export function AuthModal() {
               )}
 
               <div>
-                <label className="text-sm font-semibold text-[#A0A0A0] block mb-1.5">Correo electrónico</label>
+                <label className="text-sm font-semibold text-[var(--color-brand-grey)] block mb-1.5">Correo electrónico</label>
                 <input
                   type="email"
                   required
@@ -268,7 +268,7 @@ export function AuthModal() {
               </div>
 
               <div>
-                <label className="text-sm font-semibold text-[#A0A0A0] block mb-1.5">Contraseña</label>
+                <label className="text-sm font-semibold text-[var(--color-brand-grey)] block mb-1.5">Contraseña</label>
                 <div className="relative">
                   <input
                     type={showPw ? "text" : "password"}
@@ -281,7 +281,7 @@ export function AuthModal() {
                   <button
                     type="button"
                     onClick={() => setShowPw(!showPw)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#555555] hover:text-[#A0A0A0]"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-brand-grey)] hover:text-[var(--color-brand-text-lbl)]"
                   >
                     {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -291,7 +291,7 @@ export function AuthModal() {
               {mode === "signup" && (
                 <>
                   <div>
-                    <label className="text-sm font-semibold text-[#A0A0A0] block mb-1.5">Código de invitación</label>
+                    <label className="text-sm font-semibold text-[var(--color-brand-grey)] block mb-1.5">Código de invitación</label>
                     <input
                       type="text"
                       required
@@ -300,20 +300,20 @@ export function AuthModal() {
                       placeholder="GOALIQ-BETA-XXX"
                       className={`${inputClass} ${
                         codeStatus === "valid"
-                          ? "border-[#AAFF45] focus:border-[#AAFF45]"
+                          ? "border-[var(--color-brand-accent)] focus:border-[var(--color-brand-accent)]"
                           : codeStatus === "invalid"
-                            ? "border-[#FF4444] focus:border-[#FF4444]"
+                            ? "border-[var(--color-brand-red)] focus:border-[var(--color-brand-red)]"
                             : ""
                       }`}
                     />
                     {codeStatus === "checking" && (
-                      <p className="text-xs text-[#A0A0A0] mt-1">Verificando código…</p>
+                      <p className="text-xs text-[var(--color-brand-grey)] mt-1">Verificando código…</p>
                     )}
                     {codeStatus === "valid" && (
-                      <p className="text-xs text-[#AAFF45] mt-1">✓ Código válido</p>
+                      <p className="text-xs text-[var(--color-brand-accent)] mt-1">✓ Código válido</p>
                     )}
                     {codeStatus === "invalid" && codeError && (
-                      <p className="text-xs text-[#FF4444] mt-1">{codeError}</p>
+                      <p className="text-xs text-[var(--color-brand-red)] mt-1">{codeError}</p>
                     )}
                   </div>
 
@@ -324,15 +324,15 @@ export function AuthModal() {
                       required
                       checked={acceptedTerms}
                       onChange={e => setAcceptedTerms(e.target.checked)}
-                      className="mt-1 accent-[#AAFF45]"
+                      className="mt-1 accent-[var(--color-brand-accent)]"
                     />
-                    <label htmlFor="accept-terms" className="text-xs text-[#A0A0A0]">
+                    <label htmlFor="accept-terms" className="text-xs text-[var(--color-brand-grey)]">
                       Acepto los{" "}
-                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[#AAFF45] hover:underline">
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-accent)] hover:underline">
                         Términos de Uso
                       </a>{" "}
                       y la{" "}
-                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[#AAFF45] hover:underline">
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-[var(--color-brand-accent)] hover:underline">
                         Política de Privacidad
                       </a>
                       , incluyendo el tratamiento de mis datos personales conforme al RGPD.
@@ -342,12 +342,12 @@ export function AuthModal() {
               )}
 
               {error && (
-                <div className="text-sm text-[#FF4444] bg-[#FF4444]/10 border border-[#FF4444]/20 rounded-lg px-4 py-3">
+                <div className="text-sm text-[var(--color-brand-red)] bg-[var(--color-brand-red)]/10 border border-[var(--color-brand-red)]/20 rounded-lg px-4 py-3">
                   {error}
                 </div>
               )}
               {success && (
-                <div className="text-sm text-[#AAFF45] bg-[#AAFF45]/10 border border-[#AAFF45]/20 rounded-lg px-4 py-3">
+                <div className="text-sm text-[var(--color-brand-text-lbl)] bg-[var(--color-brand-accent-soft)] border border-[var(--color-brand-accent)]/30 rounded-lg px-4 py-3">
                   {success}
                 </div>
               )}
@@ -355,19 +355,19 @@ export function AuthModal() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-lg font-bold bg-[#AAFF45] text-[#0A0A0A] hover:bg-[#99EE34] transition-colors flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
+                className="w-full py-3.5 rounded-lg font-bold bg-[var(--color-brand-accent)] text-white hover:opacity-90 transition-all flex items-center justify-center gap-2 disabled:opacity-60 mt-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
               </button>
             </form>
 
-            <p className="text-center text-xs text-[#555555] mt-4">
+            <p className="text-center text-xs text-[var(--color-brand-grey)] mt-4">
               {mode === "login" ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
               <button
                 type="button"
                 onClick={() => switchMode(mode === "login" ? "signup" : "login")}
-                className="text-[#AAFF45] font-semibold hover:underline"
+                className="text-[var(--color-brand-accent)] font-semibold hover:underline"
               >
                 {mode === "login" ? "Regístrate gratis" : "Inicia sesión"}
               </button>
@@ -380,4 +380,4 @@ export function AuthModal() {
 }
 
 const inputClass =
-  "w-full px-4 py-3 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A] text-white placeholder:text-[#555555] focus:border-[#AAFF45] focus:outline-none transition-all text-sm";
+  "w-full px-4 py-3 rounded-lg bg-[var(--color-brand-bg)] border border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] placeholder:text-[var(--color-brand-grey)] focus:border-[var(--color-brand-accent)] focus:outline-none transition-all text-sm";
