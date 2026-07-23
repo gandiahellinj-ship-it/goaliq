@@ -34,7 +34,7 @@
 - [x] **Fusionar feature/layout-3-zonas a main — HECHO Y EN PRODUCCIÓN (23/07/2026)**. Fusión limpia (4 conflictos solo en docs, resueltos a favor de main), verificada en Windows + CI Linux + checklist visual de José en producción: https://nutrition-tracker-pwa.replit.app (/vision con las 5 pestañas publicada). Migración visual COMPLETADA.
 
 ## Siguiente gran fase (tras la migración) — Bucle diario / registro real
-- Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).
+- Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026; diseño del cierre del bucle DEFINITIVO desde el 24/07/2026 — §4: crédito parcial en progreso, racha estricta con "Registrar día", ventana de gracia hasta las 12:00). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), persistencia real en Supabase (fin de checks efímeros).
 
 ## Después — Prioridad marcada: camino a validación
 1. **Fase 3 del producto: verificación de comidas por foto** (Claude Vision, match ≥75%) — es el diferencial + lo que valida el producto.

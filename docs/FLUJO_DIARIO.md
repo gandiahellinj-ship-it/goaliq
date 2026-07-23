@@ -37,20 +37,25 @@ día" → alimenta las barras de progreso semanal y mensual.
   min/km vs otras). DECISIÓN DE PRODUCTO ABIERTA — no bloquea v1.
 
 ## 4. HOME — "Registrar día" (cierre del bucle)
-- Cuando TODAS las tareas del día tienen check, junto al estado del día
-  aparece el botón "Registrar día".
-- REGLA ESTRICTA (decisión de José): solo con el 100% de checks se puede
-  registrar el día.
-- A las 00:00 el HOME rota al día nuevo. Día no registrado = se pierde
-  solo la aportación de ese día a las barras de progreso semanal y
-  mensual (no hay más castigo).
-- ⚠️ ADVERTENCIA DE DISEÑO (Claude, para decidir antes de implementar):
-  el todo-o-nada tiene un riesgo de adherencia conocido — un día al 90%
-  (p. ej. olvidó un suplemento) cuenta CERO, lo que frustra y rompe
-  rachas por minucias. Alternativa compatible con lo ya decidido: el día
-  registra siempre su % de Cumplimiento (fórmula ya fijada: proteína 40 /
-  entreno 30 / comidas 20 / suplementos 10) y el 100% otorga bonus/racha.
-  José decide: estricto puro vs estricto con crédito parcial.
+### DISEÑO DEFINITIVO — decidido por José el 24/07/2026
+(Cierra la decisión que estaba abierta: "estricto puro vs. crédito parcial".
+Resolución: CRÉDITO PARCIAL en el progreso, ESTRICTO en la racha.)
+
+1. **Registro por niveles**: cada tarea se registra en SU pestaña (comida en
+   COMIDAS, suplemento en su fila…). El entreno tiene botón "Registrar" al
+   completarlo, que pone su tick en HOME. El usuario podrá configurar la
+   HORA de su entreno para colocarlo en el itinerario.
+2. **Progreso semanal/mensual AUTOMÁTICO con crédito parcial**: se calcula
+   de lo efectivamente marcado, se selle o no el día. Un día al 90% puntúa
+   90% — nunca cero por una minucia.
+3. **"Registrar día" (HOME) = LA RACHA**: el botón se activa solo cuando
+   TODO el día está registrado (el entreno o su descanso, obligatorio).
+   Sellar el día es lo ÚNICO que mantiene la racha. Estricto a propósito:
+   la racha premia el cierre consciente del día, el progreso no castiga.
+4. **Ventana de gracia**: el día anterior puede sellarse hasta las 12:00
+   del día siguiente.
+5. **La racha se OCULTA de la interfaz** hasta que este sistema exista
+   (nada de números inventados).
 
 ## 5. Dependencias técnicas (todas ya decididas en DECISIONES.md)
 - Estado compartido de tareas entre pestañas (HOME ↔ COMIDAS ↔ ENTRENOS).
