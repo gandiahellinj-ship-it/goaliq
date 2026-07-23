@@ -10,9 +10,16 @@
  * reales NO traen pasos de preparación ni fotos (fallback: iniciales).
  */
 import { useMemo } from "react";
-import { useMealPlan, useDailyMacros, useWorkoutPlan } from "./supabase-queries";
+import {
+  useMealPlan,
+  useDailyMacros,
+  useWorkoutPlan,
+  useProfile,
+  useStrengthLogs,
+  getWeekStart,
+} from "./supabase-queries";
 import type { MealRow, Ingredient, Exercise as PlanExercise } from "./supabase-queries";
-import type { MealItem, Exercise } from "@/types";
+import type { MealItem, Exercise, ActivityRing } from "@/types";
 
 /* Convenciones de tipos de comida — mismos valores que usa la app antigua
    (ComidasTab.tsx). Duplicados aquí a propósito: no tocamos archivos de la
@@ -155,6 +162,55 @@ export interface VisionWorkoutData {
   durationMin: number;
   /** Ejercicios de HOY. done=false (efímero, como en COMIDAS). */
   exercises: Exercise[];
+}
+
+/* ── Fase C · HOME ─────────────────────────────────────────────────────── */
+
+export interface VisionHomeData {
+  loading: boolean;
+  greeting: string;
+  userName: string;
+  /** "viernes, 24 de julio" con inicial mayúscula. */
+  dateLabel: string;
+  /** Chips reales: Proteína hoy (g) · Series esta semana. La racha y el
+   *  % de Cumplimiento llegan con el bucle diario (decisión 24/07/2026). */
+  chips: ActivityRing[];
+}
+
+export function useVisionHome(): VisionHomeData {
+  const { data: profile, isLoading: profileLoading } = useProfile();
+  const { data: dailyMacros, isLoading: macrosLoading } = useDailyMacros();
+  // Todas las series registradas; se filtran a la semana actual (week_start).
+  const { data: strengthLogs, isLoading: strengthLoading } = useStrengthLogs(null);
+
+  return useMemo(() => {
+    const hour = new Date().getHours();
+    const greeting = hour < 12 ? "Buenos días" : hour < 21 ? "Buenas tardes" : "Buenas noches";
+
+    const raw = new Intl.DateTimeFormat("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(new Date());
+    const dateLabel = raw.charAt(0).toUpperCase() + raw.slice(1);
+
+    const weekStart = getWeekStart();
+    // Cada fila de strength_logs es UNA serie registrada (peso × reps).
+    const weeklySeries = (strengthLogs ?? []).filter((l) => l.week_start === weekStart).length;
+
+    const chips: ActivityRing[] = [
+      { label: "Proteína hoy", value: Math.round(dailyMacros?.proteinToday ?? 0), unit: "g" },
+      { label: "Series esta semana", value: weeklySeries, unit: "" },
+    ];
+
+    return {
+      loading: profileLoading || macrosLoading || strengthLoading,
+      greeting,
+      userName: profile?.full_name?.split(/\s+/)[0] ?? "",
+      dateLabel,
+      chips,
+    };
+  }, [profile, profileLoading, dailyMacros, macrosLoading, strengthLogs, strengthLoading]);
 }
 
 export function useVisionWorkout(): VisionWorkoutData {

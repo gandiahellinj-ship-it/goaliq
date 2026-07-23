@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
 import { visionData } from "@/data";
-import { useVisionMeals, useVisionWorkout } from "@/lib/vision-data";
+import { useVisionMeals, useVisionWorkout, useVisionHome } from "@/lib/vision-data";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
@@ -58,56 +58,9 @@ const NAV: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "settings", label: "AJUSTES", icon: Cog },
 ];
 
-/** Assemble the day's itinerary from meals + workout (mock) + supplements (real). */
-function useDayTasks(overrides: Record<string, boolean>): DayTask[] {
-  const { data: sups = [] } = useUserSupplements();
-  return useMemo(() => {
-    const meals: DayTask[] = visionData.meal.meals.map((m) => ({
-      id: `meal-${m.id}`,
-      time: m.time,
-      type: "COMIDA",
-      name: m.tag,
-      detail: m.name,
-      done: m.done,
-    }));
-    const workout: DayTask[] = [
-      {
-        id: "workout",
-        time: "18:00",
-        type: "ENTRENO",
-        name: visionData.workout.title,
-        detail: `${visionData.workout.exercises.length} ejercicios`,
-        done: false,
-      },
-    ];
-    const supTasks: DayTask[] = sups.map((s) => ({
-      id: `sup-${s.id}`,
-      time: s.notificationTime,
-      type: "SUPLEMENTO",
-      name: SUPPLEMENTS.find((x) => x.id === s.id)?.name ?? s.id,
-      detail: "",
-      done: false,
-    }));
-    return [...meals, ...workout, ...supTasks]
-      .map((t) => ({ ...t, done: overrides[t.id] ?? t.done }))
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }, [sups, overrides]);
-}
-
 export default function VisionApp() {
   const [tab, setTab] = useState<TabId>("home");
   const [suppOpen, setSuppOpen] = useState(false);
-  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
-
-  const tasks = useDayTasks(overrides);
-  const toggleTask = (id: string) =>
-    setOverrides((o) => {
-      const current = tasks.find((t) => t.id === id)?.done ?? false;
-      return { ...o, [id]: !current };
-    });
-
-  const next = tasks.find((t) => !t.done);
-  const doneCount = tasks.filter((t) => t.done).length;
 
   // COMIDAS — DATOS REALES (Fase A): plan semanal del usuario vía adaptador.
   // El check sigue siendo local/efímero (el registro real llega con FLUJO_DIARIO).
@@ -142,13 +95,83 @@ export default function VisionApp() {
   const selectedExercise: Exercise | undefined =
     exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
 
+  // HOME — DATOS REALES (Fase C): itinerario ensamblado de comidas reales
+  // (Fase A) + entreno real (Fase B) + suplementos reales. El check de una
+  // comida en HOME y en COMIDAS es EL MISMO estado (misma fuente, como pide
+  // FLUJO_DIARIO); el del entreno equivale a "todos los ejercicios hechos".
+  const visionHome = useVisionHome();
+  const { data: sups = [] } = useUserSupplements();
+  const [supOverrides, setSupOverrides] = useState<Record<string, boolean>>({});
+
+  const tasks: DayTask[] = useMemo(() => {
+    const mealTasks: DayTask[] = meals.map((m) => ({
+      id: `meal-${m.id}`,
+      time: m.time,
+      type: "COMIDA",
+      name: m.tag,
+      detail: m.name,
+      done: m.done,
+    }));
+    const workoutTasks: DayTask[] =
+      visionWorkout.hasPlan && !visionWorkout.isRestDay && exercises.length > 0
+        ? [
+            {
+              // Hora fija 18:00 hasta que exista la hora configurable de
+              // entreno (bucle diario, FLUJO_DIARIO §1).
+              id: "workout",
+              time: "18:00",
+              type: "ENTRENO",
+              name: visionWorkout.title,
+              detail: `${exercises.length} ejercicios`,
+              done: allExDone,
+            },
+          ]
+        : [];
+    const supTasks: DayTask[] = sups.map((s) => ({
+      id: `sup-${s.id}`,
+      time: s.notificationTime,
+      type: "SUPLEMENTO",
+      name: SUPPLEMENTS.find((x) => x.id === s.id)?.name ?? s.id,
+      detail: "",
+      done: supOverrides[`sup-${s.id}`] ?? false,
+    }));
+    return [...mealTasks, ...workoutTasks, ...supTasks].sort((a, b) => a.time.localeCompare(b.time));
+  }, [meals, visionWorkout, exercises, allExDone, sups, supOverrides]);
+
+  const toggleTask = (id: string) => {
+    if (id.startsWith("meal-")) {
+      toggleMeal(id.slice(5));
+    } else if (id === "workout") {
+      if (allExDone) setExOverrides({});
+      else completeWorkout();
+    } else {
+      setSupOverrides((o) => ({ ...o, [id]: !(o[id] ?? false) }));
+    }
+  };
+
+  const next = tasks.find((t) => !t.done);
+  const doneCount = tasks.filter((t) => t.done).length;
+
   // PROGRESO — selected muscle group (chart highlight + chip + contextual analysis).
   const [selectedGroup, setSelectedGroup] = useState<string>(visionData.progress.muscleGroups[0].name);
   const selectedGroupObj =
     visionData.progress.muscleGroups.find((g) => g.name === selectedGroup) ?? visionData.progress.muscleGroups[0];
 
   const topContent: Record<TabId, React.ReactNode> = {
-    home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
+    home: (
+      <HomeTab
+        data={{
+          greeting: visionHome.greeting,
+          userName: visionHome.userName,
+          dateLabel: visionHome.dateLabel,
+          // Racha omitida a propósito: oculta hasta que exista el bucle
+          // diario (decisión 24/07/2026). Chips = datos reales.
+          rings: visionHome.chips,
+        }}
+        tasks={tasks}
+        onToggle={toggleTask}
+      />
+    ),
     meals: visionMeals.loading ? (
       <VisionEmptyState kicker="Comidas" title="Nutrición" text="Cargando tu plan de comidas…" />
     ) : !visionMeals.hasPlan || !selectedMeal ? (
@@ -201,7 +224,11 @@ export default function VisionApp() {
   };
 
   const contextual: Record<TabId, React.ReactNode> = {
-    home: next ? (
+    home: tasks.length === 0 ? (
+      <div className="text-xs text-[var(--color-brand-grey)]">
+        Genera tus planes de comidas y entrenos para ver aquí tu día.
+      </div>
+    ) : next ? (
       <div className="flex items-end justify-between">
         <div>
           <div className="text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">SIGUIENTE</div>

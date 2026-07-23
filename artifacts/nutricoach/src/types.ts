@@ -17,19 +17,23 @@ export interface Floor {
 export interface ActivityRing {
   label: string;
   value: number;
-  goal: number;
+  /** Objetivo — solo lo usa la maqueta; los chips reales no tienen objetivo aún. */
+  goal?: number;
   unit: string;
 }
 
 export interface HomeData {
   greeting: string;
   userName: string;
-  phrase: string;
+  /** Frase motivacional (solo maqueta; sin fuente real aún). */
+  phrase?: string;
   dateLabel: string;
-  streak: number;
-  /** Big central ring (overall daily completion). */
-  dailyGoal: ActivityRing;
-  /** Secondary rings shown smaller below. */
+  /** Racha de días sellados. OCULTA hasta que exista el bucle diario
+   *  (decisión José 24/07/2026) — si es undefined, no se pinta. */
+  streak?: number;
+  /** Big central ring (overall daily completion). Solo maqueta. */
+  dailyGoal?: ActivityRing;
+  /** Chips numéricos (datos reales: Proteína hoy · Series esta semana). */
   rings: ActivityRing[];
 }
 

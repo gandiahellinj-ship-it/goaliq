@@ -41,10 +41,12 @@ export default function HomeTab({
             {data.userName}
           </h2>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3 py-1">
-          <Flame className="h-4 w-4 text-[var(--color-brand-accent)]" />
-          <span className="text-sm font-bold text-[var(--color-brand-text-lbl)]">{data.streak}</span>
-        </div>
+        {data.streak != null && (
+          <div className="flex items-center gap-1.5 rounded-full border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3 py-1">
+            <Flame className="h-4 w-4 text-[var(--color-brand-accent)]" />
+            <span className="text-sm font-bold text-[var(--color-brand-text-lbl)]">{data.streak}</span>
+          </div>
+        )}
       </div>
 
       {/* Ring chips (movimiento / pasos / agua) */}
