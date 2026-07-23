@@ -43,18 +43,20 @@ Cuando José escriba `/cierre` o diga que termina:
 3. Haz commit con mensaje descriptivo en español y push a la rama en la que se esté trabajando (nunca fusionar ramas en un /cierre; la fusión es una tarea aparte que decide José).
 4. Confirma a José en una frase qué se guardó.
 
-## Estado de las ramas (verificado el 22/07/2026)
+## Estado de las ramas y despliegue (verificado el 23/07/2026)
 
-- **`main`**: interfaz ANTIGUA (tema oscuro, acento verde lima #AAFF45, barra
-  lateral + barra inferior), pendiente de sustituir. Aquí también viven el
-  backend, el registro de comidas por foto (función "BALANZ") y los
-  experimentos 3D (rutas /test-*).
-- **`feature/layout-3-zonas`**: la interfaz `/vision` beige de 3 zonas — la
-  DIRECCIÓN VISUAL DEFINITIVA. Las 5 pestañas están migradas y aprobadas
-  (Fase 6 incluida). Pendiente de fusionar a main PREVIA verificación del
-  problema Windows/Linux (punto 3 de `docs/AUDITORIA.md`).
-- Trabajo visual nuevo → en la rama. Trabajo de backend/datos → donde diga
-  José al arrancar la sesión.
+- **`main`** = TODO el proyecto, fusionado y EN PRODUCCIÓN
+  (https://nutrition-tracker-pwa.replit.app): portada beige, interfaz
+  `/vision` beige de 3 zonas (la DIRECCIÓN VISUAL DEFINITIVA, con datos de
+  muestra salvo suplementos/ajustes), app antigua aún viva en /dashboard
+  (se retirará en el paso 3 de la hoja de ruta), backend, y experimentos 3D
+  (rutas /test-*).
+- **`feature/layout-3-zonas`**: fusionada el 23/07/2026. Histórica — no
+  trabajar en ella; no borrarla sin que José lo pida.
+- **Despliegue REAL**: GitHub `main` → en la Shell de Replit
+  `git pull github main` → Republish (panel Publishing). En Replit NO se
+  edita código NUNCA y el Agente de Replit NO se usa: Replit es solo
+  hosting. Su rama interna `master` es una reliquia de seguridad.
 
 ## Reglas técnicas fijas (no negociables)
 
@@ -62,7 +64,7 @@ Cuando José escriba `/cierre` o diga que termina:
 - Si se añaden librerías nuevas: ejecutar `pnpm install` antes de probar.
 - Servidor de desarrollo:
   `$env:PORT='5173'; $env:BASE_PATH='/'; corepack pnpm --filter @workspace/nutricoach dev`
-- Repo: `D:\goaliq`, rama `main`, sincroniza con Replit vía GitHub (no git pull directo en Replit).
+- Repo: `D:\goaliq`, rama `main`. Publicar = push a GitHub + `git pull github main` en la Shell de Replit + Republish (ver "Estado de las ramas y despliegue").
 - Dirección visual definitiva (la de `/vision`, tokens reales en `index.css` de la rama):
   fondo #F4F4F4, tarjetas #FAFAFA, acento beige cálido #BA9D79
   (`--color-brand-accent`), relleno beige claro #EFE8DC, texto #1A1A1A,

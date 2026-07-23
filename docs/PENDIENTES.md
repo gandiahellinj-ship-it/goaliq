@@ -1,6 +1,13 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Fusionar `feature/layout-3-zonas` a `main` (ya desbloqueada: ambas ramas en verde en Linux). Antes de tocar nada, presentar un plan que incluya: verificación del despliegue en Replit y plan de marcha atrás si algo sale mal. Los puntos 4 y 5 de la auditoría se harán DESPUÉS de la fusión, una sola vez sobre el proyecto unificado.
+**PRÓXIMA SESIÓN:** Paso 1 de la hoja de ruta — restilar el modal de login a beige (~18 colores oscuros/verdes a mano en `AuthModal.tsx`, 383 líneas; rápido de escribir, probar con calma sus 4-5 estados: login, registro, código beta, recuperación).
+
+## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
+1. [ ] **Restilar el modal de login a beige** (choca con la portada beige publicada). ← PRÓXIMA SESIÓN
+2. [ ] **Cablear /vision con datos reales** (hoy usa datos de muestra salvo suplementos y ajustes; ver spec en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)).
+3. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
+
+(Los puntos 4 y 5 de la auditoría — dependencias y limpieza — se intercalan cuando convenga; ya no están bloqueados.)
 
 > Lo que está abierto, en orden. Sacar de aquí y pasar a DECISIONES.md cuando se cierre.
 
@@ -23,7 +30,7 @@
 - [x] Fase 4b v2 — PROGRESO «paisaje muscular» DEFINITIVO: tarjeta blanca + selector de chips + selección resalta montaña y actualiza la contextual con análisis por subgrupos (barras + consejo del entrenador). Verificado Piernas (4 subgrupos) y Hombros (consejo largo) sin scroll. Sin verde, sin tarjeta oscura.
 - [x] Fix — páginas legales (Privacidad/Términos) legibles en tema claro y oscuro (prose mapeado al tema)
 - [x] Fase 6 — Limpieza: borrados los 5 `Floor*.tsx` sin uso (tsc + build de producción OK); revisión escritorio: en ≥640px la app se muestra como columna centrada con marco redondeado + sombra sobre lienzo neutro (#E4DFD6); móvil sin cambios.
-- [ ] **Fusionar feature/layout-3-zonas a main** (= publicar en Replit). Desbloqueada el 22/07/2026 (punto 3 de la auditoría resuelto, ambas ramas en verde en Linux). Requiere plan previo con: verificación del despliegue en Replit y plan de marcha atrás. ← PRÓXIMA SESIÓN
+- [x] **Fusionar feature/layout-3-zonas a main — HECHO Y EN PRODUCCIÓN (23/07/2026)**. Fusión limpia (4 conflictos solo en docs, resueltos a favor de main), verificada en Windows + CI Linux + checklist visual de José en producción: https://nutrition-tracker-pwa.replit.app (/vision con las 5 pestañas publicada). Migración visual COMPLETADA.
 
 ## Siguiente gran fase (tras la migración) — Bucle diario / registro real
 - Especificación completa: [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md) (definida por José 08/07/2026). Registro de comidas por foto (Claude Vision), registro de ejercicios (fuerza/cardio), "Registrar día" (cierre del bucle), persistencia real en Supabase (fin de checks efímeros). **No empezar hasta cerrar la Fase 6 de la migración.** Incluye una decisión de producto abierta: "Registrar día" estricto puro vs. con crédito parcial (%).
