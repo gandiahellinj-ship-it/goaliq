@@ -86,7 +86,8 @@ export interface WorkoutData {
   title: string;
   focus: string;
   durationMin: number;
-  totalKcal: number;
+  /** kcal estimadas del entreno. Los planes reales no la traen → se omite. */
+  totalKcal?: number;
   exercises: Exercise[];
 }
 

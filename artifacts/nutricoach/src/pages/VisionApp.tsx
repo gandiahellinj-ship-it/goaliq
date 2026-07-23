@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
 import { visionData } from "@/data";
-import { useVisionMeals } from "@/lib/vision-data";
+import { useVisionMeals, useVisionWorkout } from "@/lib/vision-data";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
@@ -24,13 +24,23 @@ import SettingsTab, { SettingsContext } from "@/components/vision/SettingsTab";
 
 type TabId = "home" | "meals" | "workout" | "progress" | "settings";
 
-/** Estado de carga/vacío de COMIDAS — mantiene la cabecera de la pestaña. */
-function MealsEmptyState({ text, hint }: { text: string; hint?: string }) {
+/** Estado de carga/vacío/descanso de una pestaña — mantiene su cabecera. */
+function VisionEmptyState({
+  kicker,
+  title,
+  text,
+  hint,
+}: {
+  kicker: string;
+  title: string;
+  text: string;
+  hint?: string;
+}) {
   return (
     <div className="flex h-full flex-col">
       <div className="pr-14">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">Comidas</p>
-        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">Nutrición</h2>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">{kicker}</p>
+        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">{title}</h2>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center">
         <div className="text-sm font-semibold text-[var(--color-brand-text-lbl)]">{text}</div>
@@ -114,20 +124,23 @@ export default function VisionApp() {
   const selectedMeal: MealItem | undefined =
     meals.find((m) => m.id === selectedMealId) ?? meals.find((m) => !m.done) ?? meals[0];
 
-  // ENTRENOS — exercise check state (local/ephemeral), shared by the tab + contextual.
+  // ENTRENOS — DATOS REALES (Fase B): rutina de hoy del plan del usuario.
+  // El check sigue siendo local/efímero, como en COMIDAS.
+  const visionWorkout = useVisionWorkout();
   const [exOverrides, setExOverrides] = useState<Record<string, boolean>>({});
   const exercises: Exercise[] = useMemo(
-    () => visionData.workout.exercises.map((e) => ({ ...e, done: exOverrides[e.id] ?? e.done })),
-    [exOverrides],
+    () => visionWorkout.exercises.map((e) => ({ ...e, done: exOverrides[e.id] ?? e.done })),
+    [visionWorkout.exercises, exOverrides],
   );
   const toggleEx = (id: string) =>
     setExOverrides((o) => ({ ...o, [id]: !(exercises.find((e) => e.id === id)?.done ?? false) }));
   const completeWorkout = () =>
-    setExOverrides(Object.fromEntries(visionData.workout.exercises.map((e) => [e.id, true])));
-  const allExDone = exercises.every((e) => e.done);
+    setExOverrides(Object.fromEntries(visionWorkout.exercises.map((e) => [e.id, true])));
+  const allExDone = exercises.length > 0 && exercises.every((e) => e.done);
   // Selected exercise for the ENTRENOS hero; defaults to the first one not done.
   const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(null);
-  const selectedExercise = exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
+  const selectedExercise: Exercise | undefined =
+    exercises.find((e) => e.id === selectedExerciseId) ?? exercises.find((e) => !e.done) ?? exercises[0];
 
   // PROGRESO — selected muscle group (chart highlight + chip + contextual analysis).
   const [selectedGroup, setSelectedGroup] = useState<string>(visionData.progress.muscleGroups[0].name);
@@ -137,9 +150,11 @@ export default function VisionApp() {
   const topContent: Record<TabId, React.ReactNode> = {
     home: <HomeTab data={visionData.home} tasks={tasks} onToggle={toggleTask} />,
     meals: visionMeals.loading ? (
-      <MealsEmptyState text="Cargando tu plan de comidas…" />
+      <VisionEmptyState kicker="Comidas" title="Nutrición" text="Cargando tu plan de comidas…" />
     ) : !visionMeals.hasPlan || !selectedMeal ? (
-      <MealsEmptyState
+      <VisionEmptyState
+        kicker="Comidas"
+        title="Nutrición"
         text="Aún no tienes plan de comidas esta semana."
         hint="Genera tu plan en la pestaña Comidas de la app actual y aparecerá aquí."
       />
@@ -152,7 +167,35 @@ export default function VisionApp() {
         onToggle={toggleMeal}
       />
     ),
-    workout: <WorkoutTab data={visionData.workout} exercises={exercises} selected={selectedExercise} onToggle={toggleEx} />,
+    workout: visionWorkout.loading ? (
+      <VisionEmptyState kicker="Entrenos" title="Entrenamiento" text="Cargando tu rutina…" />
+    ) : !visionWorkout.hasPlan ? (
+      <VisionEmptyState
+        kicker="Entrenos"
+        title="Entrenamiento"
+        text="Aún no tienes plan de entrenos."
+        hint="Genera tu rutina en la pestaña Entrenos de la app actual y aparecerá aquí."
+      />
+    ) : visionWorkout.isRestDay || !selectedExercise ? (
+      <VisionEmptyState
+        kicker="Entrenos"
+        title="Descanso"
+        text="Hoy toca descansar."
+        hint="La recuperación también forma parte del plan. Mañana, más."
+      />
+    ) : (
+      <WorkoutTab
+        data={{
+          title: visionWorkout.title,
+          focus: visionWorkout.focus,
+          durationMin: visionWorkout.durationMin,
+          exercises,
+        }}
+        exercises={exercises}
+        selected={selectedExercise}
+        onToggle={toggleEx}
+      />
+    ),
     progress: <ProgressTab data={visionData.progress} selectedGroup={selectedGroup} onSelectGroup={setSelectedGroup} />,
     settings: <SettingsTab />,
   };
@@ -186,18 +229,23 @@ export default function VisionApp() {
       ) : (
         <div className="text-xs text-[var(--color-brand-grey)]">Tus comidas del día aparecerán aquí.</div>
       ),
-    workout: (
-      <div>
-        <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">EJERCICIOS</div>
-        <WorkoutCarousel
-          exercises={exercises}
-          selectedId={selectedExercise.id}
-          onSelect={setSelectedExerciseId}
-          onCompleteAll={completeWorkout}
-          allDone={allExDone}
-        />
-      </div>
-    ),
+    workout:
+      visionWorkout.hasPlan && !visionWorkout.isRestDay && selectedExercise ? (
+        <div>
+          <div className="mb-2 text-[10px] font-semibold tracking-[0.2em] text-[var(--color-brand-accent)]">EJERCICIOS</div>
+          <WorkoutCarousel
+            exercises={exercises}
+            selectedId={selectedExercise.id}
+            onSelect={setSelectedExerciseId}
+            onCompleteAll={completeWorkout}
+            allDone={allExDone}
+          />
+        </div>
+      ) : (
+        <div className="text-xs text-[var(--color-brand-grey)]">
+          {visionWorkout.isRestDay ? "Día de descanso — sin ejercicios." : "Tu rutina del día aparecerá aquí."}
+        </div>
+      ),
     progress: <ProgressAnalysis group={selectedGroupObj} />,
     settings: <SettingsContext />,
   };

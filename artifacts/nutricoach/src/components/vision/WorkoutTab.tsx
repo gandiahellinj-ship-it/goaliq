@@ -68,10 +68,14 @@ export default function WorkoutTab({
         <p className="text-[12px] text-[var(--color-brand-grey)]">{data.focus}</p>
       </div>
 
-      {/* Thin stats strip */}
+      {/* Thin stats strip — kcal solo si existe (los planes reales no la traen) */}
       <div className="mt-2 flex items-center gap-2 text-[11px] text-[var(--color-brand-grey)]">
         <span className="font-bold text-[var(--color-brand-text-lbl)]">{data.durationMin}m</span> ·
-        <span className="font-bold text-[var(--color-brand-text-lbl)]">{data.totalKcal} kcal</span> ·
+        {data.totalKcal != null && (
+          <>
+            <span className="font-bold text-[var(--color-brand-text-lbl)]">{data.totalKcal} kcal</span> ·
+          </>
+        )}
         <span className="font-bold text-[var(--color-brand-accent)]">{pct}% hecho</span>
       </div>
 

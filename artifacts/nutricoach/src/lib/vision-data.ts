@@ -10,9 +10,9 @@
  * reales NO traen pasos de preparación ni fotos (fallback: iniciales).
  */
 import { useMemo } from "react";
-import { useMealPlan, useDailyMacros } from "./supabase-queries";
-import type { MealRow, Ingredient } from "./supabase-queries";
-import type { MealItem } from "@/types";
+import { useMealPlan, useDailyMacros, useWorkoutPlan } from "./supabase-queries";
+import type { MealRow, Ingredient, Exercise as PlanExercise } from "./supabase-queries";
+import type { MealItem, Exercise } from "@/types";
 
 /* Convenciones de tipos de comida — mismos valores que usa la app antigua
    (ComidasTab.tsx). Duplicados aquí a propósito: no tocamos archivos de la
@@ -116,4 +116,88 @@ export function useVisionMeals(): VisionMealsData {
       macrosToday,
     };
   }, [plan, planLoading, dailyMacros, macrosLoading]);
+}
+
+/* ── Fase B · ENTRENOS ─────────────────────────────────────────────────── */
+
+/** Estimación de duración — misma convención que la app antigua
+    (Workouts.tsx): 45 s por serie + descansos, +10 min de calentamiento,
+    redondeado a múltiplos de 5. Los planes reales NO traen kcal de entreno:
+    no se inventa. */
+function estimateDurationMin(exercises: PlanExercise[]): number {
+  if (!exercises.length) return 0;
+  let totalSeconds = 0;
+  for (const ex of exercises) {
+    const sets = ex.sets ?? 3;
+    const restSec = ex.rest_sec ?? 60;
+    totalSeconds += sets * 45 + sets * restSec;
+  }
+  return Math.round((totalSeconds / 60 + 10) / 5) * 5;
+}
+
+/** "strength" → "Fuerza", etc. — títulos legibles para workout_type. */
+const WORKOUT_TYPE_LABEL: Record<string, string> = {
+  strength: "Fuerza",
+  cardio: "Cardio",
+  bodyweight: "Peso corporal",
+  mixed: "Mixto",
+  hiit: "HIIT",
+};
+
+export interface VisionWorkoutData {
+  loading: boolean;
+  /** false si el usuario no tiene plan de entrenos. */
+  hasPlan: boolean;
+  /** true si HOY es día de descanso según el plan. */
+  isRestDay: boolean;
+  title: string;
+  focus: string;
+  durationMin: number;
+  /** Ejercicios de HOY. done=false (efímero, como en COMIDAS). */
+  exercises: Exercise[];
+}
+
+export function useVisionWorkout(): VisionWorkoutData {
+  const { data: plan, isLoading } = useWorkoutPlan();
+
+  return useMemo(() => {
+    const todayName = WEEKDAY_BY_INDEX[new Date().getDay()];
+    const today = plan?.days?.find((d) => d.day === todayName);
+    const planExercises: PlanExercise[] = today?.workout?.exercises ?? [];
+
+    const exercises: Exercise[] = planExercises.map((e, i) => ({
+      id: e.exercise_id ?? `${todayName}-ex-${i}`,
+      name: e.name,
+      sets: e.sets ?? 3,
+      // reps numéricas del plan; los de tiempo (cardio/timed) se expresan en min.
+      reps:
+        e.reps != null
+          ? String(e.reps)
+          : e.duration_sec != null
+            ? `${Math.max(1, Math.round(e.duration_sec / 60))} min`
+            : "—",
+      muscle: e.muscles ?? "",
+      done: false,
+      // Sin clips reales aún (decisión de fuente abierta) → placeholder animado.
+      tip: e.notes || undefined,
+    }));
+
+    const rawType = today?.workout?.workout_type ?? "";
+    const title =
+      WORKOUT_TYPE_LABEL[rawType.toLowerCase()] ??
+      (rawType ? rawType.charAt(0).toUpperCase() + rawType.slice(1) : "Entrenamiento");
+
+    // Focus = músculos únicos del día, en orden de aparición.
+    const muscles = [...new Set(exercises.map((e) => e.muscle).filter(Boolean))];
+
+    return {
+      loading: isLoading,
+      hasPlan: Boolean(plan),
+      isRestDay: Boolean(plan) && (today?.isRestDay ?? true),
+      title,
+      focus: muscles.slice(0, 3).join(" · "),
+      durationMin: today?.workout?.duration_minutes ?? estimateDurationMin(planExercises),
+      exercises,
+    };
+  }, [plan, isLoading]);
 }
