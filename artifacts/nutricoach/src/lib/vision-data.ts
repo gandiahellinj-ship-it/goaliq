@@ -16,10 +16,12 @@ import {
   useWorkoutPlan,
   useProfile,
   useStrengthLogs,
+  useStrengthGroupLogs,
+  useProgressStats,
   getWeekStart,
 } from "./supabase-queries";
 import type { MealRow, Ingredient, Exercise as PlanExercise } from "./supabase-queries";
-import type { MealItem, Exercise, ActivityRing } from "@/types";
+import type { MealItem, Exercise, ActivityRing, MuscleGroup } from "@/types";
 
 /* Convenciones de tipos de comida — mismos valores que usa la app antigua
    (ComidasTab.tsx). Duplicados aquí a propósito: no tocamos archivos de la
@@ -256,4 +258,105 @@ export function useVisionWorkout(): VisionWorkoutData {
       exercises,
     };
   }, [plan, isLoading]);
+}
+
+/* ── Fase D · PROGRESO ─────────────────────────────────────────────────── */
+
+/** Los 6 grupos del paisaje (SIEMPRE los 6, decisión 4b v2) con su clave
+    canónica del backend y su consejo educativo fijo (textos de la
+    referencia de diseño; son formación, no datos). */
+const PROGRESS_GROUPS: { key: string; name: string; advice: string }[] = [
+  { key: "chest", name: "Pecho", advice: "Para un pectoral estético y lleno, asegúrate de equilibrar el trabajo del haz clavicular (superior) con el pectoral medio. Intenta que al menos el 40% del volumen sea en presses inclinados." },
+  { key: "back", name: "Espalda", advice: "La amplitud de la espalda se logra con jalones y dominadas (dorsal ancho), mientras que la densidad requiere remos pesados (trapecio y romboides). No descuides la lumbar para dar estabilidad." },
+  { key: "legs", name: "Piernas", advice: "El entrenamiento de pierna debe ser completo. Intenta balancear el empuje de rodilla (cuádriceps) con la bisagra de cadera (femorales y glúteos) para prevenir lesiones y mejorar la postura." },
+  { key: "shoulders", name: "Hombros", advice: "El deltoides lateral le da amplitud a tu silueta. Combina press militar para deltoides anterior con elevaciones laterales y pájaros para conseguir unos hombros verdaderamente redondeados o en 3D." },
+  { key: "core", name: "Core", advice: "Un core fuerte estabiliza toda tu columna. No busques solo fatiga; enfócate en la estabilidad y control mediante planchas y rotación con giros rusos." },
+  { key: "arms", name: "Brazos", advice: "Bíceps y tríceps ya reciben trabajo indirecto en cada press y cada remo. El tríceps es dos tercios del brazo: si buscas volumen, dale prioridad sobre el curl." },
+];
+
+export interface VisionProgressData {
+  loading: boolean;
+  weekLabel: string;
+  weekSeriesTotal: number;
+  /** Siempre 6 grupos (con 0 series si no hay registros de la semana). */
+  muscleGroups: MuscleGroup[];
+  /** Frase de equilibrio calculada con datos reales (no inventada). */
+  insight: string;
+  currentWeightKg: number | null;
+  /** Diferencia con el peso anterior registrado (kg, redondeada a 0.1). */
+  weightDelta: number | null;
+  targetWeightKg: number | null;
+}
+
+export function useVisionProgress(): VisionProgressData {
+  const { data: stats, isLoading: statsLoading } = useProgressStats();
+  // 6 llamadas ESTÁTICAS (una por grupo canónico) — el nº de hooks no varía.
+  const chest = useStrengthGroupLogs("chest");
+  const back = useStrengthGroupLogs("back");
+  const legs = useStrengthGroupLogs("legs");
+  const shoulders = useStrengthGroupLogs("shoulders");
+  const core = useStrengthGroupLogs("core");
+  const arms = useStrengthGroupLogs("arms");
+  const groupQueries = [chest, back, legs, shoulders, core, arms];
+
+  const loading = statsLoading || groupQueries.some((q) => q.isLoading);
+  const weekStart = getWeekStart();
+
+  const muscleGroups: MuscleGroup[] = PROGRESS_GROUPS.map((g, i) => {
+    const byMuscle = groupQueries[i].data?.byMuscle ?? {};
+    const subs = Object.entries(byMuscle)
+      .map(([muscle, logs]) => ({
+        name: muscle,
+        series: logs.filter((l) => l.week_start === weekStart).length,
+      }))
+      .filter((s) => s.series > 0);
+    const total = subs.reduce((s, x) => s + x.series, 0);
+    return {
+      name: g.name,
+      series: total,
+      advice: g.advice,
+      subgroups: subs.map((s) => ({
+        ...s,
+        pct: total > 0 ? Math.round((s.series / total) * 100) : 0,
+      })),
+    };
+  });
+
+  const weekSeriesTotal = muscleGroups.reduce((s, g) => s + g.series, 0);
+
+  // Frase de equilibrio REAL: compara el grupo más y menos trabajado.
+  let insight: string;
+  if (weekSeriesTotal === 0) {
+    insight = "Registra tus series de fuerza esta semana y verás crecer tu paisaje muscular.";
+  } else {
+    const sorted = [...muscleGroups].sort((a, b) => b.series - a.series);
+    const top = sorted[0];
+    const bottom = sorted[sorted.length - 1];
+    const diff = top.series - bottom.series;
+    insight =
+      diff === 0
+        ? "Semana equilibrada: todos los grupos van al mismo ritmo. Sigue así."
+        : `Tu ${bottom.name.toLowerCase()} va ${diff} series por detrás de tu ${top.name.toLowerCase()}. Equilibrar el trabajo protege tus articulaciones y mejora la postura.`;
+  }
+
+  // Peso: último registro y diferencia con el anterior.
+  const history = stats?.weightHistory ?? [];
+  const lastW = history.length > 0 ? history[history.length - 1].weightKg : null;
+  const prevW = history.length > 1 ? history[history.length - 2].weightKg : null;
+  const weightDelta =
+    lastW != null && prevW != null ? Math.round((lastW - prevW) * 10) / 10 : null;
+
+  const [, month, day] = weekStart.split("-");
+  const weekLabel = `Semana del ${day}/${month}`;
+
+  return {
+    loading,
+    weekLabel,
+    weekSeriesTotal,
+    muscleGroups,
+    insight,
+    currentWeightKg: lastW ?? stats?.currentWeightKg ?? null,
+    weightDelta,
+    targetWeightKg: stats?.targetWeightKg ?? null,
+  };
 }

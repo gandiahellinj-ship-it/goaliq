@@ -1,4 +1,4 @@
-import type { ProgressData, MuscleGroup } from "@/types";
+import type { MuscleGroup } from "@/types";
 
 /** Interpolate between two #rrggbb colours. */
 function lerpHex(a: string, b: string, t: number): string {
@@ -8,28 +8,34 @@ function lerpHex(a: string, b: string, t: number): string {
   return "#" + c.map((v) => v.toString(16).padStart(2, "0")).join("");
 }
 
-// Balance insight — fixed mock sentence (per design/referencia-progreso.txt §3).
-const BALANCE_INSIGHT =
-  "Tu espalda va 8 series por detrás del pecho. Equilibrar el tirón protege tus hombros y mejora la postura.";
-
 /**
- * PROGRESO 4b v2 — "Tu paisaje muscular". White card with overlapping bell
- * mountains (one per group, always fully visible at 390px), a chip selector,
- * the fixed balance insight, and two weight mini-cards. Selecting a group (chip
- * or mountain) highlights it and drives the contextual ProgressAnalysis.
+ * PROGRESO 4b v2 — "Tu paisaje muscular", con DATOS REALES (Fase D).
+ * White card with overlapping bell mountains (one per group, always fully
+ * visible at 390px), a chip selector, the balance insight (computed from
+ * real weekly series — never invented), and two weight mini-cards.
  * No green anywhere — beige tokens only.
  */
 export default function ProgressTab({
-  data,
+  weekLabel,
+  weekSeriesTotal,
+  muscleGroups,
+  insight,
+  weight,
   selectedGroup,
   onSelectGroup,
 }: {
-  data: ProgressData;
+  weekLabel: string;
+  weekSeriesTotal: number;
+  muscleGroups: MuscleGroup[];
+  insight: string;
+  /** Peso real: actual, diferencia con el registro anterior y meta (null = sin datos). */
+  weight: { current: number | null; delta: number | null; target: number | null };
   selectedGroup: string;
   onSelectGroup: (name: string) => void;
 }) {
-  const groups = data.muscleGroups;
-  const maxS = Math.max(...groups.map((g) => g.series));
+  const groups = muscleGroups;
+  // max(1, …): con 0 series en todos los grupos el paisaje queda plano, sin NaN.
+  const maxS = Math.max(1, ...groups.map((g) => g.series));
   const minS = Math.min(...groups.map((g) => g.series));
 
   const W = 360, H = 120, M = 26, base = 104, maxH = 84, hw = 44;
@@ -45,9 +51,10 @@ export default function ProgressTab({
     `C ${x + hw * 0.45} ${y} ${x + hw * 0.45} ${base} ${x + hw} ${base} Z`;
   const drawOrder = [...peaks].sort((a, b) => a.y - b.y); // tallest first → behind
 
-  const peso = data.stats.find((s) => s.label === "Peso");
-  const last = data.weightSeries[data.weightSeries.length - 1]?.weight ?? data.goalWeight;
-  const remaining = (last - data.goalWeight).toFixed(1);
+  const remaining =
+    weight.current != null && weight.target != null
+      ? Math.round(Math.abs(weight.current - weight.target) * 10) / 10
+      : null;
 
   return (
     <div className="flex h-full flex-col">
@@ -55,7 +62,7 @@ export default function ProgressTab({
         <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">Progreso</p>
         <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">Tu paisaje muscular</h2>
         <p className="mt-1 text-[12px] text-[var(--color-brand-grey)]">
-          <span className="font-semibold text-[var(--color-brand-text-lbl)]">{data.weekLabel}</span> · {data.weekSeriesTotal} series completadas
+          <span className="font-semibold text-[var(--color-brand-text-lbl)]">{weekLabel}</span> · {weekSeriesTotal} series completadas
         </p>
       </div>
 
@@ -111,22 +118,32 @@ export default function ProgressTab({
         })}
       </div>
 
-      {/* Balance insight (fixed) */}
+      {/* Balance insight — calculado con las series reales de la semana */}
       <div className="mt-2 rounded-xl px-3 py-1.5 text-[11px] leading-snug" style={{ background: "var(--color-brand-accent-soft)", color: "#6B5B3E" }}>
-        {BALANCE_INSIGHT}
+        {insight}
       </div>
 
-      {/* Weight mini-cards */}
+      {/* Weight mini-cards — datos reales (— cuando no hay registros) */}
       <div className="mt-2 grid grid-cols-2 gap-2">
         <div className="rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3.5 py-2.5">
-          <p className="text-[11px] text-[var(--color-brand-grey)]">Peso tendencia</p>
-          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">{peso?.value ?? "—"}</p>
-          {peso && <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">↘ {Math.abs(peso.delta)}</span>}
+          <p className="text-[11px] text-[var(--color-brand-grey)]">Peso actual</p>
+          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">
+            {weight.current != null ? `${weight.current} kg` : "—"}
+          </p>
+          {weight.delta != null && weight.delta !== 0 && (
+            <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">
+              {weight.delta < 0 ? "↘" : "↗"} {Math.abs(weight.delta)}
+            </span>
+          )}
         </div>
         <div className="rounded-2xl border border-[var(--color-brand-border)] bg-[var(--color-brand-card)] px-3.5 py-2.5">
-          <p className="text-[11px] text-[var(--color-brand-grey)]">Meta {data.goalWeight} kg</p>
-          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">78 kg</p>
-          <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">faltan {Math.abs(Number(remaining))}</span>
+          <p className="text-[11px] text-[var(--color-brand-grey)]">Meta</p>
+          <p className="text-lg font-bold text-[var(--color-brand-text-lbl)]">
+            {weight.target != null ? `${weight.target} kg` : "—"}
+          </p>
+          {remaining != null && (
+            <span className="text-[11px] font-semibold text-[var(--color-brand-accent)]">faltan {remaining}</span>
+          )}
         </div>
       </div>
     </div>
@@ -144,6 +161,11 @@ export function ProgressAnalysis({ group }: { group: MuscleGroup }) {
         <span className="text-[11px] font-bold text-[var(--color-brand-text-lbl)]">{group.series} series</span>
       </div>
 
+      {group.subgroups.length === 0 && (
+        <p className="mt-2 text-[11px] text-[var(--color-brand-grey)]">
+          Sin series de {group.name.toLowerCase()} registradas esta semana.
+        </p>
+      )}
       <div className="mt-2 space-y-1">
         {group.subgroups.map((s) => (
           <div key={s.name} className="flex items-center gap-2">

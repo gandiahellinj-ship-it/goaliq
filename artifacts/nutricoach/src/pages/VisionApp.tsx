@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
-import { visionData } from "@/data";
-import { useVisionMeals, useVisionWorkout, useVisionHome } from "@/lib/vision-data";
+import { useVisionMeals, useVisionWorkout, useVisionHome, useVisionProgress } from "@/lib/vision-data";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
@@ -152,10 +151,12 @@ export default function VisionApp() {
   const next = tasks.find((t) => !t.done);
   const doneCount = tasks.filter((t) => t.done).length;
 
-  // PROGRESO — selected muscle group (chart highlight + chip + contextual analysis).
-  const [selectedGroup, setSelectedGroup] = useState<string>(visionData.progress.muscleGroups[0].name);
+  // PROGRESO — DATOS REALES (Fase D): paisaje muscular de las series
+  // registradas esta semana + peso real. Siempre 6 grupos (con 0 si no hay).
+  const visionProgress = useVisionProgress();
+  const [selectedGroup, setSelectedGroup] = useState<string>("Pecho");
   const selectedGroupObj =
-    visionData.progress.muscleGroups.find((g) => g.name === selectedGroup) ?? visionData.progress.muscleGroups[0];
+    visionProgress.muscleGroups.find((g) => g.name === selectedGroup) ?? visionProgress.muscleGroups[0];
 
   const topContent: Record<TabId, React.ReactNode> = {
     home: (
@@ -219,7 +220,23 @@ export default function VisionApp() {
         onToggle={toggleEx}
       />
     ),
-    progress: <ProgressTab data={visionData.progress} selectedGroup={selectedGroup} onSelectGroup={setSelectedGroup} />,
+    progress: visionProgress.loading ? (
+      <VisionEmptyState kicker="Progreso" title="Tu paisaje muscular" text="Cargando tus registros…" />
+    ) : (
+      <ProgressTab
+        weekLabel={visionProgress.weekLabel}
+        weekSeriesTotal={visionProgress.weekSeriesTotal}
+        muscleGroups={visionProgress.muscleGroups}
+        insight={visionProgress.insight}
+        weight={{
+          current: visionProgress.currentWeightKg,
+          delta: visionProgress.weightDelta,
+          target: visionProgress.targetWeightKg,
+        }}
+        selectedGroup={selectedGroup}
+        onSelectGroup={setSelectedGroup}
+      />
+    ),
     settings: <SettingsTab />,
   };
 
