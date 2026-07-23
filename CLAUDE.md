@@ -8,6 +8,18 @@ El código implementado manda sobre cualquier documento (incluido este). Si un
 documento contradice lo que hay en el código, se corrige EL DOCUMENTO, no el
 código. Antes de afirmar cómo funciona algo, verifícalo en el código.
 
+## Regla de ingeniería: pensar de punta a punta
+
+Todo cambio se razona de punta a punta — frontend y backend como UN SOLO
+sistema. Antes de implementar, verificar SIEMPRE:
+1. **De dónde salen los datos** (¿existen de verdad? ¿en qué tabla/endpoint?).
+2. **Si el cálculo es correcto y dónde debe vivir** (¿cliente o servidor?).
+3. **Qué se muestra si el dato no existe o está cargando** (estados vacíos
+   y de carga dignos, siempre).
+4. **Qué pasa si la petición falla** (error manejado, nunca pantalla rota).
+
+Nada de interfaces que asumen que los datos siempre llegan bien.
+
 ## Protocolo de INICIO de sesión (obligatorio, sin que José lo pida)
 
 1. Lee estos archivos en este orden:

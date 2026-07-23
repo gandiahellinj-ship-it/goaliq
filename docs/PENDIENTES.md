@@ -4,8 +4,9 @@
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
 1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
-2. [ ] **Cablear /vision con datos reales** (hoy usa datos de muestra salvo suplementos y ajustes; ver spec en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)). ← PRÓXIMA SESIÓN
-3. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
+2. [~] **Cablear /vision con datos reales** — EN CURSO. Fase A (COMIDAS) hecha y verificada por José el 24/07/2026 (commit `d85ccda`); quedan B (ENTRENOS), C (HOME), D (PROGRESO), E (estados vacíos/pulido).
+3. [ ] **Generación de imágenes de platos** (decidida el 07/07: Nano Banana + caché en Supabase Storage por nombre normalizado + hash de ingredientes; prompt maestro en PROMPT_PLATOS.md). Se ejecuta DESPUÉS de las fases B-E y ANTES del cambio de puerta (regla de José, 24/07/2026).
+4. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
 
 (Los puntos 4 y 5 de la auditoría — dependencias y limpieza — se intercalan cuando convenga; ya no están bloqueados.)
 
