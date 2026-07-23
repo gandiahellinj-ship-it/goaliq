@@ -1,10 +1,10 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Paso 2 de la hoja de ruta — cablear /vision con datos reales. Empezar presentando un plan por fases (es la fase grande: sustituir los datos de muestra de las 5 pestañas por los datos reales de Supabase; spec del bucle diario en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)).
+**PRÓXIMA SESIÓN:** Fase E del cableado — repaso final de estados vacíos y pulido (corta: gran parte se hizo por el camino). Al cerrarla: publicar el cableado completo en producción (pendiente desde la Fase A — /vision está oculta, sin prisa) y decidir arranque del proyecto de imágenes de platos.
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
 1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
-2. [~] **Cablear /vision con datos reales** — EN CURSO. Fase A (COMIDAS) hecha y verificada por José el 24/07/2026 (commit `d85ccda`); quedan B (ENTRENOS), C (HOME), D (PROGRESO), E (estados vacíos/pulido).
+2. [~] **Cablear /vision con datos reales** — CASI COMPLETO (24/07/2026). Fases A COMIDAS (`d85ccda`), B ENTRENOS (`5bbf599`), C HOME (`868f32f`) y D PROGRESO (`5e6442c`) hechas y verificadas por José en local contra producción (proxy API_PROXY_TARGET). VisionApp ya no importa la maqueta (data.ts huérfano). Queda: Fase E (repaso estados vacíos + pulido) ← PRÓXIMA SESIÓN. Pendiente verificar en producción: ENTRENOS con ejercicios (día de entreno de José). SIN PUBLICAR aún (decisión: publicar cuando convenga, /vision oculta).
 3. [ ] **Generación de imágenes de platos** (decidida el 07/07: Nano Banana + caché en Supabase Storage por nombre normalizado + hash de ingredientes; prompt maestro en PROMPT_PLATOS.md). Se ejecuta DESPUÉS de las fases B-E y ANTES del cambio de puerta (regla de José, 24/07/2026).
 4. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
 
