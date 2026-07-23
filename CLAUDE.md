@@ -54,9 +54,12 @@ Cuando José escriba `/cierre` o diga que termina:
 - **`feature/layout-3-zonas`**: fusionada el 23/07/2026. Histórica — no
   trabajar en ella; no borrarla sin que José lo pida.
 - **Despliegue REAL**: GitHub `main` → en la Shell de Replit
-  `git pull github main` → Republish (panel Publishing). En Replit NO se
-  edita código NUNCA y el Agente de Replit NO se usa: Replit es solo
-  hosting. Su rama interna `master` es una reliquia de seguridad.
+  `git fetch github && git reset --hard github/main` → Republish (panel
+  Publishing). NUNCA `git pull` en Replit: cada publicación crea allí un
+  commit vacío "Published your App" que hace chocar el siguiente pull; el
+  fetch+reset lo descarta de serie (seguro, porque en Replit NO se edita
+  código NUNCA y el Agente de Replit NO se usa: Replit es solo hosting).
+  Su rama interna `master` es una reliquia de seguridad.
 
 ## Reglas técnicas fijas (no negociables)
 
@@ -64,7 +67,7 @@ Cuando José escriba `/cierre` o diga que termina:
 - Si se añaden librerías nuevas: ejecutar `pnpm install` antes de probar.
 - Servidor de desarrollo:
   `$env:PORT='5173'; $env:BASE_PATH='/'; corepack pnpm --filter @workspace/nutricoach dev`
-- Repo: `D:\goaliq`, rama `main`. Publicar = push a GitHub + `git pull github main` en la Shell de Replit + Republish (ver "Estado de las ramas y despliegue").
+- Repo: `D:\goaliq`, rama `main`. Publicar = push a GitHub + `git fetch github && git reset --hard github/main` en la Shell de Replit + Republish (ver "Estado de las ramas y despliegue").
 - Dirección visual definitiva (la de `/vision`, tokens reales en `index.css` de la rama):
   fondo #F4F4F4, tarjetas #FAFAFA, acento beige cálido #BA9D79
   (`--color-brand-accent`), relleno beige claro #EFE8DC, texto #1A1A1A,

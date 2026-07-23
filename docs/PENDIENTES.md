@@ -1,10 +1,10 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Paso 1 de la hoja de ruta — restilar el modal de login a beige (~18 colores oscuros/verdes a mano en `AuthModal.tsx`, 383 líneas; rápido de escribir, probar con calma sus 4-5 estados: login, registro, código beta, recuperación).
+**PRÓXIMA SESIÓN:** Paso 2 de la hoja de ruta — cablear /vision con datos reales. Empezar presentando un plan por fases (es la fase grande: sustituir los datos de muestra de las 5 pestañas por los datos reales de Supabase; spec del bucle diario en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)).
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
-1. [ ] **Restilar el modal de login a beige** (choca con la portada beige publicada). ← PRÓXIMA SESIÓN
-2. [ ] **Cablear /vision con datos reales** (hoy usa datos de muestra salvo suplementos y ajustes; ver spec en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)).
+1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
+2. [ ] **Cablear /vision con datos reales** (hoy usa datos de muestra salvo suplementos y ajustes; ver spec en [`docs/FLUJO_DIARIO.md`](FLUJO_DIARIO.md)). ← PRÓXIMA SESIÓN
 3. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
 
 (Los puntos 4 y 5 de la auditoría — dependencias y limpieza — se intercalan cuando convenga; ya no están bloqueados.)
