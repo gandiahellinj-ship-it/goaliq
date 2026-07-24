@@ -1,12 +1,13 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Fase E del cableado — repaso final de estados vacíos y pulido (corta: gran parte se hizo por el camino). Al cerrarla: publicar el cableado completo en producción (pendiente desde la Fase A — /vision está oculta, sin prisa) y decidir arranque del proyecto de imágenes de platos.
+**PRÓXIMA SESIÓN:** Publicar en producción el cableado completo de /vision (fases A-E, pendientes de publicar desde la Fase A — /vision está oculta). Procedimiento: push ya en main → `git fetch github && git reset --hard github/main` en la Shell de Replit → Redeploy → verificar /vision con datos reales en producción. Después, seguir con el paso 3 (restilar onboarding a beige).
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
 1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
-2. [~] **Cablear /vision con datos reales** — CASI COMPLETO (24/07/2026). Fases A COMIDAS (`d85ccda`), B ENTRENOS (`5bbf599`), C HOME (`868f32f`) y D PROGRESO (`5e6442c`) hechas y verificadas por José en local contra producción (proxy API_PROXY_TARGET). VisionApp ya no importa la maqueta (data.ts huérfano). Queda: Fase E (repaso estados vacíos + pulido) ← PRÓXIMA SESIÓN. Pendiente verificar en producción: ENTRENOS con ejercicios (día de entreno de José). SIN PUBLICAR aún (decisión: publicar cuando convenga, /vision oculta).
-3. [ ] **Generación de imágenes de platos** (decidida el 07/07: Nano Banana + caché en Supabase Storage por nombre normalizado + hash de ingredientes; prompt maestro en PROMPT_PLATOS.md). Se ejecuta DESPUÉS de las fases B-E y ANTES del cambio de puerta (regla de José, 24/07/2026).
-4. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
+2. [x] **Cablear /vision con datos reales** — COMPLETO Y VERIFICADO EN LOCAL (24/07/2026). Falta solo PUBLICAR (ver PRÓXIMA SESIÓN). Fases A COMIDAS (`d85ccda`), B ENTRENOS (`5bbf599`), C HOME (`868f32f`) y D PROGRESO (`5e6442c`) hechas y verificadas por José en local contra producción (proxy API_PROXY_TARGET). VisionApp ya no importa la maqueta (data.ts huérfano). ENTRENOS con ejercicios VERIFICADO en /vision el 24/07 (plan regenerado durante la prueba de estados vacíos). SIN PUBLICAR aún (decisión: publicar cuando convenga, /vision oculta).
+3. [ ] **Restilar el ONBOARDING a beige** (descubierto 24/07/2026): todo el onboarding —cuestionario médico, 7 pasos, generación de plan— es de la app antigua (oscuro/verde). Los usuarios nuevos lo necesitan, así que hay que restilarlo a la paleta /vision y CONSERVARLO tras el cambio de puerta (no se retira con el dashboard antiguo). Mismo patrón que el modal de login (paso 1).
+4. [ ] **Generación de imágenes de platos** (decidida el 07/07: Nano Banana + caché en Supabase Storage por nombre normalizado + hash de ingredientes; prompt maestro en PROMPT_PLATOS.md). Se ejecuta DESPUÉS de las fases B-E y ANTES del cambio de puerta (regla de José, 24/07/2026).
+5. [ ] **Cambio de puerta**: /vision pasa a ser la app raíz y la antigua (dashboard oscuro) se retira.
 
 (Los puntos 4 y 5 de la auditoría — dependencias y limpieza — se intercalan cuando convenga; ya no están bloqueados.)
 
@@ -19,6 +20,9 @@
 - [ ] Punto 4 — Actualizar dependencias con avisos de seguridad (8 avisos, 3 altos). Rápido. **Tras la fusión.**
 - [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día. **Tras la fusión.**
 - Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
+
+## Riesgos descubiertos (a revisar)
+- **Auto-regeneración de plan en la app antigua (24/07/2026).** `Workouts.tsx:205` tiene un `useEffect` que regenera el plan de entrenos con IA AUTOMÁTICAMENTE al abrir la pestaña si falta el plan o si algún ejercicio no tiene `exercise_id`. Un usuario real puede gastar una llamada de IA sin pedirlo, solo con navegar. **Choca con la decisión del 07/07 (tope de regeneraciones obligatorio).** Revisar antes de la beta: ¿respeta el tope esta vía automática? Nota: `/vision` NO regenera (solo lee), así que el riesgo es exclusivo de la app antigua — se extingue con el cambio de puerta, salvo que el onboarding restilado herede el patrón.
 
 ## En curso — Migración visual /vision (rama feature/layout-3-zonas)
 - [x] Fase 1 — HOME (aprobada, con filas de suplemento compactas)

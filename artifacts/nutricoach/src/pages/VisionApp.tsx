@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Home, UtensilsCrossed, Dumbbell, TrendingUp, Settings as Cog, Loader2 } from "lucide-react";
 import { useVisionMeals, useVisionWorkout, useVisionHome, useVisionProgress } from "@/lib/vision-data";
+import { useAuth } from "@/hooks/useAuth";
 import type { MealItem, Exercise } from "@/types";
 import { SUPPLEMENTS } from "@/lib/supplements";
 import { useUserSupplements } from "@/lib/supplements-service";
@@ -15,13 +17,89 @@ import SettingsTab, { SettingsContext } from "@/components/vision/SettingsTab";
 /**
  * GOALIQ Vision — 3-zone fixed viewport (no vertical scroll), migrated from the
  * old 5-floor scroll layout. Zones: content (~65%) · circular tab bar · contextual
- * panel (~26%). Data stays MOCK (src/data.ts) except supplements (real Supabase)
- * and settings; task check state is local/ephemeral (not persisted).
+ * panel (~26%). Todas las pestañas con DATOS REALES (fases A-E); el estado de
+ * check de tareas es local/efímero hasta el bucle diario (FLUJO_DIARIO).
  *
- * Phase 1: shell + HOME. COMIDAS/ENTRENOS/PROGRESO/AJUSTES are placeholders.
+ * VisionApp = puerta de sesión; VisionAppInner = app con los datos (solo se
+ * monta con sesión, así los ganchos de datos nunca se ejecutan sin token).
  */
 
 type TabId = "home" | "meals" | "workout" | "progress" | "settings";
+
+/** Marco beige de /vision — compartido por la puerta de sesión y la app. */
+function VisionFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="goaliq-vision flex min-h-screen w-full justify-center sm:items-center" style={{ background: "#E4DFD6" }}>
+      <div className="relative flex h-screen w-full max-w-[430px] select-none flex-col overflow-hidden bg-[var(--color-brand-bg)] text-[var(--color-brand-text-lbl)] sm:h-[900px] sm:max-h-[94vh] sm:rounded-[32px] sm:shadow-2xl">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Puerta de sesión: sin login no se muestran las tripas, solo una invitación. */
+export default function VisionApp() {
+  const { isAuthenticated, isLoading, login } = useAuth();
+
+  if (isLoading) {
+    return (
+      <VisionFrame>
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-[var(--color-brand-accent)]" />
+        </div>
+      </VisionFrame>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <VisionFrame>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+          <span className="font-display text-3xl font-black italic">
+            <span className="text-[var(--color-brand-text-lbl)]">Goal</span>
+            <span className="text-[var(--color-brand-accent)]">IQ</span>
+          </span>
+          <p className="text-sm text-[var(--color-brand-grey)]">
+            Inicia sesión para ver tu día: comidas, entrenos y progreso.
+          </p>
+          <button
+            onClick={login}
+            className="rounded-xl px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90"
+            style={{ background: "var(--color-brand-accent)" }}
+          >
+            Iniciar sesión
+          </button>
+        </div>
+      </VisionFrame>
+    );
+  }
+
+  return <VisionAppInner />;
+}
+
+/** Estado de ERROR de una pestaña — fallo de red/servidor, con reintento. */
+function VisionErrorState({ kicker, title }: { kicker: string; title: string }) {
+  const queryClient = useQueryClient();
+  return (
+    <div className="flex h-full flex-col">
+      <div className="pr-14">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-brand-accent)]">{kicker}</p>
+        <h2 className="font-display text-2xl font-extrabold leading-none text-[var(--color-brand-text-lbl)]">{title}</h2>
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <div className="text-sm font-semibold text-[var(--color-brand-text-lbl)]">No hemos podido cargar tus datos.</div>
+        <div className="max-w-[260px] text-xs text-[var(--color-brand-grey)]">Comprueba tu conexión e inténtalo de nuevo.</div>
+        <button
+          onClick={() => queryClient.invalidateQueries()}
+          className="rounded-lg px-4 py-2 text-[13px] font-bold text-white transition-opacity hover:opacity-90"
+          style={{ background: "var(--color-brand-accent)" }}
+        >
+          Reintentar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** Estado de carga/vacío/descanso de una pestaña — mantiene su cabecera. */
 function VisionEmptyState({
@@ -57,7 +135,7 @@ const NAV: { id: TabId; label: string; icon: typeof Home }[] = [
   { id: "settings", label: "AJUSTES", icon: Cog },
 ];
 
-export default function VisionApp() {
+function VisionAppInner() {
   const [tab, setTab] = useState<TabId>("home");
   const [suppOpen, setSuppOpen] = useState(false);
 
@@ -159,7 +237,11 @@ export default function VisionApp() {
     visionProgress.muscleGroups.find((g) => g.name === selectedGroup) ?? visionProgress.muscleGroups[0];
 
   const topContent: Record<TabId, React.ReactNode> = {
-    home: (
+    home: visionHome.loading ? (
+      <VisionEmptyState kicker="Inicio" title="Hoy" text="Cargando tu día…" />
+    ) : visionHome.error ? (
+      <VisionErrorState kicker="Inicio" title="Hoy" />
+    ) : (
       <HomeTab
         data={{
           greeting: visionHome.greeting,
@@ -175,6 +257,8 @@ export default function VisionApp() {
     ),
     meals: visionMeals.loading ? (
       <VisionEmptyState kicker="Comidas" title="Nutrición" text="Cargando tu plan de comidas…" />
+    ) : visionMeals.error ? (
+      <VisionErrorState kicker="Comidas" title="Nutrición" />
     ) : !visionMeals.hasPlan || !selectedMeal ? (
       <VisionEmptyState
         kicker="Comidas"
@@ -193,6 +277,8 @@ export default function VisionApp() {
     ),
     workout: visionWorkout.loading ? (
       <VisionEmptyState kicker="Entrenos" title="Entrenamiento" text="Cargando tu rutina…" />
+    ) : visionWorkout.error ? (
+      <VisionErrorState kicker="Entrenos" title="Entrenamiento" />
     ) : !visionWorkout.hasPlan ? (
       <VisionEmptyState
         kicker="Entrenos"
@@ -222,6 +308,8 @@ export default function VisionApp() {
     ),
     progress: visionProgress.loading ? (
       <VisionEmptyState kicker="Progreso" title="Tu paisaje muscular" text="Cargando tus registros…" />
+    ) : visionProgress.error ? (
+      <VisionErrorState kicker="Progreso" title="Tu paisaje muscular" />
     ) : (
       <ProgressTab
         weekLabel={visionProgress.weekLabel}
@@ -241,7 +329,9 @@ export default function VisionApp() {
   };
 
   const contextual: Record<TabId, React.ReactNode> = {
-    home: tasks.length === 0 ? (
+    home: visionHome.loading || visionHome.error ? (
+      <div className="text-xs text-[var(--color-brand-grey)]">&nbsp;</div>
+    ) : tasks.length === 0 ? (
       <div className="text-xs text-[var(--color-brand-grey)]">
         Genera tus planes de comidas y entrenos para ver aquí tu día.
       </div>
@@ -295,8 +385,7 @@ export default function VisionApp() {
   };
 
   return (
-    <div className="goaliq-vision flex min-h-screen w-full justify-center sm:items-center" style={{ background: "#E4DFD6" }}>
-      <div className="relative flex h-screen w-full max-w-[430px] select-none flex-col overflow-hidden bg-[var(--color-brand-bg)] text-[var(--color-brand-text-lbl)] sm:h-[900px] sm:max-h-[94vh] sm:rounded-[32px] sm:shadow-2xl">
+    <VisionFrame>
       {/* ── Zone 1 · content (~65%) ── */}
       <div className="relative flex flex-col overflow-hidden px-5 pt-5" style={{ flexBasis: "65%", minHeight: 0 }}>
         <SupplementsBadge onClick={() => setSuppOpen(true)} />
@@ -344,7 +433,6 @@ export default function VisionApp() {
       </div>
 
       {suppOpen && <SupplementsModal onClose={() => setSuppOpen(false)} />}
-      </div>
-    </div>
+    </VisionFrame>
   );
 }

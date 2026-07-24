@@ -66,6 +66,8 @@ const WEEKDAY_BY_INDEX = [
 export interface VisionMealsData {
   /** true mientras cargan plan o macros. */
   loading: boolean;
+  /** true si falló la petición (red/servidor) — distinto de "sin plan". */
+  error: boolean;
   /** false si el usuario aún no tiene plan generado esta semana. */
   hasPlan: boolean;
   /** Comidas de HOY del plan real, en orden de hora. done=false (efímero). */
@@ -77,7 +79,7 @@ export interface VisionMealsData {
 }
 
 export function useVisionMeals(): VisionMealsData {
-  const { data: plan, isLoading: planLoading } = useMealPlan();
+  const { data: plan, isLoading: planLoading, isError: planError } = useMealPlan();
   const { data: dailyMacros, isLoading: macrosLoading } = useDailyMacros();
 
   return useMemo(() => {
@@ -119,12 +121,13 @@ export function useVisionMeals(): VisionMealsData {
 
     return {
       loading: planLoading || macrosLoading,
+      error: planError,
       hasPlan: Boolean(plan) && meals.length > 0,
       meals,
       caloriesGoal,
       macrosToday,
     };
-  }, [plan, planLoading, dailyMacros, macrosLoading]);
+  }, [plan, planLoading, planError, dailyMacros, macrosLoading]);
 }
 
 /* ── Fase B · ENTRENOS ─────────────────────────────────────────────────── */
@@ -155,6 +158,11 @@ const WORKOUT_TYPE_LABEL: Record<string, string> = {
 
 export interface VisionWorkoutData {
   loading: boolean;
+  /** LIMITACIÓN HEREDADA: useWorkoutPlan (app antigua) captura los errores y
+   *  devuelve null, así que un fallo de red se ve como "sin plan". No se
+   *  distingue sin tocar ese gancho (regla: no modificar la app antigua).
+   *  Se expone por consistencia de la interfaz; hoy siempre false. */
+  error: boolean;
   /** false si el usuario no tiene plan de entrenos. */
   hasPlan: boolean;
   /** true si HOY es día de descanso según el plan. */
@@ -170,6 +178,8 @@ export interface VisionWorkoutData {
 
 export interface VisionHomeData {
   loading: boolean;
+  /** true si falló alguna de las peticiones de HOME. */
+  error: boolean;
   greeting: string;
   userName: string;
   /** "viernes, 24 de julio" con inicial mayúscula. */
@@ -180,10 +190,10 @@ export interface VisionHomeData {
 }
 
 export function useVisionHome(): VisionHomeData {
-  const { data: profile, isLoading: profileLoading } = useProfile();
-  const { data: dailyMacros, isLoading: macrosLoading } = useDailyMacros();
+  const { data: profile, isLoading: profileLoading, isError: profileError } = useProfile();
+  const { data: dailyMacros, isLoading: macrosLoading, isError: macrosError } = useDailyMacros();
   // Todas las series registradas; se filtran a la semana actual (week_start).
-  const { data: strengthLogs, isLoading: strengthLoading } = useStrengthLogs(null);
+  const { data: strengthLogs, isLoading: strengthLoading, isError: strengthError } = useStrengthLogs(null);
 
   return useMemo(() => {
     const hour = new Date().getHours();
@@ -207,12 +217,13 @@ export function useVisionHome(): VisionHomeData {
 
     return {
       loading: profileLoading || macrosLoading || strengthLoading,
+      error: profileError || macrosError || strengthError,
       greeting,
       userName: profile?.full_name?.split(/\s+/)[0] ?? "",
       dateLabel,
       chips,
     };
-  }, [profile, profileLoading, dailyMacros, macrosLoading, strengthLogs, strengthLoading]);
+  }, [profile, profileLoading, profileError, dailyMacros, macrosLoading, macrosError, strengthLogs, strengthLoading, strengthError]);
 }
 
 export function useVisionWorkout(): VisionWorkoutData {
@@ -250,6 +261,7 @@ export function useVisionWorkout(): VisionWorkoutData {
 
     return {
       loading: isLoading,
+      error: false, // ver nota en VisionWorkoutData
       hasPlan: Boolean(plan),
       isRestDay: Boolean(plan) && (today?.isRestDay ?? true),
       title,
@@ -276,6 +288,8 @@ const PROGRESS_GROUPS: { key: string; name: string; advice: string }[] = [
 
 export interface VisionProgressData {
   loading: boolean;
+  /** true si fallaron las estadísticas o los grupos musculares. */
+  error: boolean;
   weekLabel: string;
   weekSeriesTotal: number;
   /** Siempre 6 grupos (con 0 series si no hay registros de la semana). */
@@ -289,7 +303,7 @@ export interface VisionProgressData {
 }
 
 export function useVisionProgress(): VisionProgressData {
-  const { data: stats, isLoading: statsLoading } = useProgressStats();
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useProgressStats();
   // 6 llamadas ESTÁTICAS (una por grupo canónico) — el nº de hooks no varía.
   const chest = useStrengthGroupLogs("chest");
   const back = useStrengthGroupLogs("back");
@@ -300,6 +314,7 @@ export function useVisionProgress(): VisionProgressData {
   const groupQueries = [chest, back, legs, shoulders, core, arms];
 
   const loading = statsLoading || groupQueries.some((q) => q.isLoading);
+  const error = statsError || groupQueries.some((q) => q.isError);
   const weekStart = getWeekStart();
 
   const muscleGroups: MuscleGroup[] = PROGRESS_GROUPS.map((g, i) => {
@@ -351,6 +366,7 @@ export function useVisionProgress(): VisionProgressData {
 
   return {
     loading,
+    error,
     weekLabel,
     weekSeriesTotal,
     muscleGroups,

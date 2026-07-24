@@ -70,6 +70,13 @@ export default defineConfig({
       "/api": {
         target: process.env.API_PROXY_TARGET || "http://localhost:8080",
         changeOrigin: true,
+        // Quita la cabecera Origin al reenviar: si API_PROXY_TARGET apunta a
+        // producción, su CORS (modo prod) rechazaría el Origin "localhost" y
+        // devolvería 500 en las POST. Sin Origin, producción la trata como
+        // petición sin origen (permitida). Solo afecta al proxy de desarrollo.
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => proxyReq.removeHeader("origin"));
+        },
       },
     },
     fs: {
