@@ -29,6 +29,9 @@ async function buildAll() {
     // - use path traversal to read files (e.g. @google-cloud/secret-manager loads sibling .proto files)
     external: [
       "*.node",
+      // Carga sus archivos de modelo por ruta relativa a su carpeta → no se puede
+      // empaquetar; debe resolverse desde node_modules en runtime.
+      "@imgly/background-removal-node",
       "sharp",
       "better-sqlite3",
       "sqlite3",
