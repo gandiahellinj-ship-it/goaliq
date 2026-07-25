@@ -57,3 +57,6 @@ Thumbs.db
 # api-server local secrets (Spoonacular key, PORT, etc.) — never commit.
 artifacts/api-server/.env
 
+
+# Fase 0 — salida de la vista previa de platos (local, no versionar)
+artifacts/api-server/dish-preview-output/
