@@ -418,6 +418,7 @@ html.theme-light {
   --color-brand-text-lbl: #1A1A1A;
   --color-brand-border: #E5E5E5;
   --color-brand-red: #E5484D; /* destructive actions (logout, errors) */
+  --color-brand-warn: #C98A2B; /* EXCLUSIVO: avisos de PRECAUCIÓN de salud/seguridad (cribado del onboarding). NO es un color decorativo — no usar fuera de avisos de precaución. Ver CLAUDE.md. */
 
   font-family: var(--app-font-sans, "Plus Jakarta Sans", system-ui, sans-serif);
 }

@@ -87,6 +87,18 @@ Cuando José escriba `/cierre` o diga que termina:
   escritorio #E4DFD6. Tipografías: Barlow Condensed (titulares) + Plus
   Jakarta Sans (cuerpo). El VERDE está prohibido en /vision. No inventar
   colores nuevos: los tokens del `index.css` son la fuente de verdad.
+- Token `--color-brand-warn` (ámbar #C98A2B): EXCLUSIVO para avisos de
+  PRECAUCIÓN de salud/seguridad (cribado del onboarding). NO es un color
+  decorativo disponible: no usarlo para nada que no sea un aviso de
+  precaución. Precaución = ámbar; peligro/bloqueo = rojo de marca.
+- Iconografía: en /vision y pantallas nuevas, iconos de LÍNEA monocromos de
+  lucide-react (los mismos de la nav de /vision), coloreados con los tokens
+  de la paleta. NUNCA emojis: los emojis no obedecen la paleta (colores
+  fijos multicolor) y rompen la coherencia visual.
+- Contraste (regla de legibilidad): títulos y datos importantes en tinta
+  (`--color-brand-text-lbl`); textos secundarios en gris de marca; solo los
+  placeholders pueden ser suaves. Nunca texto en color de borde (invisible)
+  ni texto del mismo color que su fondo.
 - Proveedores de IA: Claude (Anthropic) para texto y visión; Gemini SOLO para
   generar imágenes de platos (ver DECISIONES 07/07/2026).
 - José no es programador: explica cada cambio en lenguaje llano antes de aplicarlo y define cualquier término técnico.

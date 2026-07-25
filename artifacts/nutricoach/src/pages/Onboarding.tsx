@@ -1,6 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { Loader2, AlertCircle, Pencil, Check, AlertTriangle, LogOut } from "lucide-react";
+import {
+  Loader2, AlertCircle, Pencil, Check, AlertTriangle, LogOut,
+  Stethoscope, User, Target, Timer, Salad, Dumbbell, Sparkles,
+  Flame, BicepsFlexed, Scale, RefreshCw, Sprout, Zap, Trophy, Home, Trees,
+  UtensilsCrossed, ShoppingCart, Bell, BarChart3,
+  Droplet, Coffee, CupSoda, Pill, Egg, Soup, Droplets, Clock, Lightbulb,
+  type LucideIcon,
+} from "lucide-react";
 import { submitOnboarding, logInfoShown, logWarningShown, logBlocked, logWarningAccepted, buildUserDataSnapshot, imcToCategory, type UserDataSnapshot, type BlockReason, type ImcCategory, type OnboardingFormData } from "@/lib/onboarding-service";
 import { SUPPLEMENTS, SUPPLEMENT_TIMING } from "@/lib/supplements";
 import { supabase } from "@/lib/supabase";
@@ -93,24 +100,24 @@ const PROFESSIONAL_LOOKUP_URL =
 const GOAL_DETAILS: Record<string, {
   description: string;
   descriptionEN: string;
-  paces?: { id: string; emoji: string; label: string; labelEN: string; desc: string; descEN: string; badge: string; badgeEN: string; recommended?: boolean }[];
+  paces?: { id: string; label: string; labelEN: string; desc: string; descEN: string; badge: string; badgeEN: string; recommended?: boolean }[];
 }> = {
   lose_fat: {
     description: "Reduciremos las calorías de forma controlada para quemar grasa preservando el máximo músculo posible.",
     descriptionEN: "We'll reduce calories in a controlled way to burn fat while preserving as much muscle as possible.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Suave",    labelEN: "Gentle",     desc: "-0.25kg/sem · Preserva más músculo, ideal para atletas",  descEN: "-0.25kg/wk · Preserves more muscle, ideal for athletes",  badge: "−0.25 kg/sem · déficit 250 kcal", badgeEN: "−0.25 kg/week · 250 kcal deficit" },
-      { id: "moderate",   emoji: "🚶", label: "Moderado", labelEN: "Moderate",   desc: "-0.5kg/sem · El ritmo más sostenible a largo plazo",       descEN: "-0.5kg/wk · The most sustainable pace long term",        badge: "−0.5 kg/sem · déficit 500 kcal",  badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Agresivo", labelEN: "Aggressive", desc: "-1kg/sem · Pérdida rápida, requiere mayor disciplina",      descEN: "-1kg/wk · Fast loss, requires more discipline",          badge: "−1 kg/sem · déficit 1000 kcal",   badgeEN: "−1 kg/week · 1000 kcal deficit" },
+      { id: "gentle",     label: "Suave",    labelEN: "Gentle",     desc: "-0.25kg/sem · Preserva más músculo, ideal para atletas",  descEN: "-0.25kg/wk · Preserves more muscle, ideal for athletes",  badge: "−0.25 kg/sem · déficit 250 kcal", badgeEN: "−0.25 kg/week · 250 kcal deficit" },
+      { id: "moderate",   label: "Moderado", labelEN: "Moderate",   desc: "-0.5kg/sem · El ritmo más sostenible a largo plazo",       descEN: "-0.5kg/wk · The most sustainable pace long term",        badge: "−0.5 kg/sem · déficit 500 kcal",  badgeEN: "−0.5 kg/week · 500 kcal deficit",  recommended: true },
+      { id: "aggressive", label: "Agresivo", labelEN: "Aggressive", desc: "-1kg/sem · Pérdida rápida, requiere mayor disciplina",      descEN: "-1kg/wk · Fast loss, requires more discipline",          badge: "−1 kg/sem · déficit 1000 kcal",   badgeEN: "−1 kg/week · 1000 kcal deficit" },
     ],
   },
   gain_muscle: {
     description: "Aumentaremos las calorías estratégicamente para maximizar la ganancia muscular con mínima grasa.",
     descriptionEN: "We'll increase calories strategically to maximise muscle gain with minimal fat.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Volumen limpio",    labelEN: "Clean bulk",     desc: "+0.25kg/sem · Mínima grasa, máxima calidad muscular",        descEN: "+0.25kg/wk · Minimal fat, maximum muscle quality",         badge: "+0.25 kg/sem · superávit 250 kcal", badgeEN: "+0.25 kg/week · 250 kcal surplus" },
-      { id: "moderate",   emoji: "🚶", label: "Volumen moderado",  labelEN: "Moderate bulk",  desc: "+0.5kg/sem · Equilibrio entre músculo y grasa",              descEN: "+0.5kg/wk · Balance between muscle and fat",               badge: "+0.5 kg/sem · superávit 500 kcal",  badgeEN: "+0.5 kg/week · 500 kcal surplus",  recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Volumen agresivo",  labelEN: "Aggressive bulk",desc: "+1kg/sem · Máximo crecimiento, algo más de grasa",           descEN: "+1kg/wk · Maximum growth, some extra fat",                 badge: "+1 kg/sem · superávit 1000 kcal",   badgeEN: "+1 kg/week · 1000 kcal surplus" },
+      { id: "gentle",     label: "Volumen limpio",    labelEN: "Clean bulk",     desc: "+0.25kg/sem · Mínima grasa, máxima calidad muscular",        descEN: "+0.25kg/wk · Minimal fat, maximum muscle quality",         badge: "+0.25 kg/sem · superávit 250 kcal", badgeEN: "+0.25 kg/week · 250 kcal surplus" },
+      { id: "moderate",   label: "Volumen moderado",  labelEN: "Moderate bulk",  desc: "+0.5kg/sem · Equilibrio entre músculo y grasa",              descEN: "+0.5kg/wk · Balance between muscle and fat",               badge: "+0.5 kg/sem · superávit 500 kcal",  badgeEN: "+0.5 kg/week · 500 kcal surplus",  recommended: true },
+      { id: "aggressive", label: "Volumen agresivo",  labelEN: "Aggressive bulk",desc: "+1kg/sem · Máximo crecimiento, algo más de grasa",           descEN: "+1kg/wk · Maximum growth, some extra fat",                 badge: "+1 kg/sem · superávit 1000 kcal",   badgeEN: "+1 kg/week · 1000 kcal surplus" },
     ],
   },
   maintain: {
@@ -121,9 +128,9 @@ const GOAL_DETAILS: Record<string, {
     description: "Perderás grasa y ganarás músculo simultáneamente. Requiere paciencia pero los resultados son los más duraderos.",
     descriptionEN: "You'll lose fat and gain muscle simultaneously. Requires patience but the results are the most lasting.",
     paces: [
-      { id: "gentle",     emoji: "🐢", label: "Conservador", labelEN: "Conservative", desc: "Cambios lentos pero muy sostenibles a largo plazo",         descEN: "Slow changes but very sustainable long term",              badge: "Cambios graduales · macros optimizados", badgeEN: "Gradual changes · optimized macros" },
-      { id: "moderate",   emoji: "🚶", label: "Estándar",    labelEN: "Standard",     desc: "Balance óptimo entre perder grasa y ganar músculo",         descEN: "Optimal balance between losing fat and gaining muscle",    badge: "Ciclado calorías · alta proteína",       badgeEN: "Calorie cycling · high protein",     recommended: true },
-      { id: "aggressive", emoji: "🏃", label: "Intensivo",   labelEN: "Intensive",    desc: "Máxima transformación, requiere consistencia total",        descEN: "Maximum transformation, requires total consistency",       badge: "Ciclado agresivo · proteína ≥2g/kg",     badgeEN: "Aggressive cycling · protein ≥2g/kg" },
+      { id: "gentle",     label: "Conservador", labelEN: "Conservative", desc: "Cambios lentos pero muy sostenibles a largo plazo",         descEN: "Slow changes but very sustainable long term",              badge: "Cambios graduales · macros optimizados", badgeEN: "Gradual changes · optimized macros" },
+      { id: "moderate",   label: "Estándar",    labelEN: "Standard",     desc: "Balance óptimo entre perder grasa y ganar músculo",         descEN: "Optimal balance between losing fat and gaining muscle",    badge: "Ciclado calorías · alta proteína",       badgeEN: "Calorie cycling · high protein",     recommended: true },
+      { id: "aggressive", label: "Intensivo",   labelEN: "Intensive",    desc: "Máxima transformación, requiere consistencia total",        descEN: "Maximum transformation, requires total consistency",       badge: "Ciclado agresivo · proteína ≥2g/kg",     badgeEN: "Aggressive cycling · protein ≥2g/kg" },
     ],
   },
 };
@@ -651,11 +658,11 @@ export default function Onboarding() {
   // ── Loading state ─────────────────────────────────────────────────────────
   if (prefilling || screeningCheckLoading) {
     return (
-      <div className="min-h-screen bg-[#0A0A0A] flex flex-col items-center justify-center p-4">
+      <div className="goaliq-vision min-h-screen bg-[var(--color-brand-bg)] flex flex-col items-center justify-center p-4">
         <Logo />
         <div className="flex flex-col items-center gap-3 mt-8">
-          <div className="w-7 h-7 border-2 border-[#AAFF45] border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-[#555555] font-medium">{t("loading_preferences")}</p>
+          <div className="w-7 h-7 border-2 border-[var(--color-brand-accent)] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-[var(--color-brand-grey)] font-medium">{t("loading_preferences")}</p>
         </div>
       </div>
     );
@@ -755,82 +762,82 @@ export default function Onboarding() {
     ],
   };
 
-  const FASTING_ALLOWED: Record<string, { icon: string; textES: string; textEN: string }[]> = {
+  const FASTING_ALLOWED: Record<string, { icon: LucideIcon; textES: string; textEN: string }[]> = {
     "12:12": [
-      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
-      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
-      { icon: "🫗", textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
-      { icon: "🧂", textES: "Agua con electrolitos (sin calorías)", textEN: "Electrolyte water (zero calories)" },
+      { icon: Droplet, textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: Coffee, textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: CupSoda, textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
+      { icon: Droplets, textES: "Agua con electrolitos (sin calorías)", textEN: "Electrolyte water (zero calories)" },
     ],
     "16:8": [
-      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
-      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
-      { icon: "🫗", textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
-      { icon: "🧂", textES: "Electrolitos sin calorías (sodio, potasio, magnesio)", textEN: "Zero-calorie electrolytes (sodium, potassium, magnesium)" },
-      { icon: "💊", textES: "Suplementos sin calorías (vitaminas, minerales)", textEN: "Zero-calorie supplements (vitamins, minerals)" },
+      { icon: Droplet, textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: Coffee, textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: CupSoda, textES: "Infusiones sin azúcar ni leche", textEN: "Herbal teas without sugar or milk" },
+      { icon: Droplets, textES: "Electrolitos sin calorías (sodio, potasio, magnesio)", textEN: "Zero-calorie electrolytes (sodium, potassium, magnesium)" },
+      { icon: Pill, textES: "Suplementos sin calorías (vitaminas, minerales)", textEN: "Zero-calorie supplements (vitamins, minerals)" },
     ],
     "18:6": [
-      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
-      { icon: "☕", textES: "Café negro solo — sin leche ni azúcar", textEN: "Black coffee only — no milk or sugar" },
-      { icon: "🫗", textES: "Té verde o negro sin endulzar", textEN: "Unsweetened green or black tea" },
-      { icon: "🧂", textES: "Electrolitos puros sin calorías", textEN: "Pure zero-calorie electrolytes" },
-      { icon: "💊", textES: "Suplementos sin calorías (no proteína, no colágeno)", textEN: "Zero-calorie supplements (no protein, no collagen)" },
+      { icon: Droplet, textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: Coffee, textES: "Café negro solo — sin leche ni azúcar", textEN: "Black coffee only — no milk or sugar" },
+      { icon: CupSoda, textES: "Té verde o negro sin endulzar", textEN: "Unsweetened green or black tea" },
+      { icon: Droplets, textES: "Electrolitos puros sin calorías", textEN: "Pure zero-calorie electrolytes" },
+      { icon: Pill, textES: "Suplementos sin calorías (no proteína, no colágeno)", textEN: "Zero-calorie supplements (no protein, no collagen)" },
     ],
     "20:4": [
-      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
-      { icon: "☕", textES: "Café negro estricto — sin nada añadido", textEN: "Strict black coffee — nothing added" },
-      { icon: "🫗", textES: "Té sin endulzar", textEN: "Unsweetened tea" },
-      { icon: "🧂", textES: "Electrolitos puros — imprescindibles en ayunos largos", textEN: "Pure electrolytes — essential for long fasts" },
+      { icon: Droplet, textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: Coffee, textES: "Café negro estricto — sin nada añadido", textEN: "Strict black coffee — nothing added" },
+      { icon: CupSoda, textES: "Té sin endulzar", textEN: "Unsweetened tea" },
+      { icon: Droplets, textES: "Electrolitos puros — imprescindibles en ayunos largos", textEN: "Pure electrolytes — essential for long fasts" },
     ],
     "5:2": [
-      { icon: "💧", textES: "Agua — sin límite", textEN: "Water — unlimited" },
-      { icon: "🥗", textES: "Verduras sin almidón (lechuga, pepino, brócoli)", textEN: "Non-starchy vegetables (lettuce, cucumber, broccoli)" },
-      { icon: "🍳", textES: "Proteína magra (pollo, huevo, pescado)", textEN: "Lean protein (chicken, egg, fish)" },
-      { icon: "☕", textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
-      { icon: "🍜", textES: "Caldo de huesos — ayuda a llegar a la cuota calórica", textEN: "Bone broth — helps reach the calorie quota" },
+      { icon: Droplet, textES: "Agua — sin límite", textEN: "Water — unlimited" },
+      { icon: Salad, textES: "Verduras sin almidón (lechuga, pepino, brócoli)", textEN: "Non-starchy vegetables (lettuce, cucumber, broccoli)" },
+      { icon: Egg, textES: "Proteína magra (pollo, huevo, pescado)", textEN: "Lean protein (chicken, egg, fish)" },
+      { icon: Coffee, textES: "Café negro y té sin azúcar", textEN: "Black coffee and unsweetened tea" },
+      { icon: Soup, textES: "Caldo de huesos — ayuda a llegar a la cuota calórica", textEN: "Bone broth — helps reach the calorie quota" },
     ],
   };
 
   const FASTING_DIET_NOTES: Record<string, Record<string, { es: string; en: string }>> = {
     "12:12": {
-      balanced:      { es: "🍽️ Dieta equilibrada: en tu ventana de 12h incluiremos proteínas, carbohidratos complejos y grasas saludables distribuidas en 3 comidas.", en: "🍽️ Balanced diet: in your 12h window we'll include proteins, complex carbs and healthy fats across 3 meals." },
-      vegan:         { es: "🌱 Dieta vegana: 12h es suficiente para 3 comidas con legumbres, tofu y cereales integrales cubriendo todos los aminoácidos.", en: "🌱 Vegan diet: 12h is enough for 3 meals with legumes, tofu and whole grains covering all amino acids." },
-      keto:          { es: "🥑 Dieta keto: las 12h de ayuno mantienen la cetosis. Prioridad a grasas saludables y proteína moderada.", en: "🥑 Keto diet: the 12h fast maintains ketosis. Priority on healthy fats and moderate protein." },
-      mediterranean: { es: "🫒 Dieta mediterránea: ventana de 12h ideal para 3 comidas con AOVE, legumbres, pescado azul y frutas frescas.", en: "🫒 Mediterranean diet: 12h window ideal for 3 meals with EVOO, legumes, oily fish and fresh fruit." },
-      high_protein:  { es: "💪 Alta proteína: distribuimos 3 comidas ricas en proteína en las 12h para maximizar la síntesis muscular.", en: "💪 High protein: we distribute 3 protein-rich meals across 12h to maximize muscle synthesis." },
-      vegetarian:    { es: "🥦 Dieta vegetariana: 3 comidas con huevo, lácteos y legumbres para cubrir proteína completa en 12h.", en: "🥦 Vegetarian diet: 3 meals with eggs, dairy and legumes to cover complete protein in 12h." },
+      balanced:      { es: "Dieta equilibrada: en tu ventana de 12h incluiremos proteínas, carbohidratos complejos y grasas saludables distribuidas en 3 comidas.", en: "Balanced diet: in your 12h window we'll include proteins, complex carbs and healthy fats across 3 meals." },
+      vegan:         { es: "Dieta vegana: 12h es suficiente para 3 comidas con legumbres, tofu y cereales integrales cubriendo todos los aminoácidos.", en: "Vegan diet: 12h is enough for 3 meals with legumes, tofu and whole grains covering all amino acids." },
+      keto:          { es: "Dieta keto: las 12h de ayuno mantienen la cetosis. Prioridad a grasas saludables y proteína moderada.", en: "Keto diet: the 12h fast maintains ketosis. Priority on healthy fats and moderate protein." },
+      mediterranean: { es: "Dieta mediterránea: ventana de 12h ideal para 3 comidas con AOVE, legumbres, pescado azul y frutas frescas.", en: "Mediterranean diet: 12h window ideal for 3 meals with EVOO, legumes, oily fish and fresh fruit." },
+      high_protein:  { es: "Alta proteína: distribuimos 3 comidas ricas en proteína en las 12h para maximizar la síntesis muscular.", en: "High protein: we distribute 3 protein-rich meals across 12h to maximize muscle synthesis." },
+      vegetarian:    { es: "Dieta vegetariana: 3 comidas con huevo, lácteos y legumbres para cubrir proteína completa en 12h.", en: "Vegetarian diet: 3 meals with eggs, dairy and legumes to cover complete protein in 12h." },
     },
     "16:8": {
-      balanced:      { es: "🍽️ Dieta equilibrada: distribuiremos comida y cena en las 8h de ventana. Proteína en cada toma para mantener el músculo.", en: "🍽️ Balanced diet: we'll distribute lunch and dinner in the 8h window. Protein at each meal to preserve muscle." },
-      vegan:         { es: "🌱 Dieta vegana: atención especial a proteína completa. Combinaremos fuentes vegetales para cubrir tus necesidades en 2 comidas.", en: "🌱 Vegan diet: special attention to complete protein. We'll combine plant sources to meet your needs across 2 meals." },
-      keto:          { es: "🥑 Keto + 16:8 es la combinación más potente para cetosis. Tu cuerpo quemará grasa durante las 16h de ayuno.", en: "🥑 Keto + 16:8 is the most powerful combination for ketosis. Your body will burn fat during the 16h fast." },
-      mediterranean: { es: "🫒 Mediterránea + 16:8: comida principal al mediodía rica en legumbres y pescado. Cena ligera con verduras y AOVE.", en: "🫒 Mediterranean + 16:8: main meal at midday rich in legumes and fish. Light dinner with vegetables and EVOO." },
-      high_protein:  { es: "💪 Alta proteína + 16:8: 2 comidas con 40-50g proteína cada una. Añade batido si no llegas al objetivo.", en: "💪 High protein + 16:8: 2 meals with 40-50g protein each. Add a shake if you fall short of your goal." },
-      vegetarian:    { es: "🥦 Vegetariana + 16:8: 2 comidas con huevo, queso y legumbres para asegurar proteína en la ventana de 8h.", en: "🥦 Vegetarian + 16:8: 2 meals with eggs, cheese and legumes to ensure protein in the 8h window." },
+      balanced:      { es: "Dieta equilibrada: distribuiremos comida y cena en las 8h de ventana. Proteína en cada toma para mantener el músculo.", en: "Balanced diet: we'll distribute lunch and dinner in the 8h window. Protein at each meal to preserve muscle." },
+      vegan:         { es: "Dieta vegana: atención especial a proteína completa. Combinaremos fuentes vegetales para cubrir tus necesidades en 2 comidas.", en: "Vegan diet: special attention to complete protein. We'll combine plant sources to meet your needs across 2 meals." },
+      keto:          { es: "Keto + 16:8 es la combinación más potente para cetosis. Tu cuerpo quemará grasa durante las 16h de ayuno.", en: "Keto + 16:8 is the most powerful combination for ketosis. Your body will burn fat during the 16h fast." },
+      mediterranean: { es: "Mediterránea + 16:8: comida principal al mediodía rica en legumbres y pescado. Cena ligera con verduras y AOVE.", en: "Mediterranean + 16:8: main meal at midday rich in legumes and fish. Light dinner with vegetables and EVOO." },
+      high_protein:  { es: "Alta proteína + 16:8: 2 comidas con 40-50g proteína cada una. Añade batido si no llegas al objetivo.", en: "High protein + 16:8: 2 meals with 40-50g protein each. Add a shake if you fall short of your goal." },
+      vegetarian:    { es: "Vegetariana + 16:8: 2 comidas con huevo, queso y legumbres para asegurar proteína en la ventana de 8h.", en: "Vegetarian + 16:8: 2 meals with eggs, cheese and legumes to ensure protein in the 8h window." },
     },
     "18:6": {
-      balanced:      { es: "🍽️ Con solo 6h priorizamos proteína y grasas saludables. Reducimos carbohidratos para mantener saciedad más tiempo.", en: "🍽️ With only 6h we prioritize protein and healthy fats. We reduce carbs to maintain satiety longer." },
-      vegan:         { es: "🌱 Vegana + 18:6 requiere planificación. Priorizamos legumbres, semillas y frutos secos para proteína y grasas en 2 comidas.", en: "🌱 Vegan + 18:6 requires planning. We prioritize legumes, seeds and nuts for protein and fats across 2 meals." },
-      keto:          { es: "🥑 Keto + 18:6: potencia la cetosis. Durante el ayuno puedes tomar café con MCT oil si mantienes cetosis.", en: "🥑 Keto + 18:6: boosts ketosis. During the fast you can have coffee with MCT oil if you maintain ketosis." },
-      mediterranean: { es: "🫒 Mediterránea + 18:6: dos comidas principales. Abundante en AOVE, frutos secos y proteína de calidad.", en: "🫒 Mediterranean + 18:6: two main meals. Abundant in EVOO, nuts and quality protein." },
-      high_protein:  { es: "💪 Alta proteína + 18:6: concentramos 2 comidas muy proteicas. Prioritario llegar al objetivo de proteína en 6h.", en: "💪 High protein + 18:6: we concentrate 2 very protein-rich meals. Priority is reaching your protein goal in 6h." },
-      vegetarian:    { es: "🥦 Vegetariana + 18:6: 2 comidas densas en nutrientes con huevo, legumbres y lácteos proteicos.", en: "🥦 Vegetarian + 18:6: 2 nutrient-dense meals with eggs, legumes and protein dairy." },
+      balanced:      { es: "Con solo 6h priorizamos proteína y grasas saludables. Reducimos carbohidratos para mantener saciedad más tiempo.", en: "With only 6h we prioritize protein and healthy fats. We reduce carbs to maintain satiety longer." },
+      vegan:         { es: "Vegana + 18:6 requiere planificación. Priorizamos legumbres, semillas y frutos secos para proteína y grasas en 2 comidas.", en: "Vegan + 18:6 requires planning. We prioritize legumes, seeds and nuts for protein and fats across 2 meals." },
+      keto:          { es: "Keto + 18:6: potencia la cetosis. Durante el ayuno puedes tomar café con MCT oil si mantienes cetosis.", en: "Keto + 18:6: boosts ketosis. During the fast you can have coffee with MCT oil if you maintain ketosis." },
+      mediterranean: { es: "Mediterránea + 18:6: dos comidas principales. Abundante en AOVE, frutos secos y proteína de calidad.", en: "Mediterranean + 18:6: two main meals. Abundant in EVOO, nuts and quality protein." },
+      high_protein:  { es: "Alta proteína + 18:6: concentramos 2 comidas muy proteicas. Prioritario llegar al objetivo de proteína en 6h.", en: "High protein + 18:6: we concentrate 2 very protein-rich meals. Priority is reaching your protein goal in 6h." },
+      vegetarian:    { es: "Vegetariana + 18:6: 2 comidas densas en nutrientes con huevo, legumbres y lácteos proteicos.", en: "Vegetarian + 18:6: 2 nutrient-dense meals with eggs, legumes and protein dairy." },
     },
     "20:4": {
-      balanced:      { es: "🍽️ En 4h concentramos proteína alta y grasas saludables. Carbohidratos solo post-entreno si haces ejercicio.", en: "🍽️ In 4h we concentrate high protein and healthy fats. Carbs only post-workout if you exercise." },
-      vegan:         { es: "🌱 Vegana + 20:4: protocolo exigente. Aseguraremos proteína suficiente en 4h con tofu, seitán y legumbres.", en: "🌱 Vegan + 20:4: demanding protocol. We'll ensure enough protein in 4h with tofu, seitan and legumes." },
-      keto:          { es: "🥑 Keto + 20:4: máxima cetosis. Concentra grasas y proteínas moderadas en 4h. Carbohidratos netos < 20g al día.", en: "🥑 Keto + 20:4: maximum ketosis. Concentrate fats and moderate protein in 4h. Net carbs < 20g daily." },
-      mediterranean: { es: "🫒 Mediterránea + 20:4: una comida principal abundante + snack. Rica en AOVE, pescado azul y vegetales.", en: "🫒 Mediterranean + 20:4: one main abundant meal + snack. Rich in EVOO, oily fish and vegetables." },
-      high_protein:  { es: "💪 Alta proteína + 20:4: una comida muy densa (60-80g proteína) + batido proteico. Vigilar recuperación muscular.", en: "💪 High protein + 20:4: one very dense meal (60-80g protein) + protein shake. Monitor muscle recovery." },
-      vegetarian:    { es: "🥦 Vegetariana + 20:4: comida principal con huevo, queso, legumbres y frutos secos para densidad nutricional máxima.", en: "🥦 Vegetarian + 20:4: main meal with eggs, cheese, legumes and nuts for maximum nutritional density." },
+      balanced:      { es: "En 4h concentramos proteína alta y grasas saludables. Carbohidratos solo post-entreno si haces ejercicio.", en: "In 4h we concentrate high protein and healthy fats. Carbs only post-workout if you exercise." },
+      vegan:         { es: "Vegana + 20:4: protocolo exigente. Aseguraremos proteína suficiente en 4h con tofu, seitán y legumbres.", en: "Vegan + 20:4: demanding protocol. We'll ensure enough protein in 4h with tofu, seitan and legumes." },
+      keto:          { es: "Keto + 20:4: máxima cetosis. Concentra grasas y proteínas moderadas en 4h. Carbohidratos netos < 20g al día.", en: "Keto + 20:4: maximum ketosis. Concentrate fats and moderate protein in 4h. Net carbs < 20g daily." },
+      mediterranean: { es: "Mediterránea + 20:4: una comida principal abundante + snack. Rica en AOVE, pescado azul y vegetales.", en: "Mediterranean + 20:4: one main abundant meal + snack. Rich in EVOO, oily fish and vegetables." },
+      high_protein:  { es: "Alta proteína + 20:4: una comida muy densa (60-80g proteína) + batido proteico. Vigilar recuperación muscular.", en: "High protein + 20:4: one very dense meal (60-80g protein) + protein shake. Monitor muscle recovery." },
+      vegetarian:    { es: "Vegetariana + 20:4: comida principal con huevo, queso, legumbres y frutos secos para densidad nutricional máxima.", en: "Vegetarian + 20:4: main meal with eggs, cheese, legumes and nuts for maximum nutritional density." },
     },
     "5:2": {
-      balanced:      { es: "🍽️ Los 5 días normales sin cambios. Los 2 días de restricción: 1-2 comidas pequeñas ricas en proteína magra.", en: "🍽️ The 5 normal days unchanged. The 2 restriction days: 1-2 small meals rich in lean protein." },
-      vegan:         { es: "🌱 Los días de restricción: sopa de legumbres y verduras proteicas para llegar a 500 kcal con proteína suficiente.", en: "🌱 Restriction days: legume and vegetable soup to reach 500 kcal with enough protein." },
-      keto:          { es: "🥑 Los días de restricción: mantén < 500 kcal con grasas (aguacate, frutos secos) y proteína. Cero carbohidratos.", en: "🥑 Restriction days: keep < 500 kcal with fats (avocado, nuts) and protein. Zero carbs." },
-      mediterranean: { es: "🫒 Los días de restricción: sopa mediterránea de verduras, ensalada con AOVE y proteína magra (500-600 kcal).", en: "🫒 Restriction days: Mediterranean vegetable soup, salad with EVOO and lean protein (500-600 kcal)." },
-      high_protein:  { es: "💪 Los días de restricción: prioridad absoluta a proteína magra. 2 comidas pequeñas con pollo, huevo o pescado.", en: "💪 Restriction days: absolute priority on lean protein. 2 small meals with chicken, egg or fish." },
-      vegetarian:    { es: "🥦 Los días de restricción: huevo cocido, yogur proteico y caldo de verduras para llegar a 500 kcal.", en: "🥦 Restriction days: boiled egg, protein yogurt and vegetable broth to reach 500 kcal." },
+      balanced:      { es: "Los 5 días normales sin cambios. Los 2 días de restricción: 1-2 comidas pequeñas ricas en proteína magra.", en: "The 5 normal days unchanged. The 2 restriction days: 1-2 small meals rich in lean protein." },
+      vegan:         { es: "Los días de restricción: sopa de legumbres y verduras proteicas para llegar a 500 kcal con proteína suficiente.", en: "Restriction days: legume and vegetable soup to reach 500 kcal with enough protein." },
+      keto:          { es: "Los días de restricción: mantén < 500 kcal con grasas (aguacate, frutos secos) y proteína. Cero carbohidratos.", en: "Restriction days: keep < 500 kcal with fats (avocado, nuts) and protein. Zero carbs." },
+      mediterranean: { es: "Los días de restricción: sopa mediterránea de verduras, ensalada con AOVE y proteína magra (500-600 kcal).", en: "Restriction days: Mediterranean vegetable soup, salad with EVOO and lean protein (500-600 kcal)." },
+      high_protein:  { es: "Los días de restricción: prioridad absoluta a proteína magra. 2 comidas pequeñas con pollo, huevo o pescado.", en: "Restriction days: absolute priority on lean protein. 2 small meals with chicken, egg or fish." },
+      vegetarian:    { es: "Los días de restricción: huevo cocido, yogur proteico y caldo de verduras para llegar a 500 kcal.", en: "Restriction days: boiled egg, protein yogurt and vegetable broth to reach 500 kcal." },
     },
   };
 
@@ -886,9 +893,13 @@ export default function Onboarding() {
     : imcCategory === "underweight" ? "Underweight"  : imcCategory === "normal"    ? "Normal weight": imcCategory === "overweight" ? "Overweight"
     : imcCategory === "obesity_1"   ? "Obesity I"    : imcCategory === "obesity_2" ? "Obesity II"   : "Obesity III";
 
-  const boxBg    = tone === "block"   ? "rgba(255,68,68,0.07)"   : tone === "warn"    ? "rgba(255,170,0,0.07)"  : tone === "caution" ? "rgba(59,130,246,0.07)"  : "rgba(136,238,34,0.05)";
-  const boxBorder= tone === "block"   ? "rgba(255,68,68,0.25)"   : tone === "warn"    ? "rgba(255,170,0,0.25)"  : tone === "caution" ? "rgba(59,130,246,0.25)"   : "rgba(136,238,34,0.15)";
-  const boxColor = tone === "block"   ? "#ff4444"                : tone === "warn"    ? "#ffaa00"               : tone === "caution" ? "#60a5fa"                  : "#88ee22";
+  // Tono → color de /vision (decisión 24/07/2026): normal=beige, precaución y
+  // advertencia=ámbar (token acotado a avisos de salud), bloqueo=rojo. El rojo
+  // se reserva al bloqueo real (parada dura); ámbar = "continúa con cuidado".
+  const isWarnTone = tone === "warn" || tone === "caution";
+  const boxColor = tone === "block" ? "var(--color-brand-red)" : isWarnTone ? "var(--color-brand-warn)" : "var(--color-brand-accent)";
+  const boxBg    = tone === "block" ? "color-mix(in srgb, var(--color-brand-red) 8%, transparent)"  : isWarnTone ? "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)" : "var(--color-brand-accent-soft)";
+  const boxBorder= tone === "block" ? "color-mix(in srgb, var(--color-brand-red) 30%, transparent)" : isWarnTone ? "color-mix(in srgb, var(--color-brand-warn) 35%, transparent)" : "var(--color-brand-border)";
 
   const step2Blocked = currentStep === 2 && (
     (tone === "block") ||
@@ -916,22 +927,22 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="font-sans" style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
+    <div className="goaliq-vision font-sans" style={{ minHeight: "100vh", background: "var(--color-brand-bg)", display: "flex", flexDirection: "column" }}>
 
       {/* ── Sticky progress bar ─────────────────────────────────────────────── */}
-      <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid #1a1a1a", background: "#0a0a0a", position: "sticky", top: 0, zIndex: 10 }}>
+      <div style={{ padding: "16px 20px 14px", borderBottom: "1px solid var(--color-brand-border)", background: "var(--color-brand-bg)", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 11, color: "#555" }}>
+            <span style={{ fontSize: 11, color: "var(--color-brand-grey)" }}>
               {isES ? `Paso ${currentStep + 1} de ${STEPS.length}` : `Step ${currentStep + 1} of ${STEPS.length}`}
             </span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#888", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--color-brand-text-lbl)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
               {isES ? STEP_NAMES_ES[currentStep] : STEP_NAMES_EN[currentStep]}
             </span>
           </div>
           <div style={{ display: "flex", gap: 4 }}>
             {STEPS.map((_, i) => (
-              <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < currentStep ? "#88ee22" : i === currentStep ? "rgba(136,238,34,0.4)" : "#1f1f1f", transition: "background 0.3s" }} />
+              <div key={i} style={{ flex: 1, height: 3, borderRadius: 2, background: i < currentStep ? "var(--color-brand-accent)" : i === currentStep ? "var(--color-brand-accent-soft)" : "var(--color-brand-border)", transition: "background 0.3s" }} />
             ))}
           </div>
         </div>
@@ -948,9 +959,9 @@ export default function Onboarding() {
 
           {/* Edit mode banner */}
           {isEditMode && (
-            <div className="mb-4 flex items-center gap-2.5 bg-[#AAFF45]/5 border border-[#AAFF45]/15 rounded-lg px-4 py-3">
-              <Pencil className="w-4 h-4 text-[#AAFF45] shrink-0" />
-              <p className="text-sm text-[#AAFF45]/80 font-medium">
+            <div className="mb-4 flex items-center gap-2.5 bg-[var(--color-brand-accent-soft)] border border-[var(--color-brand-accent)] rounded-lg px-4 py-3">
+              <Pencil className="w-4 h-4 text-[var(--color-brand-accent)] shrink-0" />
+              <p className="text-sm text-[var(--color-brand-text-lbl)] font-medium">
                 {t("updating_both_plans")}
               </p>
             </div>
@@ -962,9 +973,9 @@ export default function Onboarding() {
           {currentStep === 0 && (
             <>
               {/* Emphasis banner — same palette as the >65 warning for visual coherence */}
-              <div style={{ background: "rgba(255,170,0,0.07)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "#ffaa00", marginTop: 2 }} />
-                <p style={{ fontSize: 12, color: "#ffaa00", lineHeight: 1.5, margin: 0, fontWeight: 600 }}>
+              <div style={{ background: "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-warn) 32%, transparent)", borderRadius: 12, padding: "12px 14px", marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: "var(--color-brand-warn)", marginTop: 2 }} />
+                <p style={{ fontSize: 12, color: "var(--color-brand-warn)", lineHeight: 1.5, margin: 0, fontWeight: 600 }}>
                   {isES
                     ? "Cuestionario médico obligatorio — necesitamos confirmar que GoalIQ es seguro para ti."
                     : "Mandatory health questionnaire — we need to confirm GoalIQ is safe for you."}
@@ -972,39 +983,39 @@ export default function Onboarding() {
               </div>
 
               {/* RGPD Art. 9 — Consentimiento explícito de datos médicos */}
-              <div className="mb-3 p-4 bg-[#1A1A1A] border border-[#AAFF45]/30 rounded-lg">
-                <h3 className="text-[#AAFF45] font-semibold mb-2 flex items-center gap-2">
-                  🛡️ {isES ? "Consentimiento de datos médicos (RGPD Art. 9)" : "Medical data consent (GDPR Art. 9)"}
+              <div className="mb-3 p-4 bg-[var(--color-brand-text-lbl)] border border-[var(--color-brand-accent)] rounded-lg">
+                <h3 className="text-[var(--color-brand-accent)] font-semibold mb-2 flex items-center gap-2">
+                  {isES ? "Consentimiento de datos médicos (RGPD Art. 9)" : "Medical data consent (GDPR Art. 9)"}
                 </h3>
-                <p className="text-sm text-[#A0A0A0] mb-3 leading-relaxed">
+                <p className="text-sm text-[var(--color-brand-grey)] mb-3 leading-relaxed">
                   {isES ? (
                     <>
                       Para crear tus planes personalizados de forma segura, necesitamos procesar{" "}
-                      <strong className="text-white">datos médicos sensibles</strong> (alergias,
+                      <strong className="text-[var(--color-brand-text-lbl)]">datos médicos sensibles</strong> (alergias,
                       condiciones médicas, medicamentos). Según el Reglamento General de Protección
                       de Datos (RGPD), estos datos son categoría especial y requieren tu{" "}
-                      <strong className="text-white">consentimiento explícito</strong>.
+                      <strong className="text-[var(--color-brand-text-lbl)]">consentimiento explícito</strong>.
                     </>
                   ) : (
                     <>
                       To safely create your personalized plans, we need to process{" "}
-                      <strong className="text-white">sensitive medical data</strong> (allergies,
+                      <strong className="text-[var(--color-brand-text-lbl)]">sensitive medical data</strong> (allergies,
                       conditions, medications). Under the GDPR, this data is a special category and
-                      requires your <strong className="text-white">explicit consent</strong>.
+                      requires your <strong className="text-[var(--color-brand-text-lbl)]">explicit consent</strong>.
                     </>
                   )}
                 </p>
-                <p className="text-xs text-[#808080] mb-3">
+                <p className="text-xs text-[var(--color-brand-grey)] mb-3">
                   {isES
                     ? "Estos datos se almacenan cifrados, solo tú tienes acceso, y puedes solicitar su eliminación en cualquier momento desde tu cuenta. "
                     : "This data is stored encrypted, only you have access, and you can request its deletion at any time from your account. "}
                   <a href="/privacy" target="_blank" rel="noopener noreferrer"
-                     className="text-[#AAFF45] hover:underline">
+                     className="text-[var(--color-brand-accent)] hover:underline">
                     {isES ? "Ver Política de Privacidad" : "View Privacy Policy"}
                   </a>
                 </p>
                 {!medicalConsentLoaded ? (
-                  <p className="text-sm text-[#A0A0A0] italic flex items-center gap-2">
+                  <p className="text-sm text-[var(--color-brand-grey)] italic flex items-center gap-2">
                     <Loader2 className="w-3 h-3 animate-spin" />
                     {isES ? "Verificando estado…" : "Checking status…"}
                   </p>
@@ -1014,10 +1025,10 @@ export default function Onboarding() {
                       type="checkbox"
                       checked={medicalConsentAccepted}
                       onChange={(e) => handleMedicalConsentChange(e.target.checked)}
-                      className="mt-1 accent-[#AAFF45]"
+                      className="mt-1 accent-[var(--color-brand-accent)]"
                       disabled={medicalConsentSubmitting}
                     />
-                    <span className="text-sm text-white">
+                    <span className="text-sm text-[var(--color-brand-text-lbl)]">
                       {isES ? (
                         <>
                           <strong>Acepto el procesamiento de mis datos médicos</strong> conforme
@@ -1036,12 +1047,12 @@ export default function Onboarding() {
                 )}
               </div>
 
-              <SectionCard emoji="🩺" title={isES ? "Cuestionario médico" : "Health questionnaire"}>
+              <SectionCard icon={Stethoscope} title={isES ? "Cuestionario médico" : "Health questionnaire"}>
                 <div>
-                  <h2 style={{ fontSize: 16, fontWeight: 700, color: "#e8e8e8", margin: 0, marginBottom: 6 }}>
+                  <h2 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-brand-text-lbl)", margin: 0, marginBottom: 6 }}>
                     {isES ? "Antes de configurar tu plan" : "Before setting up your plan"}
                   </h2>
-                  <p style={{ fontSize: 12, color: "#888", lineHeight: 1.5, margin: 0 }}>
+                  <p style={{ fontSize: 12, color: "var(--color-brand-grey)", lineHeight: 1.5, margin: 0 }}>
                     {isES
                       ? "Marca las opciones que apliquen a tu situación de salud actual:"
                       : "Check the options that apply to your current health situation:"}
@@ -1052,14 +1063,14 @@ export default function Onboarding() {
                   {(Object.keys(CONDITION_LABELS) as HealthConditionKey[]).map(key => {
                     const checked = conditions[key];
                     return (
-                      <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: checked ? "rgba(255,170,0,0.06)" : "#111", border: `1px solid ${checked ? "rgba(255,170,0,0.3)" : "#1f1f1f"}`, transition: "all 0.15s" }}>
+                      <label key={key} style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: checked ? "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)" : "var(--color-brand-card)", border: `1px solid ${checked ? "color-mix(in srgb, var(--color-brand-warn) 30%, transparent)" : "var(--color-brand-border)"}`, transition: "all 0.15s" }}>
                         <div
                           onClick={() => toggleCondition(key)}
-                          style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "#ffaa00" : "#333"}`, background: checked ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                          style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${checked ? "var(--color-brand-warn)" : "var(--color-brand-border)"}`, background: checked ? "var(--color-brand-warn)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                         >
-                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          {checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--color-brand-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                        <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }} onClick={() => toggleCondition(key)}>
+                        <span style={{ fontSize: 12, color: "var(--color-brand-grey)", lineHeight: 1.5 }} onClick={() => toggleCondition(key)}>
                           {isES ? CONDITION_LABELS[key].es : CONDITION_LABELS[key].en}
                         </span>
                       </label>
@@ -1067,23 +1078,23 @@ export default function Onboarding() {
                   })}
 
                   {/* "None of the above" — mutually exclusive with everything else */}
-                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: declaredNoConditions ? "rgba(136,238,34,0.07)" : "#111", border: `1px solid ${declaredNoConditions ? "rgba(136,238,34,0.3)" : "#1f1f1f"}`, transition: "all 0.15s", marginTop: 4 }}>
+                  <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, background: declaredNoConditions ? "var(--color-brand-accent-soft)" : "var(--color-brand-card)", border: `1px solid ${declaredNoConditions ? "var(--color-brand-accent-soft)" : "var(--color-brand-border)"}`, transition: "all 0.15s", marginTop: 4 }}>
                     <div
                       onClick={toggleNoConditions}
-                      style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${declaredNoConditions ? "#88ee22" : "#333"}`, background: declaredNoConditions ? "#88ee22" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+                      style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${declaredNoConditions ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`, background: declaredNoConditions ? "var(--color-brand-accent)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
                     >
-                      {declaredNoConditions && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      {declaredNoConditions && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--color-brand-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                     </div>
-                    <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5, fontWeight: 600 }} onClick={toggleNoConditions}>
+                    <span style={{ fontSize: 12, color: "var(--color-brand-grey)", lineHeight: 1.5, fontWeight: 600 }} onClick={toggleNoConditions}>
                       {isES ? "Ninguna de las anteriores" : "None of the above"}
                     </span>
                   </label>
                 </div>
 
                 {screeningError && (
-                  <div style={{ marginTop: 4, display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.25)", borderRadius: 10, padding: "10px 12px" }}>
-                    <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#ff4444", marginTop: 1 }} />
-                    <p style={{ fontSize: 12, color: "#ff7777", lineHeight: 1.5, margin: 0 }}>{screeningError}</p>
+                  <div style={{ marginTop: 4, display: "flex", alignItems: "flex-start", gap: 10, background: "color-mix(in srgb, var(--color-brand-red) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-red) 30%, transparent)", borderRadius: 10, padding: "10px 12px" }}>
+                    <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "var(--color-brand-red)", marginTop: 1 }} />
+                    <p style={{ fontSize: 12, color: "var(--color-brand-red)", lineHeight: 1.5, margin: 0 }}>{screeningError}</p>
                   </div>
                 )}
               </SectionCard>
@@ -1091,7 +1102,7 @@ export default function Onboarding() {
           )}
 
           {/* ── Step 1: Sobre ti ────────────────────────────────────────── */}
-          {currentStep === 1 && <SectionCard emoji="👤" title={isES ? "Sobre ti" : "About you"}>
+          {currentStep === 1 && <SectionCard icon={User} title={isES ? "Sobre ti" : "About you"}>
             <Field label={t("what_call_you")} hint={t("personalise_hint")}>
               <input
                 type="text"
@@ -1167,7 +1178,7 @@ export default function Onboarding() {
 
           {/* ── Step 2: Tu objetivo ─────────────────────────────────────── */}
           {currentStep === 2 && <>
-          <SectionCard emoji="🎯" title={isES ? "Tu objetivo" : "Your goal"}>
+          <SectionCard icon={Target} title={isES ? "Tu objetivo" : "Your goal"}>
 
             {/* ── IMC stats row ───────────────────────────────────────── */}
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -1176,9 +1187,9 @@ export default function Onboarding() {
                 { label: isES ? "Categoría" : "Category",    value: imcCategoryLabel },
                 { label: isES ? "Rango sano" : "Healthy range", value: `${wMin}–${wMax} kg` },
               ].map(stat => (
-                <div key={stat.label} style={{ flex: 1, background: "#111", border: "1px solid #1f1f1f", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
-                  <div style={{ fontSize: 10, color: "#555", fontWeight: 600, marginBottom: 2 }}>{stat.label}</div>
-                  <div style={{ fontSize: 13, color: "#e8e8e8", fontWeight: 700 }}>{stat.value}</div>
+                <div key={stat.label} style={{ flex: 1, background: "var(--color-brand-card)", border: "1px solid var(--color-brand-border)", borderRadius: 10, padding: "8px 10px", textAlign: "center" }}>
+                  <div style={{ fontSize: 10, color: "var(--color-brand-grey)", fontWeight: 600, marginBottom: 2 }}>{stat.label}</div>
+                  <div style={{ fontSize: 13, color: "var(--color-brand-text-lbl)", fontWeight: 700 }}>{stat.value}</div>
                 </div>
               ))}
             </div>
@@ -1190,11 +1201,11 @@ export default function Onboarding() {
 
                 {/* Blocked state */}
                 {tone === "block" && (
-                  <div style={{ marginTop: 10, background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.3)", borderRadius: 8, padding: "10px 12px" }}>
-                    <p style={{ fontSize: 11, color: "#ff6666", fontWeight: 700, margin: 0 }}>
-                      {isES ? "⛔ No podemos generar este plan para tu perfil actual." : "⛔ We cannot generate this plan for your current profile."}
+                  <div style={{ marginTop: 10, background: "color-mix(in srgb, var(--color-brand-red) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-red) 30%, transparent)", borderRadius: 8, padding: "10px 12px" }}>
+                    <p style={{ fontSize: 11, color: "var(--color-brand-red)", fontWeight: 700, margin: 0 }}>
+                      {isES ? "No podemos generar este plan para tu perfil actual." : "We cannot generate this plan for your current profile."}
                     </p>
-                    <p style={{ fontSize: 11, color: "#888", marginTop: 4, lineHeight: 1.4 }}>
+                    <p style={{ fontSize: 11, color: "var(--color-brand-grey)", marginTop: 4, lineHeight: 1.4 }}>
                       {isES ? "Elige otro objetivo o consulta con un profesional de la salud antes de continuar." : "Choose a different goal or consult a health professional before continuing."}
                     </p>
                   </div>
@@ -1211,22 +1222,22 @@ export default function Onboarding() {
                         <div
                           onClick={() => cb.setChecked(v => !v)}
                           style={{
-                            width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? boxColor : "#333"}`,
+                            width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? boxColor : "var(--color-brand-border)"}`,
                             background: cb.checked ? boxColor : "transparent", flexShrink: 0, marginTop: 1,
                             display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
                           }}
                         >
-                          {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                          {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--color-brand-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                         </div>
-                        <span style={{ fontSize: 11, color: "#aaa", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
+                        <span style={{ fontSize: 11, color: "var(--color-brand-grey)", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
                           {isES ? cb.labelES : cb.labelEN}
                         </span>
                       </label>
                     ))}
-                    <p style={{ fontSize: 10, color: "#555", marginTop: 4, lineHeight: 1.4 }}>
+                    <p style={{ fontSize: 10, color: "var(--color-brand-grey)", marginTop: 4, lineHeight: 1.4 }}>
                       {isES
-                        ? "⚠️ Este plan es orientativo y no constituye consejo médico. Consulta con un profesional sanitario si tienes dudas."
-                        : "⚠️ This plan is informational and does not constitute medical advice. Consult a healthcare professional if in doubt."}
+                        ? "Este plan es orientativo y no constituye consejo médico. Consulta con un profesional sanitario si tienes dudas."
+                        : "This plan is informational and does not constitute medical advice. Consult a healthcare professional if in doubt."}
                     </p>
                   </div>
                 )}
@@ -1235,8 +1246,8 @@ export default function Onboarding() {
 
             {/* ── Age >65 warning ─────────────────────────────────────── */}
             {isOldAge && (
-              <div style={{ background: "rgba(255,170,0,0.07)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
-                <p style={{ fontSize: 12, color: "#ffaa00", lineHeight: 1.5, margin: 0 }}>
+              <div style={{ background: "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-warn) 32%, transparent)", borderRadius: 12, padding: "12px 14px", marginBottom: 12 }}>
+                <p style={{ fontSize: 12, color: "var(--color-brand-warn)", lineHeight: 1.5, margin: 0 }}>
                   {isES
                     ? `Tienes ${formData.age} años. Para personas mayores de 65 años, los cambios en dieta y entrenamiento deben hacerse con supervisión médica. Este plan es orientativo.`
                     : `You are ${formData.age} years old. For people over 65, dietary and training changes should be made with medical supervision. This plan is informational.`}
@@ -1250,14 +1261,14 @@ export default function Onboarding() {
                       <div
                         onClick={() => cb.setChecked(v => !v)}
                         style={{
-                          width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? "#ffaa00" : "#333"}`,
-                          background: cb.checked ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1,
+                          width: 18, height: 18, borderRadius: 5, border: `2px solid ${cb.checked ? "var(--color-brand-warn)" : "var(--color-brand-border)"}`,
+                          background: cb.checked ? "var(--color-brand-warn)" : "transparent", flexShrink: 0, marginTop: 1,
                           display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s",
                         }}
                       >
-                        {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                        {cb.checked && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--color-brand-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                       </div>
-                      <span style={{ fontSize: 11, color: "#aaa", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
+                      <span style={{ fontSize: 11, color: "var(--color-brand-grey)", lineHeight: 1.5 }} onClick={() => cb.setChecked(v => !v)}>
                         {isES ? cb.labelES : cb.labelEN}
                       </span>
                     </label>
@@ -1268,10 +1279,10 @@ export default function Onboarding() {
 
             <div className="flex flex-col gap-3">
               {[
-                { id: "lose_fat",      emoji: "🔥", label: isES ? "Perder peso"   : "Lose weight" },
-                { id: "gain_muscle",   emoji: "💪", label: isES ? "Ganar músculo" : "Build muscle" },
-                { id: "maintain",      emoji: "⚖️", label: isES ? "Mantenerme"    : "Stay fit" },
-                { id: "recomposition", emoji: "🔄", label: isES ? "Recomposición" : "Recomposition" },
+                { id: "lose_fat",      Icon: Flame,        label: isES ? "Perder peso"   : "Lose weight" },
+                { id: "gain_muscle",   Icon: BicepsFlexed, label: isES ? "Ganar músculo" : "Build muscle" },
+                { id: "maintain",      Icon: Scale,        label: isES ? "Mantenerme"    : "Stay fit" },
+                { id: "recomposition", Icon: RefreshCw,    label: isES ? "Recomposición" : "Recomposition" },
               ].map(g => {
                 const isSelected = formData.goalType === g.id;
                 const detail = GOAL_DETAILS[g.id];
@@ -1280,8 +1291,8 @@ export default function Onboarding() {
                     key={g.id}
                     className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
                       isSelected
-                        ? "border-[#AAFF45] bg-[#AAFF45]/5"
-                        : "border-[#2A2A2A] bg-[#111111] hover:border-[#3A3A3A]"
+                        ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)]"
+                        : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] hover:border-[var(--color-brand-border)]"
                     }`}
                   >
                     {/* Goal header */}
@@ -1290,55 +1301,58 @@ export default function Onboarding() {
                       onClick={() => { update({ goalType: g.id }); setHealthCheckbox1(false); setHealthCheckbox2(false); }}
                       className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
                     >
-                      <span className="text-2xl shrink-0">{g.emoji}</span>
-                      <span className={`text-sm font-bold flex-1 ${isSelected ? "text-[#AAFF45]" : "text-white"}`}>
+                      <g.Icon className="w-6 h-6 shrink-0" style={{ color: isSelected ? "var(--color-brand-accent)" : "var(--color-brand-grey)" }} strokeWidth={2} />
+                      <span className="text-sm font-bold flex-1 text-[var(--color-brand-text-lbl)]">
                         {g.label}
                       </span>
                       <div className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
-                        isSelected ? "border-[#AAFF45] bg-[#AAFF45]" : "border-[#3A3A3A]"
+                        isSelected ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent)]" : "border-[var(--color-brand-border)]"
                       }`}>
-                        {isSelected && <Check className="w-3 h-3 text-[#0A0A0A]" />}
+                        {isSelected && <Check className="w-3 h-3 text-[var(--color-brand-bg)]" />}
                       </div>
                     </button>
 
                     {/* Expanded detail */}
                     {isSelected && detail && (
-                      <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                      <div className="px-4 pb-4 border-t border-[var(--color-brand-accent)]">
                         {/* Coach description */}
-                        <p className="text-xs text-[#888] mt-3 mb-3 leading-relaxed">
-                          💬 {isES ? detail.description : detail.descriptionEN}
+                        <p className="text-xs text-[var(--color-brand-grey)] mt-3 mb-3 leading-relaxed">
+                          {isES ? detail.description : detail.descriptionEN}
                         </p>
 
-                        {/* Pace slider */}
+                        {/* Pace — 3 tarjetas seleccionables (mismo patrón que nivel) */}
                         {detail.paces && (
                           <>
-                            <p className="text-xs font-semibold text-[#A0A0A0] mb-1">
+                            <p className="text-xs font-semibold text-[var(--color-brand-text-lbl)] mb-2">
                               {isES ? "¿A qué ritmo?" : "At what pace?"}
                             </p>
-                            <div style={{ margin: "8px 0 16px" }}>
-                              <div
-                                style={{ position: "relative", height: 4, background: "#2a2a2a", borderRadius: 2, margin: "20px 0 10px", cursor: "pointer" }}
-                                onClick={e => {
-                                  const rect = e.currentTarget.getBoundingClientRect();
-                                  const pct = (e.clientX - rect.left) / rect.width;
-                                  const idx = pct < 0.33 ? 0 : pct < 0.66 ? 1 : 2;
-                                  setPaceIndex(idx);
-                                  setGoalPace(idx === 0 ? "gentle" : idx === 2 ? "aggressive" : "moderate");
-                                }}
-                              >
-                                <div style={{ position: "absolute", left: 0, top: 0, height: "100%", background: "#88ee22", borderRadius: 2, width: `${paceIndex * 50}%`, transition: "width 0.15s" }} />
-                                <div style={{ position: "absolute", top: "50%", left: `${paceIndex * 50}%`, transform: "translate(-50%, -50%)", width: 22, height: 22, borderRadius: "50%", background: "#88ee22", border: "2px solid #0a0a0a", boxShadow: "0 0 0 3px rgba(136,238,34,0.2)", transition: "left 0.15s", cursor: "grab" }} />
-                              </div>
-                              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                                {detail.paces.map((p, i) => (
-                                  <span key={i} style={{ fontSize: 11, color: i === paceIndex ? "#88ee22" : "#444", fontWeight: i === paceIndex ? 700 : 400, flex: 1, textAlign: i === 0 ? "left" : i === 2 ? "right" : "center" }}>
-                                    {p.emoji} {isES ? p.label : p.labelEN}
-                                  </span>
-                                ))}
-                              </div>
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(136,238,34,0.08)", border: "1px solid rgba(136,238,34,0.2)", borderRadius: 20, padding: "6px 14px", fontSize: 12, color: "#88ee22", fontWeight: 600, marginTop: 8 }}>
-                                {isES ? detail.paces[paceIndex].badge : detail.paces[paceIndex].badgeEN}
-                              </div>
+                            <div className="grid grid-cols-3 gap-2 mb-2">
+                              {detail.paces.map((p, i) => {
+                                const active = i === paceIndex;
+                                return (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setPaceIndex(i);
+                                      setGoalPace(i === 0 ? "gentle" : i === 2 ? "aggressive" : "moderate");
+                                    }}
+                                    className={`flex flex-col items-start text-left py-2.5 px-2.5 rounded-xl border-2 transition-all ${
+                                      active
+                                        ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)]"
+                                        : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] hover:border-[var(--color-brand-accent)]"
+                                    }`}
+                                  >
+                                    <span className="text-xs font-bold text-[var(--color-brand-text-lbl)] leading-tight">{isES ? p.label : p.labelEN}</span>
+                                    <span className="text-[10px] text-[var(--color-brand-grey)] mt-1 leading-tight">{isES ? p.badge : p.badgeEN}</span>
+                                    {p.recommended && (
+                                      <span className="text-[9px] font-bold text-[var(--color-brand-text-lbl)] mt-1 rounded-full px-1.5 py-0.5" style={{ background: "var(--color-brand-accent-soft)", border: "1px solid var(--color-brand-accent)" }}>
+                                        {isES ? "Recomendado" : "Recommended"}
+                                      </span>
+                                    )}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </>
                         )}
@@ -1350,9 +1364,9 @@ export default function Onboarding() {
             </div>
           </SectionCard>
 
-          <SectionCard emoji="⏱" title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
+          <SectionCard icon={Timer} title={isES ? "Ayuno intermitente" : "Intermittent fasting"} badge={isES ? "opcional" : "optional"}>
             <div className={`rounded-xl border-2 transition-all duration-200 overflow-hidden ${
-              fastingEnabled ? "border-[#AAFF45]/40 bg-[#AAFF45]/5" : "border-[#2A2A2A] bg-[#111111]"
+              fastingEnabled ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)]" : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)]"
             }`}>
               {/* Toggle header */}
               <button
@@ -1360,33 +1374,33 @@ export default function Onboarding() {
                 onClick={() => setFastingEnabled(v => !v)}
                 className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
               >
-                <span className="text-2xl shrink-0">🕐</span>
+                <Clock className="w-6 h-6 shrink-0" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
                 <div className="flex-1">
-                  <p className={`text-sm font-semibold ${fastingEnabled ? "text-[#AAFF45]" : "text-white"}`}>
+                  <p className={`text-sm font-semibold ${fastingEnabled ? "text-[var(--color-brand-text-lbl)]" : "text-[var(--color-brand-text-lbl)]"}`}>
                     {isES ? "Practico ayuno intermitente" : "I practice intermittent fasting"}
                   </p>
-                  <p className="text-xs text-[#555] mt-0.5">
+                  <p className="text-xs text-[var(--color-brand-grey)] mt-0.5">
                     {isES ? "La IA adaptará los horarios de tus comidas" : "The AI will adapt your meal timing"}
                   </p>
                 </div>
                 {/* Toggle switch */}
-                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${fastingEnabled ? "bg-[#AAFF45]" : "bg-[#2A2A2A]"}`}>
-                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${fastingEnabled ? "left-6" : "left-1"}`} />
+                <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${fastingEnabled ? "bg-[var(--color-brand-accent)]" : "bg-[var(--color-brand-border)]"}`}>
+                  <div className={`absolute top-1 w-4 h-4 bg-[var(--color-brand-card)] rounded-full shadow transition-all ${fastingEnabled ? "left-6" : "left-1"}`} />
                 </div>
               </button>
 
               {/* Protocol picker */}
               {fastingEnabled && (
-                <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
-                  <p className="text-xs font-semibold text-[#A0A0A0] mt-3 mb-2">
+                <div className="px-4 pb-4 border-t border-[var(--color-brand-accent)]">
+                  <p className="text-xs font-semibold text-[var(--color-brand-grey)] mt-3 mb-2">
                     {isES ? "Elige tu protocolo" : "Choose your protocol"}
                   </p>
                   <div className="flex flex-col gap-2">
                     {([
-                      { id: "12:12", label: "12:12", badge: isES ? "Para empezar" : "Beginner",    badgeColor: "#7B8CDE", desc: isES ? "El más suave. 12h de ayuno, ideal para principiantes. Generalmente de 20:00 a 08:00. Sin grandes cambios en tu rutina diaria." : "The gentlest. 12h fast, ideal for beginners. Usually 8pm to 8am. No major changes to your routine." },
-                      { id: "16:8", label: "16:8",  badge: isES ? "Más popular"  : "Most popular", badgeColor: "#88ee22", desc: isES ? "Ayunas 16h y comes en una ventana de 8h. El protocolo más estudiado. Mejora sensibilidad a la insulina y favorece la pérdida de grasa. Ej: comes de 12:00 a 20:00." : "Fast 16h, eat in an 8h window. Most studied protocol. Improves insulin sensitivity. E.g. eat 12pm–8pm." },
+                      { id: "12:12", label: "12:12", badge: isES ? "Para empezar" : "Beginner",    badgeColor: "var(--color-brand-accent)", desc: isES ? "El más suave. 12h de ayuno, ideal para principiantes. Generalmente de 20:00 a 08:00. Sin grandes cambios en tu rutina diaria." : "The gentlest. 12h fast, ideal for beginners. Usually 8pm to 8am. No major changes to your routine." },
+                      { id: "16:8", label: "16:8",  badge: isES ? "Más popular"  : "Most popular", badgeColor: "var(--color-brand-accent)", desc: isES ? "Ayunas 16h y comes en una ventana de 8h. El protocolo más estudiado. Mejora sensibilidad a la insulina y favorece la pérdida de grasa. Ej: comes de 12:00 a 20:00." : "Fast 16h, eat in an 8h window. Most studied protocol. Improves insulin sensitivity. E.g. eat 12pm–8pm." },
                       { id: "18:6", label: "18:6",  badge: null,                                    badgeColor: null,     desc: isES ? "Ventana de 6 horas. Mayor flexibilidad metabólica que el 16:8. Recomendado si ya tienes experiencia. Ej: comes de 13:00 a 19:00." : "6-hour eating window. Greater metabolic flexibility than 16:8. Recommended with prior fasting experience." },
-                      { id: "20:4", label: "20:4",  badge: isES ? "Avanzado"    : "Advanced",      badgeColor: "#FFB800", desc: isES ? "Solo 4 horas para comer. Warrior Diet. Alta demanda para el organismo. Para usuarios con experiencia sólida en ayuno intermitente." : "Only 4 hours to eat. Warrior Diet. High demand on the body. For users with solid fasting experience." },
+                      { id: "20:4", label: "20:4",  badge: isES ? "Avanzado"    : "Advanced",      badgeColor: "var(--color-brand-accent)", desc: isES ? "Solo 4 horas para comer. Warrior Diet. Alta demanda para el organismo. Para usuarios con experiencia sólida en ayuno intermitente." : "Only 4 hours to eat. Warrior Diet. High demand on the body. For users with solid fasting experience." },
                       { id: "5:2",  label: "5:2",   badge: null,                                    badgeColor: null,     desc: isES ? "Comes normal 5 días a la semana. Los otros 2 días no consecutivos reduces a 500–600 kcal. Flexible y compatible con vida social." : "Eat normally 5 days. The other 2 non-consecutive days reduce to 500–600 kcal. Flexible and socially compatible." },
                     ] as const).map(p => (
                       <button
@@ -1395,12 +1409,12 @@ export default function Onboarding() {
                         onClick={() => setFastingProtocol(p.id)}
                         className={`flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-left transition-all ${
                           fastingProtocol === p.id
-                            ? "border-[#AAFF45]/60 bg-[#AAFF45]/10"
-                            : "border-[#2A2A2A] bg-[#0A0A0A] hover:border-[#3A3A3A]"
+                            ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)]"
+                            : "border-[var(--color-brand-border)] bg-[var(--color-brand-bg)] hover:border-[var(--color-brand-border)]"
                         }`}
                       >
                         <div className="flex items-center gap-2">
-                          <span className={`text-sm font-bold ${fastingProtocol === p.id ? "text-[#AAFF45]" : "text-white"}`}>
+                          <span className={`text-sm font-bold ${fastingProtocol === p.id ? "text-[var(--color-brand-text-lbl)]" : "text-[var(--color-brand-text-lbl)]"}`}>
                             {p.label}
                           </span>
                           {p.badge && p.badgeColor && (
@@ -1412,22 +1426,22 @@ export default function Onboarding() {
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] text-[#555] leading-snug">{p.desc}</p>
+                        <p className="text-[10px] text-[var(--color-brand-grey)] leading-snug">{p.desc}</p>
 
                         {fastingProtocol === p.id && (
                           <>
                             {/* What you CAN consume during the fast */}
                             <div style={{ marginTop: 10, marginBottom: 8 }}>
-                              <p style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 8 }}>
-                                ✅ {isES ? "Puedes tomar durante el ayuno" : "You can consume during the fast"}
+                              <p style={{ fontSize: 10, fontWeight: 700, color: "var(--color-brand-grey)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 8 }}>
+                                {isES ? "Puedes tomar durante el ayuno" : "You can consume during the fast"}
                               </p>
                               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                                 {(FASTING_ALLOWED[p.id] ?? []).map((item, idx) => (
                                   <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
-                                    <span style={{ fontSize: 13, flexShrink: 0, marginTop: 1 }}>{item.icon}</span>
+                                    <item.icon className="w-[14px] h-[14px] shrink-0 mt-0.5" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
                                     <span
-                                      style={{ fontSize: 12, color: "#aaa", lineHeight: 1.4 }}
-                                      dangerouslySetInnerHTML={{ __html: (isES ? item.textES : item.textEN).replace(/^([^—]+)/, '<strong style="color:#e8e8e8">$1</strong>') }}
+                                      style={{ fontSize: 12, color: "var(--color-brand-grey)", lineHeight: 1.4 }}
+                                      dangerouslySetInnerHTML={{ __html: (isES ? item.textES : item.textEN).replace(/^([^—]+)/, '<strong style="color:var(--color-brand-border)">$1</strong>') }}
                                     />
                                   </div>
                                 ))}
@@ -1438,7 +1452,7 @@ export default function Onboarding() {
                             {(() => {
                               const note = FASTING_DIET_NOTES[p.id]?.[formData.dietType];
                               return note ? (
-                                <div style={{ background: "rgba(136,238,34,0.05)", border: "1px solid rgba(136,238,34,0.15)", borderRadius: 10, padding: "10px 12px", fontSize: 11, color: "#88ee22", lineHeight: 1.5, marginBottom: 4 }}>
+                                <div style={{ background: "var(--color-brand-accent-soft)", border: "1px solid var(--color-brand-accent-soft)", borderRadius: 10, padding: "10px 12px", fontSize: 11, color: "var(--color-brand-accent)", lineHeight: 1.5, marginBottom: 4 }}>
                                   {isES ? note.es : note.en}
                                 </div>
                               ) : null;
@@ -1448,9 +1462,9 @@ export default function Onboarding() {
                       </button>
                     ))}
                   </div>
-                  <div className="mt-3 flex items-start gap-2 bg-[#1A1A1A] rounded-lg px-3 py-2.5">
-                    <span className="text-xs shrink-0">💡</span>
-                    <p className="text-[10px] text-[#777] leading-snug">
+                  <div className="mt-3 flex items-start gap-2 bg-[var(--color-brand-text-lbl)] rounded-lg px-3 py-2.5">
+                    <Lightbulb className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
+                    <p className="text-[10px] text-[var(--color-brand-grey)] leading-snug">
                       {isES
                         ? "Tu plan de comidas respetará tu ventana de alimentación. Las comidas se distribuirán dentro de las horas que puedes comer según el protocolo elegido."
                         : "Your meal plan will respect your eating window. Meals will be distributed within the hours you can eat according to your chosen protocol."}
@@ -1464,7 +1478,7 @@ export default function Onboarding() {
           </>}
 
           {/* ── Step 3: Tu dieta ────────────────────────────────────────── */}
-          {currentStep === 3 && <SectionCard emoji="🥗" title={isES ? "Tu dieta" : "Your diet"}>
+          {currentStep === 3 && <SectionCard icon={Salad} title={isES ? "Tu dieta" : "Your diet"}>
             <Field label={t("diet_type_question")}>
               <div className="flex flex-wrap gap-2 mt-1">
                 {[
@@ -1518,13 +1532,13 @@ export default function Onboarding() {
           </SectionCard>}
 
           {/* ── Step 4: Entrenamiento ───────────────────────────────────── */}
-          {currentStep === 4 && <SectionCard emoji="🏋️" title={isES ? "Entrenamiento" : "Training"}>
+          {currentStep === 4 && <SectionCard icon={Dumbbell} title={isES ? "Entrenamiento" : "Training"}>
             <Field label={t("fitness_level")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
-                  { id: "beginner",     emoji: "🌱", label: isES ? "Principiante" : "Beginner" },
-                  { id: "intermediate", emoji: "⚡", label: isES ? "Intermedio"   : "Intermediate" },
-                  { id: "advanced",     emoji: "🏆", label: isES ? "Avanzado"     : "Advanced" },
+                  { id: "beginner",     Icon: Sprout, label: isES ? "Principiante" : "Beginner" },
+                  { id: "intermediate", Icon: Zap,    label: isES ? "Intermedio"   : "Intermediate" },
+                  { id: "advanced",     Icon: Trophy, label: isES ? "Avanzado"     : "Advanced" },
                 ].map(l => (
                   <button
                     key={l.id}
@@ -1532,7 +1546,7 @@ export default function Onboarding() {
                     onClick={() => update({ trainingLevel: l.id })}
                     className={choiceCardClass(formData.trainingLevel === l.id)}
                   >
-                    <span className="text-xl mb-1">{l.emoji}</span>
+                    <l.Icon className="w-5 h-5 mb-1" strokeWidth={2} />
                     <span className="text-xs font-semibold">{l.label}</span>
                   </button>
                 ))}
@@ -1542,9 +1556,9 @@ export default function Onboarding() {
             <Field label={t("where_workout")}>
               <div className="grid grid-cols-3 gap-3 mt-1">
                 {[
-                  { id: "gym",     emoji: "🏋️", label: isES ? "Gimnasio" : "Gym" },
-                  { id: "home",    emoji: "🏠", label: isES ? "Casa"     : "Home" },
-                  { id: "outdoor", emoji: "🌳", label: isES ? "Exterior" : "Outdoor" },
+                  { id: "gym",     Icon: Dumbbell, label: isES ? "Gimnasio" : "Gym" },
+                  { id: "home",    Icon: Home,     label: isES ? "Casa"     : "Home" },
+                  { id: "outdoor", Icon: Trees,    label: isES ? "Exterior" : "Outdoor" },
                 ].map(l => (
                   <button
                     key={l.id}
@@ -1552,7 +1566,7 @@ export default function Onboarding() {
                     onClick={() => update({ trainingLocation: l.id })}
                     className={choiceCardClass(formData.trainingLocation === l.id)}
                   >
-                    <span className="text-xl mb-1">{l.emoji}</span>
+                    <l.Icon className="w-5 h-5 mb-1" strokeWidth={2} />
                     <span className="text-xs font-semibold">{l.label}</span>
                   </button>
                 ))}
@@ -1566,9 +1580,9 @@ export default function Onboarding() {
                 max="7"
                 value={formData.trainingDaysPerWeek}
                 onChange={e => update({ trainingDaysPerWeek: Number(e.target.value) })}
-                className="w-full accent-[#AAFF45] h-2 bg-[#2A2A2A] rounded-lg appearance-none cursor-pointer mt-2"
+                className="w-full accent-[var(--color-brand-accent)] h-2 bg-[var(--color-brand-border)] rounded-lg appearance-none cursor-pointer mt-2"
               />
-              <div className="flex justify-between text-xs text-[#555555] mt-1 px-0.5">
+              <div className="flex justify-between text-xs text-[var(--color-brand-grey)] mt-1 px-0.5">
                 <span>{t("one_day")}</span>
                 <span>{t("seven_days")}</span>
               </div>
@@ -1577,11 +1591,11 @@ export default function Onboarding() {
 
           {/* ── Step 5: Suplementos ─────────────────────────────────────── */}
           {currentStep === 5 && <SectionCard
-            emoji="💊"
+            icon={Pill}
             title={isES ? "Suplementos" : "Supplements"}
             badge={isES ? "opcional" : "optional"}
           >
-            <p className="text-xs text-[#555555] -mt-1 mb-2">
+            <p className="text-xs text-[var(--color-brand-grey)] -mt-1 mb-2">
               {isES
                 ? "Selecciona los que tomas y elige el mejor momento para tomarlos"
                 : "Select the ones you take and choose the best time"}
@@ -1597,8 +1611,8 @@ export default function Onboarding() {
                     key={supp.id}
                     className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                       isSelected
-                        ? "border-[#AAFF45]/40 bg-[#AAFF45]/5"
-                        : "border-[#2A2A2A] bg-[#111111] hover:border-[#3A3A3A]"
+                        ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)]"
+                        : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] hover:border-[var(--color-brand-border)]"
                     }`}
                   >
                     {/* Card header — always visible */}
@@ -1611,33 +1625,33 @@ export default function Onboarding() {
                       <div className="flex-1 min-w-0">
                         <p
                           className={`text-sm font-semibold leading-tight ${
-                            isSelected ? "text-[#AAFF45]" : "text-white"
+                            isSelected ? "text-[var(--color-brand-text-lbl)]" : "text-[var(--color-brand-text-lbl)]"
                           }`}
                         >
                           {supp.name}
                         </p>
-                        <p className="text-xs text-[#555555] mt-0.5 leading-tight">
+                        <p className="text-xs text-[var(--color-brand-grey)] mt-0.5 leading-tight">
                           {supp.shortDesc}
                         </p>
                       </div>
                       <div
                         className={`w-5 h-5 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
                           isSelected
-                            ? "border-[#AAFF45] bg-[#AAFF45]"
-                            : "border-[#3A3A3A]"
+                            ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent)]"
+                            : "border-[var(--color-brand-border)]"
                         }`}
                       >
-                        {isSelected && <Check className="w-3 h-3 text-[#0A0A0A]" />}
+                        {isSelected && <Check className="w-3 h-3 text-[var(--color-brand-bg)]" />}
                       </div>
                     </button>
 
                     {/* Expanded: variant + timing picker */}
                     {isSelected && timing && (
-                      <div className="px-4 pb-4 border-t border-[#AAFF45]/10">
+                      <div className="px-4 pb-4 border-t border-[var(--color-brand-accent)]">
                         {/* Variant selector */}
                         {SUPPLEMENT_VARIANTS[supp.id] && (
                           <div className="mb-3 mt-3">
-                            <p className="text-[10px] font-bold text-[#555] uppercase tracking-wider mb-2">
+                            <p className="text-[10px] font-bold text-[var(--color-brand-grey)] uppercase tracking-wider mb-2">
                               {isES ? "Tipo" : "Type"}
                             </p>
                             <div className="flex flex-col gap-1.5">
@@ -1648,20 +1662,20 @@ export default function Onboarding() {
                                   onClick={() => setSelectedVariants(prev => ({ ...prev, [supp.id]: vIdx }))}
                                   className="w-full text-left flex items-start gap-3 p-2.5 rounded-lg border transition-all"
                                   style={{
-                                    background: selectedVariants[supp.id] === vIdx ? "rgba(136,238,34,0.05)" : "#0d0d0d",
-                                    borderColor: selectedVariants[supp.id] === vIdx ? "#88ee22" : "#1a1a1a",
+                                    background: selectedVariants[supp.id] === vIdx ? "var(--color-brand-accent-soft)" : "var(--color-brand-bg)",
+                                    borderColor: selectedVariants[supp.id] === vIdx ? "var(--color-brand-accent)" : "var(--color-brand-card)",
                                   }}
                                 >
                                   <div
                                     className="w-3.5 h-3.5 rounded-full border-[1.5px] flex-shrink-0 mt-0.5"
                                     style={{
-                                      background: selectedVariants[supp.id] === vIdx ? "#88ee22" : "transparent",
-                                      borderColor: selectedVariants[supp.id] === vIdx ? "#88ee22" : "#444",
+                                      background: selectedVariants[supp.id] === vIdx ? "var(--color-brand-accent)" : "transparent",
+                                      borderColor: selectedVariants[supp.id] === vIdx ? "var(--color-brand-accent)" : "var(--color-brand-border)",
                                     }}
                                   />
                                   <div>
-                                    <p className="text-[13px] font-semibold text-[#e8e8e8]">{variant.name}</p>
-                                    <p className="text-[11px] text-[#555] mt-0.5 leading-snug">{variant.info}</p>
+                                    <p className="text-[13px] font-semibold text-[var(--color-brand-text-lbl)]">{variant.name}</p>
+                                    <p className="text-[11px] text-[var(--color-brand-grey)] mt-0.5 leading-snug">{variant.info}</p>
                                   </div>
                                 </button>
                               ))}
@@ -1669,7 +1683,7 @@ export default function Onboarding() {
                           </div>
                         )}
                         {/* Timing picker */}
-                        <div style={{ marginTop: 10, border: "1px solid #1a1a1a", borderRadius: 14, overflow: "hidden", background: "#0d0d0d" }}>
+                        <div style={{ marginTop: 10, border: "1px solid var(--color-brand-card)", borderRadius: 14, overflow: "hidden", background: "var(--color-brand-bg)" }}>
                           {timing.options.map((opt, optIdx) => {
                             const isOptSelected = selectedTimingIdx === optIdx;
                             const defaultHour = String(opt.notificationHour).padStart(2, "0");
@@ -1678,10 +1692,10 @@ export default function Onboarding() {
                               <div
                                 key={optIdx}
                                 style={{
-                                  borderBottom: optIdx < timing.options.length - 1 ? "1px solid #1a1a1a" : "none",
-                                  border: isOptSelected ? "1px solid rgba(136,238,34,0.3)" : "none",
+                                  borderBottom: optIdx < timing.options.length - 1 ? "1px solid var(--color-brand-card)" : "none",
+                                  border: isOptSelected ? "1px solid var(--color-brand-accent-soft)" : "none",
                                   borderRadius: isOptSelected ? 12 : 0,
-                                  background: isOptSelected ? "rgba(136,238,34,0.04)" : "transparent",
+                                  background: isOptSelected ? "var(--color-brand-accent-soft)" : "transparent",
                                   margin: isOptSelected ? 4 : 0,
                                 }}
                               >
@@ -1692,20 +1706,20 @@ export default function Onboarding() {
                                 >
                                   <div style={{
                                     width: 16, height: 16, borderRadius: "50%",
-                                    border: isOptSelected ? "none" : "1.5px solid #2a2a2a",
-                                    background: isOptSelected ? "#88ee22" : "transparent",
+                                    border: isOptSelected ? "none" : "1.5px solid var(--color-brand-border)",
+                                    background: isOptSelected ? "var(--color-brand-accent)" : "transparent",
                                     flexShrink: 0,
-                                    boxShadow: isOptSelected ? "0 0 0 3px rgba(136,238,34,0.15)" : "none",
+                                    boxShadow: isOptSelected ? "0 0 0 3px var(--color-brand-accent-soft)" : "none",
                                   }} />
                                   <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 700, color: "#e8e8e8" }}>{opt.time}</div>
-                                    <div style={{ fontSize: 11, color: "#555", marginTop: 2 }}>{opt.desc}</div>
+                                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-brand-text-lbl)" }}>{opt.time}</div>
+                                    <div style={{ fontSize: 11, color: "var(--color-brand-grey)", marginTop: 2 }}>{opt.desc}</div>
                                   </div>
                                   <div style={{
                                     fontSize: 12, fontWeight: 800,
-                                    color: isOptSelected ? "#88ee22" : "#555",
-                                    background: isOptSelected ? "rgba(136,238,34,0.1)" : "#111",
-                                    border: `1px solid ${isOptSelected ? "rgba(136,238,34,0.2)" : "#1f1f1f"}`,
+                                    color: isOptSelected ? "var(--color-brand-accent)" : "var(--color-brand-grey)",
+                                    background: isOptSelected ? "var(--color-brand-accent-soft)" : "var(--color-brand-card)",
+                                    border: `1px solid ${isOptSelected ? "var(--color-brand-accent-soft)" : "var(--color-brand-border)"}`,
                                     borderRadius: 8, padding: "3px 10px", whiteSpace: "nowrap",
                                   }}>
                                     {currentTime}
@@ -1714,8 +1728,8 @@ export default function Onboarding() {
 
                                 {/* Expanded detail */}
                                 {isOptSelected && (
-                                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid #1a1a1a" }}>
-                                    <div style={{ fontSize: 10, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.6px", margin: "12px 0 10px" }}>
+                                  <div style={{ padding: "0 14px 14px", borderTop: "1px solid var(--color-brand-card)" }}>
+                                    <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-brand-grey)", textTransform: "uppercase", letterSpacing: "0.6px", margin: "12px 0 10px" }}>
                                       ⏰ {isES ? "¿A qué hora quieres el aviso?" : "What time do you want the reminder?"}
                                     </div>
 
@@ -1729,11 +1743,11 @@ export default function Onboarding() {
                                             key={slot}
                                             onClick={() => setSupplementTimes(prev => ({ ...prev, [supp.id]: slotVal }))}
                                             style={{
-                                              background: isSlotSel ? "rgba(136,238,34,0.08)" : "#111",
-                                              border: `1px solid ${isSlotSel ? "#88ee22" : "#1f1f1f"}`,
+                                              background: isSlotSel ? "var(--color-brand-accent-soft)" : "var(--color-brand-card)",
+                                              border: `1px solid ${isSlotSel ? "var(--color-brand-accent)" : "var(--color-brand-border)"}`,
                                               borderRadius: 8, padding: "7px 11px",
                                               fontSize: 12, fontWeight: 700,
-                                              color: isSlotSel ? "#88ee22" : "#666",
+                                              color: isSlotSel ? "var(--color-brand-accent)" : "var(--color-brand-grey)",
                                               cursor: "pointer",
                                             }}
                                           >
@@ -1744,30 +1758,30 @@ export default function Onboarding() {
                                     </div>
 
                                     {/* Custom time input */}
-                                    <div style={{ display: "flex", alignItems: "center", border: "1px solid #1f1f1f", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
-                                      <span style={{ fontSize: 11, color: "#555", padding: "8px 12px", background: "#0a0a0a", borderRight: "1px solid #1f1f1f", whiteSpace: "nowrap" }}>
+                                    <div style={{ display: "flex", alignItems: "center", border: "1px solid var(--color-brand-border)", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                                      <span style={{ fontSize: 11, color: "var(--color-brand-grey)", padding: "8px 12px", background: "var(--color-brand-bg)", borderRight: "1px solid var(--color-brand-border)", whiteSpace: "nowrap" }}>
                                         {isES ? "Otra hora" : "Custom time"}
                                       </span>
                                       <input
                                         type="time"
                                         value={currentTime}
                                         onChange={e => setSupplementTimes(prev => ({ ...prev, [supp.id]: e.target.value }))}
-                                        style={{ flex: 1, background: "#111", border: "none", outline: "none", padding: "8px 12px", fontSize: 14, fontWeight: 700, color: "#e8e8e8", fontFamily: "inherit", textAlign: "center", cursor: "pointer" }}
+                                        style={{ flex: 1, background: "var(--color-brand-card)", border: "none", outline: "none", padding: "8px 12px", fontSize: 14, fontWeight: 700, color: "var(--color-brand-text-lbl)", fontFamily: "inherit", textAlign: "center", cursor: "pointer" }}
                                       />
                                     </div>
 
                                     {/* Notification preview */}
-                                    <div style={{ background: "#0a0a0a", border: "1px solid #1f1f1f", borderRadius: 10, padding: "10px 12px", display: "flex", gap: 10 }}>
-                                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#88ee22", flexShrink: 0, marginTop: 4 }} />
+                                    <div style={{ background: "var(--color-brand-bg)", border: "1px solid var(--color-brand-border)", borderRadius: 10, padding: "10px 12px", display: "flex", gap: 10 }}>
+                                      <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--color-brand-accent)", flexShrink: 0, marginTop: 4 }} />
                                       <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: 10, color: "#555", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
+                                        <div style={{ fontSize: 10, color: "var(--color-brand-grey)", marginBottom: 3, display: "flex", justifyContent: "space-between" }}>
                                           <span>{isES ? "GoalIQ · Todos los días" : "GoalIQ · Every day"}</span>
-                                          <span style={{ color: "#88ee22", fontWeight: 700 }}>{currentTime}</span>
+                                          <span style={{ color: "var(--color-brand-accent)", fontWeight: 700 }}>{currentTime}</span>
                                         </div>
-                                        <div style={{ fontSize: 12, fontWeight: 700, color: "#e8e8e8" }}>
+                                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-brand-text-lbl)" }}>
                                           {supp.emoji} {isES ? `Toma tu ${supp.name.toLowerCase()}` : `Take your ${supp.name.toLowerCase()}`}
                                         </div>
-                                        <div style={{ fontSize: 11, color: "#666", marginTop: 2, lineHeight: 1.4 }}>
+                                        <div style={{ fontSize: 11, color: "var(--color-brand-grey)", marginTop: 2, lineHeight: 1.4 }}>
                                           {opt.desc}
                                         </div>
                                       </div>
@@ -1780,9 +1794,9 @@ export default function Onboarding() {
                         </div>
 
                         {/* Science tip */}
-                        <div className="mt-3 flex items-start gap-2 bg-[#1A1A1A] rounded-lg px-3 py-2.5">
-                          <span className="text-xs shrink-0">💡</span>
-                          <p className="text-[10px] text-[#777777] leading-snug">{timing.tip}</p>
+                        <div className="mt-3 flex items-start gap-2 bg-[var(--color-brand-text-lbl)] rounded-lg px-3 py-2.5">
+                          <Lightbulb className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
+                          <p className="text-[10px] text-[var(--color-brand-grey)] leading-snug">{timing.tip}</p>
                         </div>
                       </div>
                     )}
@@ -1793,22 +1807,22 @@ export default function Onboarding() {
           </SectionCard>}
 
           {/* ── Step 6: Resumen ─────────────────────────────────────────── */}
-          {currentStep === 6 && <SectionCard emoji="🎉" title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
+          {currentStep === 6 && <SectionCard icon={Sparkles} title={isES ? "Esto es lo que crearemos" : "What we'll create"}>
             <div className="flex flex-col gap-2">
               {[
-                { icon: "🍽️", name: isES ? "Plan de comidas 7 días" : "7-day meal plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a tus preferencias" : "Breakfast, lunch, dinner and snacks adapted to your preferences" },
-                { icon: "🛒", name: isES ? "Lista de la compra semanal" : "Weekly shopping list", desc: isES ? "Todos los ingredientes organizados para facilitar tu compra" : "All ingredients organized to make shopping easy" },
-                { icon: "🏋️", name: isES ? "Plan de entrenos semanal" : "Weekly workout plan", desc: isES ? "Ejercicios, series y repeticiones para tu nivel" : "Exercises, sets and reps for your level" },
-                { icon: "🔔", name: isES ? "Recordatorios de suplementos" : "Supplement reminders", desc: isES ? "Notificaciones en el momento exacto de cada toma" : "Notifications at the exact time of each dose" },
-                { icon: "📊", name: isES ? "Seguimiento de progreso" : "Progress tracking", desc: isES ? "Peso, racha, adherencia y estadísticas" : "Weight, streak, adherence and stats" },
+                { Icon: UtensilsCrossed, name: isES ? "Plan de comidas 7 días" : "7-day meal plan", desc: isES ? "Desayuno, comida, cena y snacks adaptados a tus preferencias" : "Breakfast, lunch, dinner and snacks adapted to your preferences" },
+                { Icon: ShoppingCart, name: isES ? "Lista de la compra semanal" : "Weekly shopping list", desc: isES ? "Todos los ingredientes organizados para facilitar tu compra" : "All ingredients organized to make shopping easy" },
+                { Icon: Dumbbell, name: isES ? "Plan de entrenos semanal" : "Weekly workout plan", desc: isES ? "Ejercicios, series y repeticiones para tu nivel" : "Exercises, sets and reps for your level" },
+                { Icon: Bell, name: isES ? "Recordatorios de suplementos" : "Supplement reminders", desc: isES ? "Notificaciones en el momento exacto de cada toma" : "Notifications at the exact time of each dose" },
+                { Icon: BarChart3, name: isES ? "Seguimiento de progreso" : "Progress tracking", desc: isES ? "Peso, racha, adherencia y estadísticas" : "Weight, streak, adherence and stats" },
               ].map((item) => (
-                <div key={item.icon} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "#111", border: "1px solid #1f1f1f" }}>
-                  <span className="text-xl flex-shrink-0">{item.icon}</span>
+                <div key={item.name} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: "var(--color-brand-card)", border: "1px solid var(--color-brand-border)" }}>
+                  <item.Icon className="w-5 h-5 flex-shrink-0" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-bold text-[#e8e8e8]">{item.name}</p>
-                    <p className="text-[11px] text-[#555] mt-0.5">{item.desc}</p>
+                    <p className="text-[13px] font-bold text-[var(--color-brand-text-lbl)]">{item.name}</p>
+                    <p className="text-[11px] text-[var(--color-brand-grey)] mt-0.5">{item.desc}</p>
                   </div>
-                  <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{ background: "rgba(136,238,34,0.1)", border: "1px solid rgba(136,238,34,0.2)", color: "#88ee22" }}>
+                  <span className="text-[10px] font-bold px-2 py-1 rounded-full flex-shrink-0" style={{ background: "var(--color-brand-accent-soft)", border: "1px solid var(--color-brand-accent)", color: "var(--color-brand-text-lbl)" }}>
                     {isES ? "Incluido" : "Included"}
                   </span>
                 </div>
@@ -1821,17 +1835,20 @@ export default function Onboarding() {
       </div>
 
       {/* ── Sticky footer nav ──────────────────────────────────────────────── */}
-      <div style={{ position: "sticky", bottom: 0, background: "#0a0a0a", borderTop: "1px solid #1a1a1a", padding: "12px 20px 20px" }}>
+      <div style={{ position: "sticky", bottom: 0, background: "var(--color-brand-bg)", borderTop: "1px solid var(--color-brand-card)", padding: "12px 20px 20px" }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
           {/* Error banner (last step only) */}
           {error && currentStep === STEPS.length - 1 && (
-            <div className="mb-3 flex items-start gap-3 bg-[#FF4444]/10 border border-[#FF4444]/20 text-[#FF4444] text-sm rounded-lg px-4 py-3">
+            <div
+              className="mb-3 flex items-start gap-3 text-[var(--color-brand-red)] text-sm rounded-lg px-4 py-3"
+              style={{ background: "color-mix(in srgb, var(--color-brand-red) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-red) 25%, transparent)" }}
+            >
               <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
               <div>
                 <p className="font-semibold">
                   {isEditMode ? t("couldnt_save_prefs") : t("couldnt_create_plan")}
                 </p>
-                <p className="text-[#FF4444]/80 mt-0.5">{error}</p>
+                <p className="text-[var(--color-brand-red)] mt-0.5">{error}</p>
               </div>
             </div>
           )}
@@ -1845,7 +1862,7 @@ export default function Onboarding() {
               <button
                 onClick={onStep0 ? handleScreeningContinue : handleNextStep}
                 disabled={structurallyDisabled || inFlight}
-                style={{ width: "100%", background: structurallyDisabled ? "#333" : "#88ee22", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: structurallyDisabled ? "#555" : "#0a0a0a", cursor: structurallyDisabled ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: inFlight ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
+                style={{ width: "100%", background: structurallyDisabled ? "var(--color-brand-border)" : "var(--color-brand-accent)", border: "none", borderRadius: 14, padding: 14, fontSize: 15, fontWeight: 800, color: structurallyDisabled ? "var(--color-brand-grey)" : "var(--color-brand-bg)", cursor: structurallyDisabled ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: inFlight ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
               >
                 {onStep0
                   ? (screeningSubmitting
@@ -1855,7 +1872,7 @@ export default function Onboarding() {
                       ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Creando tu plan..." : "Creating your plan..."}</>
                       : currentStep < STEPS.length - 1
                         ? (isES ? "Continuar →" : "Continue →")
-                        : (isEditMode ? t("save_regenerate") : (isES ? "🚀 Crear mi plan" : "🚀 Create my plan")))
+                        : (isEditMode ? t("save_regenerate") : (isES ? "Crear mi plan" : "Create my plan")))
                 }
               </button>
             );
@@ -1863,7 +1880,7 @@ export default function Onboarding() {
           {currentStep > 1 && (
             <button
               onClick={() => setCurrentStep(s => s - 1)}
-              style={{ background: "none", border: "none", fontSize: 13, color: "#e8e8e8", cursor: "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600 }}
+              style={{ background: "none", border: "none", fontSize: 13, color: "var(--color-brand-text-lbl)", cursor: "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600 }}
             >
               ← {isES ? "Volver" : "Back"}
             </button>
@@ -1872,22 +1889,22 @@ export default function Onboarding() {
       </div>
       {/* RGPD Art. 22 — AI disclosure consent (gate antes de enviar datos a Anthropic) */}
       <AlertDialog open={aiConsentDialogOpen} onOpenChange={setAiConsentDialogOpen}>
-        <AlertDialogContent className="bg-[#1A1A1A] border-[#AAFF45]/30 text-white max-w-lg">
+        <AlertDialogContent className="bg-[var(--color-brand-text-lbl)] border-[var(--color-brand-accent)] text-[var(--color-brand-text-lbl)] max-w-lg">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-[#AAFF45] flex items-center gap-2">
-              🤖 {isES ? "Generación de planes con IA" : "AI plan generation"}
+            <AlertDialogTitle className="text-[var(--color-brand-accent)] flex items-center gap-2">
+              {isES ? "Generación de planes con IA" : "AI plan generation"}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
-              <div className="text-[#A0A0A0] space-y-3 mt-3">
+              <div className="text-[var(--color-brand-grey)] space-y-3 mt-3">
               {isES ? (
                 <>
                   <span className="block">
                     Para crear tus planes personalizados, GoalIQ utiliza{" "}
-                    <strong className="text-white">Claude (Anthropic, Inc.)</strong>,
+                    <strong className="text-[var(--color-brand-text-lbl)]">Claude (Anthropic, Inc.)</strong>,
                     un modelo de IA con servidores en Estados Unidos.
                   </span>
                   <span className="block">
-                    <strong className="text-white">Se enviarán tus datos a Anthropic:</strong>
+                    <strong className="text-[var(--color-brand-text-lbl)]">Se enviarán tus datos a Anthropic:</strong>
                   </span>
                   <ul className="list-disc pl-5 text-sm space-y-1">
                     <li>Tu perfil físico (edad, sexo, peso, altura)</li>
@@ -1901,7 +1918,7 @@ export default function Onboarding() {
                   <span className="block text-sm">
                     Puedes ver más detalles en nuestra{" "}
                     <a href="/privacy" target="_blank" rel="noopener noreferrer"
-                       className="text-[#AAFF45] hover:underline">
+                       className="text-[var(--color-brand-accent)] hover:underline">
                       Política de Privacidad
                     </a>.
                   </span>
@@ -1910,11 +1927,11 @@ export default function Onboarding() {
                 <>
                   <span className="block">
                     To create your personalized plans, GoalIQ uses{" "}
-                    <strong className="text-white">Claude (Anthropic, Inc.)</strong>,
+                    <strong className="text-[var(--color-brand-text-lbl)]">Claude (Anthropic, Inc.)</strong>,
                     an AI model with servers in the United States.
                   </span>
                   <span className="block">
-                    <strong className="text-white">Your data will be sent to Anthropic:</strong>
+                    <strong className="text-[var(--color-brand-text-lbl)]">Your data will be sent to Anthropic:</strong>
                   </span>
                   <ul className="list-disc pl-5 text-sm space-y-1">
                     <li>Your physical profile (age, sex, weight, height)</li>
@@ -1928,7 +1945,7 @@ export default function Onboarding() {
                   <span className="block text-sm">
                     See more details in our{" "}
                     <a href="/privacy" target="_blank" rel="noopener noreferrer"
-                       className="text-[#AAFF45] hover:underline">
+                       className="text-[var(--color-brand-accent)] hover:underline">
                       Privacy Policy
                     </a>.
                   </span>
@@ -1939,14 +1956,14 @@ export default function Onboarding() {
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4">
             <AlertDialogCancel
-              className="bg-[#2A2A2A] text-white hover:bg-[#3A3A3A] border-[#3A3A3A]"
+              className="bg-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] hover:bg-[var(--color-brand-border)] border-[var(--color-brand-border)]"
               disabled={aiConsentSubmitting}
             >
               {isES ? "Volver" : "Back"}
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleAiConsentAndSubmit}
-              className="bg-[#AAFF45] text-black hover:bg-[#88DD22] font-semibold"
+              className="bg-[var(--color-brand-accent)] text-white hover:bg-[var(--color-brand-accent)] font-semibold"
               disabled={aiConsentSubmitting}
             >
               {aiConsentSubmitting
@@ -1975,10 +1992,11 @@ function TagInput({
 }) {
   const [input, setInput] = useState("");
 
+  // Texto en tinta oscura para legibilidad; el borde da el color semántico.
   const tagStyles = {
-    green:  "bg-[#AAFF45]/15 border-[#AAFF45]/30 text-[#AAFF45]",
-    orange: "bg-[#FFB800]/15 border-[#FFB800]/30 text-[#FFB800]",
-    red:    "bg-[#FF6B6B]/15 border-[#FF6B6B]/30 text-[#FF6B6B]",
+    green:  "bg-[var(--color-brand-accent-soft)] border-[var(--color-brand-accent)] text-[var(--color-brand-text-lbl)]",
+    orange: "bg-[var(--color-brand-accent-soft)] border-[var(--color-brand-accent)] text-[var(--color-brand-text-lbl)]",
+    red:    "bg-[var(--color-brand-accent-soft)] border-[var(--color-brand-red)] text-[var(--color-brand-red)]",
   };
 
   function addTag(value: string) {
@@ -2005,7 +2023,7 @@ function TagInput({
   return (
     <div>
       <div
-        className="min-h-[48px] w-full px-3 py-2 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A] focus-within:border-[#AAFF45]/50 focus-within:ring-2 focus-within:ring-[#AAFF45]/10 transition-all flex flex-wrap gap-2 items-center cursor-text"
+        className="min-h-[48px] w-full px-3 py-2 rounded-lg bg-[var(--color-brand-bg)] border border-[var(--color-brand-border)] focus-within:border-[var(--color-brand-accent)] focus-within:ring-2 focus-within:ring-[var(--color-brand-accent-soft)] transition-all flex flex-wrap gap-2 items-center cursor-text"
         onClick={e => (e.currentTarget.querySelector("input") as HTMLInputElement)?.focus()}
       >
         {tags.map(tag => (
@@ -2017,7 +2035,7 @@ function TagInput({
             <button
               type="button"
               onClick={() => removeTag(tag)}
-              className="hover:text-white transition-colors leading-none text-sm"
+              className="hover:text-[var(--color-brand-text-lbl)] transition-colors leading-none text-sm"
             >
               ×
             </button>
@@ -2032,10 +2050,10 @@ function TagInput({
             if (input.trim()) { addTag(input); setInput(""); }
           }}
           placeholder={tags.length === 0 ? placeholder : ""}
-          className="flex-1 min-w-[120px] bg-transparent text-white placeholder:text-[#3A3A3A] text-sm outline-none"
+          className="flex-1 min-w-[120px] bg-transparent text-[var(--color-brand-text-lbl)] placeholder:text-[var(--color-brand-grey)] text-sm outline-none"
         />
       </div>
-      <p className="text-[10px] text-[#444] mt-1.5">
+      <p className="text-[10px] text-[var(--color-brand-grey)] mt-1.5">
         Escribe y pulsa Enter · Backspace para borrar
       </p>
     </div>
@@ -2053,12 +2071,12 @@ function Logo() {
 }
 
 function SectionCard({
-  emoji,
+  icon: Icon,
   title,
   badge,
   children,
 }: {
-  emoji: string;
+  icon: LucideIcon;
   title: string;
   badge?: string;
   children: React.ReactNode;
@@ -2066,21 +2084,21 @@ function SectionCard({
   return (
     <div
       className="rounded-2xl border p-5"
-      style={{ background: "#141414", borderColor: "#1f1f1f" }}
+      style={{ background: "var(--color-brand-card)", borderColor: "var(--color-brand-border)" }}
     >
       {/* Section header */}
       <div
         className="flex items-center gap-2 mb-5 pb-3"
-        style={{ borderBottom: "1px solid #1f1f1f" }}
+        style={{ borderBottom: "1px solid var(--color-brand-border)" }}
       >
-        <span className="text-lg">{emoji}</span>
-        <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "#888" }}>
+        <Icon className="w-[18px] h-[18px] shrink-0" style={{ color: "var(--color-brand-accent)" }} strokeWidth={2} />
+        <h2 className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--color-brand-text-lbl)" }}>
           {title}
         </h2>
         {badge && (
           <span
             className="text-[9px] font-semibold rounded-full px-2 py-0.5 ml-1"
-            style={{ color: "#555", background: "#1a1a1a", border: "1px solid #2a2a2a" }}
+            style={{ color: "var(--color-brand-text-lbl)", background: "var(--color-brand-accent-soft)", border: "1px solid var(--color-brand-accent)" }}
           >
             {badge}
           </span>
@@ -2102,8 +2120,8 @@ function Field({
 }) {
   return (
     <div className="space-y-1.5">
-      <label className="text-sm font-semibold text-[#A0A0A0]">{label}</label>
-      {hint && <p className="text-xs text-[#555555] -mt-0.5">{hint}</p>}
+      <label className="text-sm font-semibold text-[var(--color-brand-text-lbl)]">{label}</label>
+      {hint && <p className="text-xs text-[var(--color-brand-grey)] -mt-0.5">{hint}</p>}
       {children}
     </div>
   );
@@ -2112,29 +2130,29 @@ function Field({
 // ─── Style helpers ────────────────────────────────────────────────────────────
 
 const inputClass =
-  "w-full px-4 py-3 rounded-lg bg-[#0A0A0A] border border-[#2A2A2A] text-white placeholder:text-[#3A3A3A] focus:border-[#AAFF45]/50 focus:ring-2 focus:ring-[#AAFF45]/10 outline-none transition-all text-sm";
+  "w-full px-4 py-3 rounded-lg bg-[var(--color-brand-bg)] border border-[var(--color-brand-border)] text-[var(--color-brand-text-lbl)] placeholder:text-[var(--color-brand-grey)] focus:border-[var(--color-brand-accent)] focus:ring-2 focus:ring-[var(--color-brand-accent-soft)] outline-none transition-all text-sm";
 
 function pillClass(active: boolean) {
   return `px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
     active
-      ? "bg-[#AAFF45]/15 border-[#AAFF45]/50 text-[#AAFF45]"
-      : "bg-[#111111] border-[#2A2A2A] text-[#555555] hover:border-[#3A3A3A] hover:text-[#888]"
+      ? "bg-[var(--color-brand-accent-soft)] border-[var(--color-brand-accent)] text-[var(--color-brand-text-lbl)]"
+      : "bg-[var(--color-brand-card)] border-[var(--color-brand-border)] text-[var(--color-brand-grey)] hover:border-[var(--color-brand-accent)] hover:text-[var(--color-brand-text-lbl)]"
   }`;
 }
 
 function choiceCardClass(active: boolean) {
   return `flex flex-col items-center justify-center py-3 px-2 rounded-xl border-2 font-medium transition-all text-sm ${
     active
-      ? "border-[#AAFF45] bg-[#AAFF45]/10 text-[#AAFF45]"
-      : "border-[#2A2A2A] bg-[#111111] text-[#555555] hover:border-[#3A3A3A]"
+      ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)] text-[var(--color-brand-text-lbl)]"
+      : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] text-[var(--color-brand-grey)] hover:border-[var(--color-brand-accent)]"
   }`;
 }
 
 function goalCardClass(active: boolean) {
   return `flex flex-col items-center justify-center py-5 px-3 rounded-xl border-2 font-medium transition-all ${
     active
-      ? "border-[#AAFF45] bg-[#AAFF45]/10 text-[#AAFF45]"
-      : "border-[#2A2A2A] bg-[#111111] text-[#555555] hover:border-[#3A3A3A]"
+      ? "border-[var(--color-brand-accent)] bg-[var(--color-brand-accent-soft)] text-[var(--color-brand-text-lbl)]"
+      : "border-[var(--color-brand-border)] bg-[var(--color-brand-card)] text-[var(--color-brand-grey)] hover:border-[var(--color-brand-accent)]"
   }`;
 }
 
@@ -2170,27 +2188,27 @@ function HealthBlockedView({ blockReason, isES, onLogout }: { blockReason: strin
     : (isES ? "tu situación de salud actual" : "your current health situation");
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+    <div className="goaliq-vision" style={{ minHeight: "100vh", background: "var(--color-brand-bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
-        <div style={{ background: "#141414", border: "2px solid rgba(255,68,68,0.3)", borderRadius: 16, padding: "24px 22px" }}>
+        <div style={{ background: "var(--color-brand-card)", border: "2px solid color-mix(in srgb, var(--color-brand-red) 30%, transparent)", borderRadius: 16, padding: "24px 22px" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(255,68,68,0.1)", border: "1px solid rgba(255,68,68,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <AlertTriangle style={{ width: 32, height: 32, color: "#ff4444" }} />
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "color-mix(in srgb, var(--color-brand-red) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-red) 30%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <AlertTriangle style={{ width: 32, height: 32, color: "var(--color-brand-red)" }} />
             </div>
           </div>
-          <h1 style={{ fontSize: 18, fontWeight: 800, color: "#e8e8e8", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: "var(--color-brand-text-lbl)", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
             {isES ? "GoalIQ no es la herramienta adecuada para tu situación actual" : "GoalIQ is not the right tool for your current situation"}
           </h1>
-          <p style={{ fontSize: 13, color: "#aaa", lineHeight: 1.6, textAlign: "center", margin: 0, marginBottom: 16 }}>
+          <p style={{ fontSize: 13, color: "var(--color-brand-grey)", lineHeight: 1.6, textAlign: "center", margin: 0, marginBottom: 16 }}>
             {isES
               ? `Las personas con ${reason} necesitan un seguimiento profesional individualizado que una app generalista no puede proporcionar.`
               : `People with ${reason} need personalized professional follow-up that a general-purpose app cannot provide.`}
           </p>
-          <div style={{ background: "rgba(255,170,0,0.08)", border: "1px solid rgba(255,170,0,0.25)", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
-            <p style={{ fontSize: 12, color: "#ffcc66", lineHeight: 1.5, margin: 0, fontWeight: 600, marginBottom: 8 }}>
+          <div style={{ background: "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-warn) 32%, transparent)", borderRadius: 12, padding: "12px 14px", marginBottom: 14 }}>
+            <p style={{ fontSize: 12, color: "var(--color-brand-accent)", lineHeight: 1.5, margin: 0, fontWeight: 600, marginBottom: 8 }}>
               {isES
                 ? "Te recomendamos encarecidamente acudir a un dietista-nutricionista colegiado o a tu médico."
                 : "We strongly recommend you consult a registered dietitian-nutritionist or your doctor."}
@@ -2199,19 +2217,19 @@ function HealthBlockedView({ blockReason, isES, onLogout }: { blockReason: strin
               href={PROFESSIONAL_LOOKUP_URL}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: "inline-block", fontSize: 12, color: "#88ee22", fontWeight: 700, textDecoration: "underline" }}
+              style={{ display: "inline-block", fontSize: 12, color: "var(--color-brand-accent)", fontWeight: 700, textDecoration: "underline" }}
             >
               {isES ? "Buscar profesional sanitario →" : "Find a healthcare professional →"}
             </a>
           </div>
-          <p style={{ fontSize: 12, color: "#888", textAlign: "center", margin: 0, marginBottom: 14 }}>
+          <p style={{ fontSize: 12, color: "var(--color-brand-grey)", textAlign: "center", margin: 0, marginBottom: 14 }}>
             {isES
               ? `Tu sesión se cerrará automáticamente en ${secondsLeft} ${secondsLeft === 1 ? "segundo" : "segundos"}`
               : `Your session will close automatically in ${secondsLeft} ${secondsLeft === 1 ? "second" : "seconds"}`}
           </p>
           <button
             onClick={fire}
-            style={{ width: "100%", background: "#88ee22", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: "#0a0a0a", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+            style={{ width: "100%", background: "var(--color-brand-accent)", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: "var(--color-brand-bg)", cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
           >
             <LogOut className="w-4 h-4" />
             {isES ? "Cerrar sesión ahora" : "Sign out now"}
@@ -2226,21 +2244,21 @@ function AllergiesWarningView({ isES, submitting, error, onBack, onAcknowledge }
   const [acknowledged, setAcknowledged] = useState(false);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+    <div className="goaliq-vision" style={{ minHeight: "100vh", background: "var(--color-brand-bg)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
       <div style={{ width: "100%", maxWidth: 480 }}>
         <div className="flex justify-center mb-6">
           <Logo />
         </div>
-        <div style={{ background: "#141414", border: "2px solid rgba(255,170,0,0.3)", borderRadius: 16, padding: "24px 22px" }}>
+        <div style={{ background: "var(--color-brand-card)", border: "2px solid color-mix(in srgb, var(--color-brand-warn) 30%, transparent)", borderRadius: 16, padding: "24px 22px" }}>
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(255,170,0,0.1)", border: "1px solid rgba(255,170,0,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <AlertTriangle style={{ width: 26, height: 26, color: "#ffaa00" }} />
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-warn) 30%, transparent)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <AlertTriangle style={{ width: 26, height: 26, color: "var(--color-brand-warn)" }} />
             </div>
           </div>
-          <h1 style={{ fontSize: 17, fontWeight: 800, color: "#e8e8e8", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
+          <h1 style={{ fontSize: 17, fontWeight: 800, color: "var(--color-brand-text-lbl)", textAlign: "center", margin: 0, marginBottom: 12, lineHeight: 1.4 }}>
             {isES ? "Importante sobre tus alergias" : "Important about your allergies"}
           </h1>
-          <div style={{ fontSize: 13, color: "#ccc", lineHeight: 1.65, marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: "var(--color-brand-grey)", lineHeight: 1.65, marginBottom: 16 }}>
             <p style={{ margin: 0, marginBottom: 10 }}>
               {isES
                 ? "GoalIQ puede ayudarte, pero ES TU RESPONSABILIDAD:"
@@ -2253,14 +2271,14 @@ function AllergiesWarningView({ isES, submitting, error, onBack, onAcknowledge }
             </ol>
           </div>
 
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "12px 14px", borderRadius: 10, background: acknowledged ? "rgba(255,170,0,0.08)" : "#0e0e0e", border: `1px solid ${acknowledged ? "rgba(255,170,0,0.35)" : "#1f1f1f"}`, marginBottom: 14, transition: "all 0.15s" }}>
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "12px 14px", borderRadius: 10, background: acknowledged ? "color-mix(in srgb, var(--color-brand-warn) 12%, transparent)" : "var(--color-brand-bg)", border: `1px solid ${acknowledged ? "color-mix(in srgb, var(--color-brand-warn) 32%, transparent)" : "var(--color-brand-border)"}`, marginBottom: 14, transition: "all 0.15s" }}>
             <div
               onClick={() => setAcknowledged(v => !v)}
-              style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${acknowledged ? "#ffaa00" : "#333"}`, background: acknowledged ? "#ffaa00" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
+              style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${acknowledged ? "var(--color-brand-warn)" : "var(--color-brand-border)"}`, background: acknowledged ? "var(--color-brand-warn)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.15s" }}
             >
-              {acknowledged && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#0a0a0a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              {acknowledged && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="var(--color-brand-bg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
             </div>
-            <span style={{ fontSize: 12, color: "#ccc", lineHeight: 1.5 }} onClick={() => setAcknowledged(v => !v)}>
+            <span style={{ fontSize: 12, color: "var(--color-brand-grey)", lineHeight: 1.5 }} onClick={() => setAcknowledged(v => !v)}>
               {isES
                 ? "Entiendo que debo revisar siempre los ingredientes y soy responsable de evitar los alimentos a los que soy alérgico/a."
                 : "I understand I must always check ingredients and am responsible for avoiding foods I'm allergic to."}
@@ -2268,16 +2286,16 @@ function AllergiesWarningView({ isES, submitting, error, onBack, onAcknowledge }
           </label>
 
           {error && (
-            <div style={{ marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(255,68,68,0.08)", border: "1px solid rgba(255,68,68,0.25)", borderRadius: 10, padding: "10px 12px" }}>
-              <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "#ff4444", marginTop: 1 }} />
-              <p style={{ fontSize: 12, color: "#ff7777", lineHeight: 1.5, margin: 0 }}>{error}</p>
+            <div style={{ marginBottom: 12, display: "flex", alignItems: "flex-start", gap: 10, background: "color-mix(in srgb, var(--color-brand-red) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--color-brand-red) 30%, transparent)", borderRadius: 10, padding: "10px 12px" }}>
+              <AlertCircle className="w-4 h-4 shrink-0" style={{ color: "var(--color-brand-red)", marginTop: 1 }} />
+              <p style={{ fontSize: 12, color: "var(--color-brand-red)", lineHeight: 1.5, margin: 0 }}>{error}</p>
             </div>
           )}
 
           <button
             onClick={onAcknowledge}
             disabled={!acknowledged || submitting}
-            style={{ width: "100%", background: !acknowledged ? "#333" : "#88ee22", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: !acknowledged ? "#555" : "#0a0a0a", cursor: !acknowledged ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: submitting ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
+            style={{ width: "100%", background: !acknowledged ? "var(--color-brand-border)" : "var(--color-brand-accent)", border: "none", borderRadius: 12, padding: 12, fontSize: 14, fontWeight: 700, color: !acknowledged ? "var(--color-brand-grey)" : "var(--color-brand-bg)", cursor: !acknowledged ? "not-allowed" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, opacity: submitting ? 0.6 : 1, transition: "background 0.2s, color 0.2s" }}
           >
             {submitting
               ? <><Loader2 className="w-4 h-4 animate-spin" /> {isES ? "Validando..." : "Validating..."}</>
@@ -2286,7 +2304,7 @@ function AllergiesWarningView({ isES, submitting, error, onBack, onAcknowledge }
           <button
             onClick={onBack}
             disabled={submitting}
-            style={{ background: "none", border: "none", fontSize: 13, color: "#e8e8e8", cursor: submitting ? "not-allowed" : "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600, opacity: submitting ? 0.5 : 1 }}
+            style={{ background: "none", border: "none", fontSize: 13, color: "var(--color-brand-text-lbl)", cursor: submitting ? "not-allowed" : "pointer", display: "block", textAlign: "center", marginTop: 10, width: "100%", fontFamily: "inherit", fontWeight: 600, opacity: submitting ? 0.5 : 1 }}
           >
             ← {isES ? "Volver" : "Back"}
           </button>
