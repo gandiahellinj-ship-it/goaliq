@@ -7,7 +7,7 @@
  * el ORIGINAL y el RECORTADO de cada uno en ./dish-preview-output/ para que
  * José apruebe el estilo (y la calidad del recorte en el plato difícil).
  *
- * Uso (en la Shell de Replit, donde vive GEMINI_API_KEY):
+ * Uso (en la Shell de Replit, donde vive GOOGLE_GEMINI_API_KEY):
  *   cd artifacts/api-server
  *   corepack pnpm install        # instala la librería de recorte
  *   node dish-preview.mjs
@@ -19,9 +19,9 @@
 import { writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY = process.env.GOOGLE_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY;
 if (!API_KEY) {
-  console.error("❌ GEMINI_API_KEY no está en el entorno. Ejecuta esto en la Shell de Replit.");
+  console.error("❌ GOOGLE_GEMINI_API_KEY no está en el entorno. Ejecuta esto en la Shell de Replit.");
   process.exit(1);
 }
 

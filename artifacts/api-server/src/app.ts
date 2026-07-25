@@ -295,8 +295,9 @@ app.post("/api/diets/visualize", aiBurstLimiter, aiLimiter, async (req, res) => 
     const proportionsInput: unknown = req.body?.proportions;
     if (!mealName) return res.status(400).json({ error: "Falta meal_name" });
 
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY no configurada");
+    // El secreto en Replit se llama GOOGLE_GEMINI_API_KEY (con respaldo al nombre antiguo).
+    const apiKey = process.env.GOOGLE_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY no configurada");
 
     const ingredientsList =
       (Array.isArray(ingredients)
