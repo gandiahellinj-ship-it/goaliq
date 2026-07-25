@@ -58,6 +58,12 @@ export interface MealItem {
   done: boolean;
   /** Transparent-PNG dish photo under /images/dishes/ (optional → initials fallback). */
   image?: string;
+  /** Ingredientes ESTRUCTURADOS para la foto generada (con visual_ref en inglés):
+   *  fuente de la clave de caché compartida + del prompt. Distinto de `ingredients`
+   *  (cadenas para mostrar). */
+  imageIngredients?: { name: string; visual_ref?: string; category?: string }[];
+  /** true si el plato es bebida (variante de prompt del vaso). */
+  isDrink?: boolean;
   /** 5–8 ingredients with quantity, e.g. "200 g yogur griego". */
   ingredients?: string[];
   /** 2–4 short preparation steps. */

@@ -100,8 +100,14 @@ export function useVisionMeals(): VisionMealsData {
         kcal: m.calories_approx ?? CALORIES_FALLBACK[m.meal_type] ?? 400,
         tag: MEAL_LABEL[m.meal_type] ?? m.meal_type,
         done: false,
-        // Sin foto real todavía (proyecto de generación de imágenes pendiente)
-        // → DishImage pinta el círculo con iniciales.
+        // Ingredientes estructurados (con visual_ref) → clave de caché + prompt
+        // de la foto generada bajo demanda (useDishImage).
+        imageIngredients: (m.ingredients ?? []).map((i: Ingredient) => ({
+          name: i.name,
+          visual_ref: i.visual_ref,
+          category: i.category,
+        })),
+        isDrink: /batido|shake|smoothie|zumo|juice|bebida|infusi|caf[eé]|t[eé]\b/i.test(m.meal_name),
         ingredients: (m.ingredients ?? []).map((i: Ingredient) =>
           [i.amount, i.name].filter(Boolean).join(" ").trim(),
         ),

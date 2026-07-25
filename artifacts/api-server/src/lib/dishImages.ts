@@ -1,0 +1,219 @@
+// Imágenes de plato — pipeline de producción (Fase 0 aprobada 25/07/2026).
+//
+// Genera bajo demanda la foto de un plato, la recorta a PNG transparente, la
+// sube a Supabase Storage (bucket "dish-images", público) y la cachea de forma
+// COMPARTIDA entre todos los usuarios por clave = nombre_normalizado + hash de
+// ingredientes visibles. Tabla índice: public.dish_images.
+//
+// Decisiones (docs/DECISIONES.md 25/07): fondo gris cálido + recorte @imgly
+// (Node, sin Python); generación bajo demanda; secreto GOOGLE_GEMINI_API_KEY;
+// fallback permanente = círculo de iniciales (lo pone el frontend si url = null).
+import crypto from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import pg from "pg";
+import { logger } from "./logger";
+
+const BUCKET = "dish-images";
+const GEMINI_MODEL = "gemini-2.5-flash-image";
+const COST_PER_IMAGE_EUR = 0.036; // Nano Banana ~$0.039 ≈ 0,036 €
+const MAX_FAIL_ATTEMPTS = 3; // anti-bucle: tras 3 fallos, no se reintenta (ni se gasta)
+
+// ── Conexión a BD (pool superusuario, como el resto del server) ──────────────
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) _pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  return _pool;
+}
+
+// ── Cliente Storage con service_role (necesario para SUBIR al bucket) ────────
+let _storageClient: ReturnType<typeof createClient> | null = null;
+function getStorageClient() {
+  if (_storageClient) return _storageClient;
+  const url = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY no configuradas (necesarias para subir imágenes de plato)");
+  }
+  _storageClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  return _storageClient;
+}
+
+// ── Tipos mínimos del plato que llegan del frontend ──────────────────────────
+export interface DishIngredient {
+  name: string;
+  amount?: string;
+  category?: string;
+  visual_ref?: string;
+}
+export interface DishInput {
+  meal_name: string;
+  ingredients: DishIngredient[];
+  /** true si es bebida (usa la variante de prompt del vaso). */
+  is_drink?: boolean;
+}
+
+// Condimentos no visibles tras cocinar (se omiten de la descripción/hash).
+const HIDDEN = /\b(sal|salt|aceite|oil|pimienta|pepper|ajo|garlic|vinagre|vinegar|especias?|spices?|agua|water)\b/i;
+
+/** Ingredientes VISIBLES: los que tienen visual_ref, o su nombre si no hay condimento. */
+function visibleIngredients(ings: DishIngredient[]): string[] {
+  const withRef = ings.filter((i) => i.visual_ref?.trim()).map((i) => i.visual_ref!.trim());
+  if (withRef.length > 0) return withRef;
+  // Fallback (planes antiguos sin visual_ref): nombres, sin condimentos.
+  return ings.map((i) => i.name?.trim()).filter((n): n is string => !!n && !HIDDEN.test(n));
+}
+
+/** Nombre normalizado: minúsculas, sin acentos, sin puntuación, guiones. */
+function normalizeName(name: string): string {
+  return name
+    .normalize("NFD").replace(/[̀-ͯ]/g, "") // quita acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60) || "plato";
+}
+
+/** Clave de caché COMPARTIDA = nombre normalizado + hash de ingredientes visibles. */
+export function cacheKey(dish: DishInput): string {
+  const visible = visibleIngredients(dish.ingredients).map((s) => s.toLowerCase()).sort();
+  const hash = crypto.createHash("sha256").update(visible.join("|")).digest("hex").slice(0, 12);
+  return `${normalizeName(dish.meal_name)}--${hash}`;
+}
+
+/** descripcion_imagen en inglés = ingredientes visibles (visual_ref) unidos. */
+function descripcionImagen(dish: DishInput): string {
+  const visible = visibleIngredients(dish.ingredients);
+  return visible.join(", ") || dish.meal_name;
+}
+
+// ── Prompt maestro (docs/PROMPT_PLATOS.md — fondo gris, no traducir) ──────────
+function buildPrompt(dish: DishInput): string {
+  const desc = descripcionImagen(dish);
+  if (dish.is_drink) {
+    return `Professional food photography, perfect top-down overhead view, ${desc} in a clear glass seen from directly above, creamy frothy surface, photorealistic, soft even studio lighting, appetizing, high detail, completely isolated on a plain seamless medium warm grey background clearly distinct from the glass, no table, no props, no cutlery, no text, no shadows outside the glass, flat even lighting with no contact shadow beneath the glass, nothing else in frame, centered, square 1:1, ultra high resolution`;
+  }
+  return `Professional food photography, perfect top-down overhead view, ${desc}, served in a simple white ceramic bowl, photorealistic, soft even studio lighting, appetizing, high detail, completely isolated on a plain seamless medium warm grey background clearly distinct from the white bowl, no table, no props, no cutlery, no text, no shadows outside the bowl, flat even lighting with no contact shadow beneath the bowl, nothing else in frame, centered, square 1:1, ultra high resolution`;
+}
+
+// ── Generación + recorte ─────────────────────────────────────────────────────
+async function generateWithGemini(prompt: string): Promise<Buffer> {
+  const apiKey = process.env.GOOGLE_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GOOGLE_GEMINI_API_KEY no configurada");
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: "1:1" } },
+      }),
+    },
+  );
+  if (!resp.ok) throw new Error(`Gemini ${resp.status}: ${(await resp.text()).slice(0, 200)}`);
+  const data: any = await resp.json();
+  const parts = data?.candidates?.[0]?.content?.parts ?? [];
+  const inline = parts.find((p: any) => p.inlineData ?? p.inline_data);
+  const d = inline?.inlineData ?? inline?.inline_data;
+  if (!d?.data) throw new Error("Gemini no devolvió imagen");
+  return Buffer.from(d.data, "base64");
+}
+
+async function cropTransparent(raw: Buffer): Promise<Buffer> {
+  const { removeBackground } = await import("@imgly/background-removal-node");
+  const input = new Blob([new Uint8Array(raw)], { type: "image/png" }); // la versión Node NO acepta data-URLs
+  const blob = await removeBackground(input, { output: { format: "image/png" } });
+  return Buffer.from(await blob.arrayBuffer());
+}
+
+// ── Deduplicación de peticiones en vuelo (misma clave → una sola generación) ──
+const inFlight = new Map<string, Promise<string | null>>();
+
+// ── Semáforo: máx. 2 generaciones simultáneas (el recorte ONNX es pesado de CPU).
+// Espera turno en vez de descartar → nunca deja un plato sin foto por concurrencia.
+const MAX_CONCURRENT_GEN = 2;
+let activeGen = 0;
+const genWaiters: Array<() => void> = [];
+async function acquireGenSlot(): Promise<void> {
+  if (activeGen < MAX_CONCURRENT_GEN) { activeGen++; return; }
+  await new Promise<void>((resolve) => genWaiters.push(resolve)); // hereda el hueco al despertar
+}
+function releaseGenSlot(): void {
+  const next = genWaiters.shift();
+  if (next) next(); // pasa el hueco al siguiente (activeGen no baja)
+  else activeGen--; // no hay cola → libera el hueco
+}
+
+/**
+ * Devuelve la URL pública de la foto del plato, generándola si no está en caché.
+ * Nunca lanza: si algo falla, devuelve null (el frontend muestra iniciales) y
+ * registra el fallo (anti-bucle). Caché compartida entre todos los usuarios.
+ */
+export async function getOrCreateDishImage(dish: DishInput): Promise<string | null> {
+  const key = cacheKey(dish);
+
+  // 1) Caché: ¿ya existe (ready) o está vetado por fallos (anti-bucle)?
+  try {
+    const { rows } = await getPool().query(
+      "SELECT url, status, fail_count FROM public.dish_images WHERE cache_key = $1",
+      [key],
+    );
+    if (rows.length > 0) {
+      const row = rows[0];
+      if (row.status === "ready" && row.url) return row.url; // acierto de caché → coste 0
+      if (row.status === "failed" && row.fail_count >= MAX_FAIL_ATTEMPTS) return null; // vetado
+    }
+  } catch (err) {
+    logger.error({ err, key }, "[dishImages] fallo leyendo caché");
+    return null;
+  }
+
+  // 2) Deduplicación: si ya se está generando esta misma clave, reutiliza la promesa.
+  const existing = inFlight.get(key);
+  if (existing) return existing;
+
+  const p = generateAndStore(dish, key).finally(() => inFlight.delete(key));
+  inFlight.set(key, p);
+  return p;
+}
+
+async function generateAndStore(dish: DishInput, key: string): Promise<string | null> {
+  await acquireGenSlot();
+  try {
+    const raw = await generateWithGemini(buildPrompt(dish));
+    const cut = await cropTransparent(raw);
+    const storage = getStorageClient();
+    const path = `${key}.png`;
+    const { error: upErr } = await storage.storage
+      .from(BUCKET)
+      .upload(path, cut, { contentType: "image/png", upsert: true });
+    if (upErr) throw new Error(`Storage upload: ${upErr.message}`);
+    const { data: pub } = storage.storage.from(BUCKET).getPublicUrl(path);
+    const url = pub.publicUrl;
+
+    await getPool().query(
+      `INSERT INTO public.dish_images (cache_key, url, meal_name, status, cost_eur, updated_at)
+       VALUES ($1, $2, $3, 'ready', $4, now())
+       ON CONFLICT (cache_key) DO UPDATE SET url = $2, status = 'ready', cost_eur = $4, updated_at = now()`,
+      [key, url, dish.meal_name, COST_PER_IMAGE_EUR],
+    );
+    logger.info({ key }, "[dishImages] imagen generada y cacheada");
+    return url;
+  } catch (err) {
+    // Anti-bucle: registra el fallo e incrementa el contador; tras 3 no se reintenta.
+    logger.error({ err, key }, "[dishImages] fallo generando imagen");
+    try {
+      await getPool().query(
+        `INSERT INTO public.dish_images (cache_key, url, meal_name, status, fail_count, updated_at)
+         VALUES ($1, NULL, $2, 'failed', 1, now())
+         ON CONFLICT (cache_key) DO UPDATE SET status = 'failed', fail_count = public.dish_images.fail_count + 1, updated_at = now()`,
+        [key, dish.meal_name],
+      );
+    } catch (dbErr) {
+      logger.error({ dbErr, key }, "[dishImages] fallo registrando el fallo");
+    }
+    return null;
+  } finally {
+    releaseGenSlot();
+  }
+}

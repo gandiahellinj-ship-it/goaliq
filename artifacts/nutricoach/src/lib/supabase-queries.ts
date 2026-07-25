@@ -1521,3 +1521,39 @@ export function useDailyMacros(date?: string) {
     },
   });
 }
+
+// ─── Dish images (generación bajo demanda, caché compartida) ────────────────────
+export interface DishImageMeal {
+  name: string;
+  imageIngredients?: { name: string; visual_ref?: string; category?: string }[];
+  isDrink?: boolean;
+}
+
+/**
+ * URL de la foto del plato (generada bajo demanda + cacheada en el servidor).
+ * Devuelve null mientras no hay foto (→ el componente muestra iniciales) o si
+ * la generación falla. No reintenta en bucle (el servidor tiene su anti-bucle).
+ */
+export function useDishImage(meal: DishImageMeal | null | undefined) {
+  const ings = meal?.imageIngredients ?? [];
+  // Firma estable por plato (nombre + ingredientes visibles) para la clave de React Query.
+  const sig = ings.map((i) => (i.visual_ref || i.name || "").toLowerCase()).sort().join("|");
+  const enabled = Boolean(meal?.name) && ings.length > 0;
+  return useQuery({
+    queryKey: ["dish_image", meal?.name ?? "", sig],
+    queryFn: async (): Promise<string | null> => {
+      const token = await getAccessToken();
+      const res = await fetch("/api/dish-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ meal_name: meal!.name, ingredients: ings, is_drink: meal!.isDrink ?? false }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return (data?.url as string | null) ?? null;
+    },
+    enabled,
+    staleTime: Infinity, // una vez hay URL, no cambia
+    retry: false,
+  });
+}

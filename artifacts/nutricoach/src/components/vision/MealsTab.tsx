@@ -1,5 +1,13 @@
+import { useState } from "react";
 import { Check } from "lucide-react";
 import type { MealItem } from "@/types";
+import { useDishImage } from "@/lib/supabase-queries";
+
+/** Resuelve el src: URL completa (Storage) tal cual; ruta relativa con BASE_URL. */
+function resolveSrc(src: string): string {
+  if (/^https?:\/\//i.test(src) || src.startsWith("data:")) return src;
+  return `${import.meta.env.BASE_URL.replace(/\/$/, "")}${src}`;
+}
 
 function Bar({ frac }: { frac: number }) {
   return (
@@ -21,10 +29,28 @@ function initials(name: string): string {
     .join("");
 }
 
-/** Small transparent-PNG dish image, or an initials circle when there's no image. */
+/**
+ * Foto del plato: imagen estática (maqueta) o la generada bajo demanda
+ * (useDishImage, caché compartida). Mientras no hay foto → círculo de iniciales.
+ * Cuando la foto llega, aparece con FUNDIDO suave (sin spinner ni salto).
+ */
 function DishImage({ meal, className, style }: { meal: MealItem; className?: string; style?: React.CSSProperties }) {
-  if (meal.image) {
-    return <img src={`${import.meta.env.BASE_URL.replace(/\/$/, "")}${meal.image}`} alt={meal.name} className={className} style={style} />;
+  const { data: generatedUrl } = useDishImage(
+    meal.image ? null : { name: meal.name, imageIngredients: meal.imageIngredients, isDrink: meal.isDrink },
+  );
+  const [loaded, setLoaded] = useState(false);
+  const src = meal.image ? resolveSrc(meal.image) : generatedUrl ? resolveSrc(generatedUrl) : null;
+
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={meal.name}
+        onLoad={() => setLoaded(true)}
+        className={className}
+        style={{ opacity: loaded ? 1 : 0, transition: "opacity 400ms ease", ...style }}
+      />
+    );
   }
   return (
     <div
