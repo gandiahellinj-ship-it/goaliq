@@ -148,6 +148,9 @@ importers:
       pino-http:
         specifier: ^10
         version: 10.5.0
+      sharp:
+        specifier: ^0.32.6
+        version: 0.32.6
       stripe:
         specifier: ^20
         version: 20.4.1(@types/node@25.3.5)

@@ -232,3 +232,52 @@ async function generateAndStore(dish: DishInput, key: string): Promise<DishImage
     releaseGenSlot();
   }
 }
+
+// ── Diagnóstico (lo ejecuta el servidor DESPLEGADO vía endpoint) ─────────────
+const EXPECTED_COLUMNS = ["cache_key", "url", "meal_name", "status", "fail_count", "cost_eur", "created_at", "updated_at"];
+
+/** Reporta presencia de variables (sí/no, nunca el valor), esquema real de la
+ *  tabla y comparación con lo que el código espera, y conteo por estado. */
+export async function diagnoseDishImages() {
+  const env = {
+    GOOGLE_GEMINI_API_KEY: Boolean(process.env.GOOGLE_GEMINI_API_KEY ?? process.env.GEMINI_API_KEY),
+    SUPABASE_SERVICE_ROLE_KEY: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+    SUPABASE_URL: Boolean(process.env.SUPABASE_URL),
+    DATABASE_URL: Boolean(process.env.DATABASE_URL),
+  };
+  let columns: string[] = [];
+  let schemaError: string | null = null;
+  try {
+    const { rows } = await getPool().query(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'dish_images' ORDER BY ordinal_position`,
+    );
+    columns = rows.map((r: any) => r.column_name);
+  } catch (err: any) {
+    schemaError = err?.message ?? String(err);
+  }
+  const missingColumns = EXPECTED_COLUMNS.filter((c) => !columns.includes(c));
+  let counts: Record<string, number> = {};
+  try {
+    const { rows } = await getPool().query("SELECT status, count(*)::int AS n FROM public.dish_images GROUP BY status");
+    counts = Object.fromEntries(rows.map((r: any) => [r.status, r.n]));
+  } catch { /* tabla puede no existir */ }
+  return {
+    env,
+    tableExists: columns.length > 0,
+    columns,
+    missingColumns, // si no está vacío → CAUSA probable (esquema no coincide)
+    schemaError,
+    counts,
+  };
+}
+
+/** Borra las filas 'failed' de un plato (levanta el veto anti-bucle). Devuelve nº borradas. */
+export async function resetFailedDish(dish: DishInput): Promise<number> {
+  const key = cacheKey(dish);
+  const { rowCount } = await getPool().query(
+    "DELETE FROM public.dish_images WHERE cache_key = $1 AND status = 'failed'",
+    [key],
+  );
+  return rowCount ?? 0;
+}
