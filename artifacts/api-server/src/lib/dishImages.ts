@@ -127,7 +127,7 @@ async function cropTransparent(raw: Buffer): Promise<Buffer> {
 }
 
 // ── Deduplicación de peticiones en vuelo (misma clave → una sola generación) ──
-const inFlight = new Map<string, Promise<string | null>>();
+const inFlight = new Map<string, Promise<DishImageResult>>();
 
 // ── Semáforo: máx. 2 generaciones simultáneas (el recorte ONNX es pesado de CPU).
 // Espera turno en vez de descartar → nunca deja un plato sin foto por concurrencia.
@@ -144,12 +144,19 @@ function releaseGenSlot(): void {
   else activeGen--; // no hay cola → libera el hueco
 }
 
+/** Resultado con MOTIVO explícito del fallo (no silencioso). */
+export interface DishImageResult {
+  url: string | null;
+  /** null si OK; si no, categoría del fallo (para no quedar ciegos). */
+  error: string | null;
+}
+
 /**
  * Devuelve la URL pública de la foto del plato, generándola si no está en caché.
- * Nunca lanza: si algo falla, devuelve null (el frontend muestra iniciales) y
- * registra el fallo (anti-bucle). Caché compartida entre todos los usuarios.
+ * Nunca lanza: si algo falla, devuelve { url: null, error: <motivo> } y lo
+ * registra (anti-bucle). Caché compartida entre todos los usuarios.
  */
-export async function getOrCreateDishImage(dish: DishInput): Promise<string | null> {
+export async function getOrCreateDishImage(dish: DishInput): Promise<DishImageResult> {
   const key = cacheKey(dish);
 
   // 1) Caché: ¿ya existe (ready) o está vetado por fallos (anti-bucle)?
@@ -160,12 +167,14 @@ export async function getOrCreateDishImage(dish: DishInput): Promise<string | nu
     );
     if (rows.length > 0) {
       const row = rows[0];
-      if (row.status === "ready" && row.url) return row.url; // acierto de caché → coste 0
-      if (row.status === "failed" && row.fail_count >= MAX_FAIL_ATTEMPTS) return null; // vetado
+      if (row.status === "ready" && row.url) return { url: row.url, error: null }; // acierto → coste 0
+      if (row.status === "failed" && row.fail_count >= MAX_FAIL_ATTEMPTS) {
+        return { url: null, error: "vetado_por_fallos_previos" }; // anti-bucle
+      }
     }
-  } catch (err) {
-    logger.error({ err, key }, "[dishImages] fallo leyendo caché");
-    return null;
+  } catch (err: any) {
+    logger.error({ err, key }, "[dishImages] fallo leyendo caché (¿tabla dish_images existe?)");
+    return { url: null, error: `db_read: ${err?.message ?? err}` };
   }
 
   // 2) Deduplicación: si ya se está generando esta misma clave, reutiliza la promesa.
@@ -177,12 +186,16 @@ export async function getOrCreateDishImage(dish: DishInput): Promise<string | nu
   return p;
 }
 
-async function generateAndStore(dish: DishInput, key: string): Promise<string | null> {
+async function generateAndStore(dish: DishInput, key: string): Promise<DishImageResult> {
   await acquireGenSlot();
+  let stage = "gemini";
   try {
     const raw = await generateWithGemini(buildPrompt(dish));
+    stage = "crop";
     const cut = await cropTransparent(raw);
+    stage = "storage_config";
     const storage = getStorageClient();
+    stage = "upload";
     const path = `${key}.png`;
     const { error: upErr } = await storage.storage
       .from(BUCKET)
@@ -191,6 +204,7 @@ async function generateAndStore(dish: DishInput, key: string): Promise<string | 
     const { data: pub } = storage.storage.from(BUCKET).getPublicUrl(path);
     const url = pub.publicUrl;
 
+    stage = "db_write";
     await getPool().query(
       `INSERT INTO public.dish_images (cache_key, url, meal_name, status, cost_eur, updated_at)
        VALUES ($1, $2, $3, 'ready', $4, now())
@@ -198,10 +212,11 @@ async function generateAndStore(dish: DishInput, key: string): Promise<string | 
       [key, url, dish.meal_name, COST_PER_IMAGE_EUR],
     );
     logger.info({ key }, "[dishImages] imagen generada y cacheada");
-    return url;
-  } catch (err) {
+    return { url, error: null };
+  } catch (err: any) {
     // Anti-bucle: registra el fallo e incrementa el contador; tras 3 no se reintenta.
-    logger.error({ err, key }, "[dishImages] fallo generando imagen");
+    const reason = `${stage}: ${err?.message ?? err}`;
+    logger.error({ err, key, stage }, "[dishImages] fallo generando imagen");
     try {
       await getPool().query(
         `INSERT INTO public.dish_images (cache_key, url, meal_name, status, fail_count, updated_at)
@@ -212,7 +227,7 @@ async function generateAndStore(dish: DishInput, key: string): Promise<string | 
     } catch (dbErr) {
       logger.error({ dbErr, key }, "[dishImages] fallo registrando el fallo");
     }
-    return null;
+    return { url: null, error: reason };
   } finally {
     releaseGenSlot();
   }

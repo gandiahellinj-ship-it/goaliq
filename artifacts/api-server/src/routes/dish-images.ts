@@ -25,8 +25,9 @@ router.post("/dish-image", normalLimiter, async (req, res) => {
     ingredients,
     is_drink: Boolean(body.is_drink),
   };
-  const url = await getOrCreateDishImage(dish); // nunca lanza
-  res.json({ url });
+  const result = await getOrCreateDishImage(dish); // nunca lanza
+  // Devuelve también `error` (motivo del fallo) para diagnóstico — beta, sesión requerida.
+  res.json(result);
 });
 
 export default router;
