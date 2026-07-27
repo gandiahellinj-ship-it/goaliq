@@ -81,26 +81,37 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+// CORS con forma delegada (recibe `req`) para poder comparar Origin ↔ Host y
+// permitir SIEMPRE el mismo origen. Esto es seguro y robusto: el navegador manda
+// cabecera Origin en las POST aunque sea el propio dominio, y así no hay que
+// tocar ALLOWED_ORIGINS cada vez que cambia la URL de producción. Nunca lanza
+// (devolver origin:false evita el 500 que rompía TODAS las POST del navegador).
 app.use(
-  cors({
-    credentials: true,
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, server-to-server)
-      if (!origin) return callback(null, true);
+  cors((req, callback) => {
+    const origin = req.headers.origin;
+    const allow = { credentials: true, origin: true } as const;
 
-      // Check exact match in allowlist
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+    // Sin Origin (curl, apps móviles, server-to-server)
+    if (!origin) return callback(null, allow);
 
-      // Allow Replit preview domains in development only. These are shared,
-      // multi-tenant domains, so allowing them in production would let any
-      // Replit-hosted site make authenticated cross-origin requests.
-      if (!isProduction && (origin.endsWith(".replit.dev") || origin.endsWith(".repl.co"))) {
-        return callback(null, true);
-      }
+    // Allowlist explícita (ALLOWED_ORIGINS)
+    if (allowedOrigins.includes(origin)) return callback(null, allow);
 
-      // Reject everything else
-      callback(new Error(`CORS: Origin ${origin} not allowed`));
-    },
+    // MISMO ORIGEN: Origin.host === Host de la petición → permitir (robusto).
+    try {
+      if (new URL(origin).host === req.headers.host) return callback(null, allow);
+    } catch {
+      /* Origin malformado → cae a rechazo */
+    }
+
+    // Dominios de PREVIEW de Replit SOLO en desarrollo (compartidos/multi-tenant).
+    if (!isProduction && (origin.endsWith(".replit.dev") || origin.endsWith(".repl.co"))) {
+      return callback(null, allow);
+    }
+
+    // Cross-origin no permitido: NO lanzar (evita 500). Sin cabeceras CORS → el
+    // navegador lo bloquea, pero el mismo origen sigue funcionando.
+    return callback(null, { origin: false });
   }),
 );
 app.use(cookieParser());
