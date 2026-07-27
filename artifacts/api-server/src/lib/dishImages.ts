@@ -314,7 +314,16 @@ export async function inspectUserPlan(userId: string) {
         "SELECT meal_name, status, url FROM public.dish_images WHERE cache_key = $1",
         [insp.cache_key],
       );
-      out.push({ day: day?.day, ...insp, cached_as: r[0]?.meal_name ?? null, cached_status: r[0]?.status ?? null, cached_url: r[0]?.url ?? null });
+      out.push({
+        day: day?.day,
+        ...insp,
+        // Ingredientes CRUDOS tal como están en el plan (nombre + visual_ref) →
+        // ver si el plan guarda ingredientes que no corresponden al nombre.
+        stored_ingredients: dish.ingredients.map((i) => ({ name: i.name, visual_ref: i.visual_ref ?? null })),
+        cached_as: r[0]?.meal_name ?? null,
+        cached_status: r[0]?.status ?? null,
+        cached_url: r[0]?.url ?? null,
+      });
     }
   }
   // Detecta claves usadas por más de un meal_name distinto (colisión).
