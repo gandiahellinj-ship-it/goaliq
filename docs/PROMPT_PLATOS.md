@@ -1,5 +1,32 @@
 # Prompt maestro — imágenes de plato (producción y mock)
 
+> ⚠️ CAMBIO DE ENFOQUE 27/07/2026 (José): SE ELIMINA EL RECORTE. En vez de
+> recortar el fondo con @imgly (que dio ENOENT en el Deployment de Replit —
+> le faltaban los archivos de modelo — y era ML nativo pesado y frágil), se
+> pide a Gemini que genere la imagen con el fondo YA del color de la tarjeta
+> de /vision: `--color-brand-bg` = **#F4F4F4** (verificado en index.css:413).
+> Así la foto se sirve tal cual, sin recorte, sin @imgly/onnxruntime/sharp, y
+> la generación vuelve a ser ligera y en el servidor (~5 s). La desviación de
+> color de Gemini y sus degradados de luz se toleran por CSS (fundido de
+> bordes con mask-image radial) o mostrando la foto como tarjeta redondeada.
+> El bloque de "fondo gris + recorte" de abajo queda OBSOLETO (histórico).
+
+## Sólidos (VIGENTE — fondo claro #F4F4F4, sin recorte)
+Professional food photography, perfect top-down overhead view,
+[PLATO], served in a simple white ceramic bowl, photorealistic, soft
+even studio lighting, appetizing, high detail, on a plain seamless
+very light warm grey background, background color approximately #F4F4F4,
+flat uniform background with minimal gradient and no vignette, no table,
+no props, no cutlery, no text, soft diffuse shadows only, nothing else
+in frame, centered, square 1:1, ultra high resolution
+
+## Bebidas (VIGENTE — fondo claro #F4F4F4, sin recorte)
+Igual que Sólidos pero sustituyendo el bol por: [BEBIDA] in a clear glass
+seen from directly above, creamy frothy surface.
+
+---
+## (OBSOLETO desde 27/07/2026) Enfoque anterior: fondo gris + recorte @imgly
+
 > Fondo GRIS CÁLIDO MEDIO (no blanco) — decidido en la Fase 0 (25/07/2026):
 > el plato de cerámica blanca sobre fondo blanco no tenía contraste y el
 > recortador Node (@imgly) se comía el borde del plato y los elementos finos
