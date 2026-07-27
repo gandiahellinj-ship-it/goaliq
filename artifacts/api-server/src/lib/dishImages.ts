@@ -86,6 +86,19 @@ function descripcionImagen(dish: DishInput): string {
   return visible.join(", ") || dish.meal_name;
 }
 
+/** Diagnóstico: qué descripción, prompt y clave produce un plato (sin generar). */
+export function inspectDish(dish: DishInput) {
+  const visible = visibleIngredients(dish.ingredients);
+  return {
+    meal_name: dish.meal_name,
+    descripcion_imagen: descripcionImagen(dish),
+    prompt: buildPrompt(dish),
+    cache_key: cacheKey(dish),
+    visible_ingredients: visible,
+    has_visual_ref: dish.ingredients.some((i) => i.visual_ref?.trim()),
+  };
+}
+
 // ── Prompt maestro (docs/PROMPT_PLATOS.md — sin recorte; no traducir) ─────────
 // Simplificado (27/07/2026): la foto se muestra como TARJETA (opción A), así que
 // no perseguimos un hex de fondo exacto ni «no vignette» (Gemini los ignora).
@@ -95,7 +108,7 @@ function buildPrompt(dish: DishInput): string {
   const vessel = dish.is_drink
     ? `${desc} in a clear glass seen from directly above, creamy frothy surface`
     : `${desc}, served on a simple white plate`;
-  return `Professional food photography, perfect top-down overhead view, ${vessel}, photorealistic, soft even studio lighting, appetizing, high detail, neutral light studio background, no table, no props, no cutlery, no text, nothing else in frame, centered, square 1:1, ultra high resolution`;
+  return `Professional food photography, perfect top-down overhead view, ${vessel}, photorealistic, soft even studio lighting, appetizing, high detail, flat even lighting on a uniform seamless plain neutral light grey background, no gradient, no table, no props, no cutlery, no text, nothing else in frame, centered, square 1:1, ultra high resolution`;
 }
 
 // ── Generación + recorte ─────────────────────────────────────────────────────
@@ -276,4 +289,40 @@ export async function resetFailedDish(dish: DishInput): Promise<number> {
     [key],
   );
   return rowCount ?? 0;
+}
+
+/** Diagnóstico: inspecciona TODOS los platos del plan del usuario — descripción,
+ *  prompt y clave de cada uno, y la fila de caché asociada (detecta claves
+ *  colisionadas: misma clave para platos distintos = fotos cruzadas). */
+export async function inspectUserPlan(userId: string) {
+  const { rows } = await getPool().query(
+    "SELECT days FROM public.meal_plans WHERE user_id = $1 ORDER BY generated_at DESC NULLS LAST LIMIT 1",
+    [userId],
+  );
+  if (!rows.length) return { hasPlan: false, meals: [] as any[] };
+  const days = Array.isArray(rows[0].days) ? rows[0].days : [];
+  const out: any[] = [];
+  for (const day of days) {
+    for (const m of day?.meals ?? []) {
+      const dish: DishInput = {
+        meal_name: m?.meal_name ?? m?.name ?? "",
+        ingredients: (m?.ingredients ?? []).map((i: any) => ({ name: i?.name, visual_ref: i?.visual_ref, category: i?.category })),
+        is_drink: false,
+      };
+      const insp = inspectDish(dish);
+      const { rows: r } = await getPool().query(
+        "SELECT meal_name, status FROM public.dish_images WHERE cache_key = $1",
+        [insp.cache_key],
+      );
+      out.push({ day: day?.day, ...insp, cached_as: r[0]?.meal_name ?? null, cached_status: r[0]?.status ?? null });
+    }
+  }
+  // Detecta claves usadas por más de un meal_name distinto (colisión).
+  const byKey = new Map<string, Set<string>>();
+  for (const x of out) {
+    if (!byKey.has(x.cache_key)) byKey.set(x.cache_key, new Set());
+    byKey.get(x.cache_key)!.add(x.meal_name);
+  }
+  const collisions = [...byKey.entries()].filter(([, names]) => names.size > 1).map(([k, names]) => ({ cache_key: k, meal_names: [...names] }));
+  return { hasPlan: true, count: out.length, collisions, meals: out };
 }

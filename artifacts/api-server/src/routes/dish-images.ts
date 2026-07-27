@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { getOrCreateDishImage, diagnoseDishImages, resetFailedDish, type DishInput } from "../lib/dishImages";
+import { getOrCreateDishImage, diagnoseDishImages, resetFailedDish, inspectUserPlan, type DishInput } from "../lib/dishImages";
 import { normalLimiter } from "../middlewares/rate-limiters";
 
 const router: IRouter = Router();
@@ -13,6 +13,17 @@ router.get("/dish-image/diagnose", normalLimiter, async (req, res) => {
     return;
   }
   res.json(await diagnoseDishImages());
+});
+
+// GET /api/dish-image/inspect-plan — para el usuario en sesión: descripción,
+// prompt y clave de CADA plato de su plan + la fila de caché asociada, y las
+// colisiones de clave. Diagnostica fotos cruzadas / descripciones erróneas.
+router.get("/dish-image/inspect-plan", normalLimiter, async (req, res) => {
+  if (!req.isAuthenticated()) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  res.json(await inspectUserPlan(req.user.id));
 });
 
 // POST /api/dish-image/reset — borra las filas 'failed' de un plato (levanta el
