@@ -23,6 +23,9 @@
 - [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día. **Tras la fusión.**
 - Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
 
+## 🔴 BLOQUEANTES antes de abrir el registro
+- **El borrado de cuenta RGPD (`DELETE /api/account`) devuelve HTTP 500** (descubierto 26/07/2026 al borrar un usuario de prueba en producción). Es **incumplimiento del art. 17 RGPD** (derecho de supresión) — NO es una nota al margen: si un usuario pide borrar su cuenta y falla, hay riesgo legal. **Arreglar y verificar (borrado en cascada real + confirmación) ANTES de permitir registros públicos.** Investigar la causa: la transacción del endpoint (insert deletion_log → clear beta code → DELETE FROM auth.users) falla en algún punto.
+
 ## Riesgos descubiertos (a revisar)
 - **Auto-regeneración de plan en la app antigua (24/07/2026).** `Workouts.tsx:205` tiene un `useEffect` que regenera el plan de entrenos con IA AUTOMÁTICAMENTE al abrir la pestaña si falta el plan o si algún ejercicio no tiene `exercise_id`. Un usuario real puede gastar una llamada de IA sin pedirlo, solo con navegar. **Choca con la decisión del 07/07 (tope de regeneraciones obligatorio).** Revisar antes de la beta: ¿respeta el tope esta vía automática? Nota: `/vision` NO regenera (solo lee), así que el riesgo es exclusivo de la app antigua — se extingue con el cambio de puerta, salvo que el onboarding restilado herede el patrón.
 

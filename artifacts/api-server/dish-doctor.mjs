@@ -1,10 +1,15 @@
 /**
  * DISH DOCTOR — diagnóstico por etapas de la pipeline de imágenes de plato.
  * Herramienta PERMANENTE. Prueba cada pieza AISLADA y dice cuál falla, con el
- * motivo. Se ejecuta con las mismas credenciales que usa el servidor (Secrets
- * compartidos entre workspace y deployment).
+ * motivo.
  *
- * Uso (Shell de Replit):
+ * ⚠️ IMPORTANTE: este script habla SOLO del entorno donde se ejecuta. Corrido
+ * en la Shell del workspace, prueba las variables del WORKSPACE — que NO tienen
+ * por qué coincidir con las del DEPLOYMENT (Replit permite secrets propios por
+ * entorno). Para la verdad de PRODUCCIÓN usa GET /api/dish-image/diagnose, que
+ * lo responde el servidor desplegado. Este doctor es complementario.
+ *
+ * Uso:
  *   cd artifacts/api-server
  *   node dish-doctor.mjs
  *
@@ -23,7 +28,9 @@ const results = [];
 function ok(stage, detail = "") { results.push({ stage, ok: true, detail }); console.log(`✅ ${stage} ${detail}`); }
 function ko(stage, err) { results.push({ stage, ok: false, detail: String(err?.message ?? err) }); console.log(`❌ ${stage}: ${err?.message ?? err}`); }
 
-console.log("\n🩺 DISH DOCTOR — diagnóstico por etapas\n");
+console.log("\n🩺 DISH DOCTOR — diagnóstico por etapas");
+console.log("⚠️  Habla SOLO del entorno donde se ejecuta (aquí: donde corre esta Shell).");
+console.log("    Para la verdad de PRODUCCIÓN: GET /api/dish-image/diagnose.\n");
 
 // Presencia de variables (sí/no, nunca el valor)
 const env = {
