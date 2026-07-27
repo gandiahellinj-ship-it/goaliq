@@ -311,10 +311,10 @@ export async function inspectUserPlan(userId: string) {
       };
       const insp = inspectDish(dish);
       const { rows: r } = await getPool().query(
-        "SELECT meal_name, status FROM public.dish_images WHERE cache_key = $1",
+        "SELECT meal_name, status, url FROM public.dish_images WHERE cache_key = $1",
         [insp.cache_key],
       );
-      out.push({ day: day?.day, ...insp, cached_as: r[0]?.meal_name ?? null, cached_status: r[0]?.status ?? null });
+      out.push({ day: day?.day, ...insp, cached_as: r[0]?.meal_name ?? null, cached_status: r[0]?.status ?? null, cached_url: r[0]?.url ?? null });
     }
   }
   // Detecta claves usadas por más de un meal_name distinto (colisión).
