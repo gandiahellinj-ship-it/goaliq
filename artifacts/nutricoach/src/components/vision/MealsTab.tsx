@@ -31,8 +31,9 @@ function initials(name: string): string {
 
 /**
  * Foto del plato: imagen estática (maqueta) o la generada bajo demanda
- * (useDishImage, caché compartida). Mientras no hay foto → círculo de iniciales.
- * Cuando la foto llega, aparece con FUNDIDO suave (sin spinner ni salto).
+ * (useDishImage, caché compartida). Mientras no hay foto → iniciales (la forma
+ * la da el className: círculo en el carrusel, bloque en el hero). Cuando la foto
+ * llega, aparece con FUNDIDO suave (sin spinner ni salto).
  */
 function DishImage({ meal, className, style }: { meal: MealItem; className?: string; style?: React.CSSProperties }) {
   const { data: generatedUrl } = useDishImage(
@@ -54,7 +55,7 @@ function DishImage({ meal, className, style }: { meal: MealItem; className?: str
   }
   return (
     <div
-      className={`flex items-center justify-center rounded-full font-display text-white ${className ?? ""}`}
+      className={`flex items-center justify-center font-display text-white ${className ?? ""}`}
       style={{ background: "var(--color-brand-accent)", ...style }}
     >
       {initials(meal.name)}
@@ -118,17 +119,17 @@ export default function MealsTab({
         <div className="mt-1"><Bar frac={caloriesGoal > 0 ? kcal / caloriesGoal : 0} /></div>
       </div>
 
-      {/* Hero dish image (shrinks first) */}
-      <div className="mt-2 flex min-h-0 flex-1 items-center justify-center">
-        <DishImage
-          meal={selected}
-          className="max-h-full w-auto object-contain"
-          style={{ filter: "drop-shadow(0 10px 14px rgba(26,26,26,0.18))", maxHeight: "100%" }}
-        />
+      {/* Foto del plato (opción A): a sangre, esquinas redondeadas ARRIBA, foto
+          rellenando el ancho (object-cover). Ocupa el hueco vertical disponible. */}
+      <div
+        className="mt-2 min-h-0 flex-1 overflow-hidden rounded-t-2xl"
+        style={{ boxShadow: "0 6px 14px rgba(26,26,26,0.10)" }}
+      >
+        <DishImage meal={selected} className="h-full w-full object-cover" />
       </div>
 
-      {/* Name + type/time */}
-      <div className="mt-1 text-center">
+      {/* Nombre debajo, sobre el beige */}
+      <div className="mt-2 text-center">
         <div className="font-display text-xl font-bold leading-tight text-[var(--color-brand-text-lbl)]">{selected.name}</div>
         <div className="text-[11px] text-[var(--color-brand-grey)]">{selected.tag} · {selected.time}</div>
       </div>
@@ -203,7 +204,7 @@ export function MealsCarousel({
             style={{ scrollSnapAlign: "center", opacity: active ? 1 : 0.55, transition: "opacity 200ms" }}
           >
             <div
-              className="relative flex items-center justify-center rounded-2xl border bg-[var(--color-brand-card)]"
+              className="relative flex items-center justify-center overflow-hidden rounded-2xl border bg-[var(--color-brand-card)]"
               style={{
                 width: active ? 72 : 54,
                 height: active ? 72 : 54,
@@ -211,7 +212,7 @@ export function MealsCarousel({
                 transition: "all 200ms",
               }}
             >
-              <DishImage meal={m} className="h-full w-full object-contain p-1" />
+              <DishImage meal={m} className="h-full w-full object-cover" />
               {m.done && (
                 <span
                   className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full text-white"

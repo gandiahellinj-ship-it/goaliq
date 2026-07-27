@@ -11,18 +11,25 @@
 > bordes con mask-image radial) o mostrando la foto como tarjeta redondeada.
 > El bloque de "fondo gris + recorte" de abajo queda OBSOLETO (histórico).
 
-## Sólidos (VIGENTE — fondo claro #F4F4F4, sin recorte)
+## Sólidos (VIGENTE — sin recorte, se muestra como TARJETA)
 Professional food photography, perfect top-down overhead view,
-[PLATO], served in a simple white ceramic bowl, photorealistic, soft
-even studio lighting, appetizing, high detail, on a plain seamless
-very light warm grey background, background color approximately #F4F4F4,
-flat uniform background with minimal gradient and no vignette, no table,
-no props, no cutlery, no text, soft diffuse shadows only, nothing else
-in frame, centered, square 1:1, ultra high resolution
+[PLATO], served on a simple white plate, photorealistic, soft even
+studio lighting, appetizing, high detail, neutral light studio
+background, no table, no props, no cutlery, no text, nothing else in
+frame, centered, square 1:1, ultra high resolution
 
-## Bebidas (VIGENTE — fondo claro #F4F4F4, sin recorte)
-Igual que Sólidos pero sustituyendo el bol por: [BEBIDA] in a clear glass
+## Bebidas (VIGENTE — sin recorte)
+Igual que Sólidos pero sustituyendo el plato por: [BEBIDA] in a clear glass
 seen from directly above, creamy frothy surface.
+
+## Aprendido en la Fase 0 (por qué el prompt es así)
+- **Recipiente FIJO = plato llano blanco.** Gemini devolvía plato llano aunque
+  se le pidiera bol; se fija plato para consistencia.
+- **NO perseguir un hex de fondo exacto ni «no vignette».** Gemini ignora
+  ambos: devuelve un fondo beige verdoso (~#DDDCD5) con viñeteado en las
+  esquinas. Por eso la foto se muestra como TARJETA (esquinas redondeadas,
+  foto a sangre), donde el viñeteado se lee como luz de estudio y el color
+  de fondo deja de importar. El diseño NO debe depender del color exacto.
 
 ---
 ## (OBSOLETO desde 27/07/2026) Enfoque anterior: fondo gris + recorte @imgly

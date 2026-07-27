@@ -13,14 +13,19 @@
  *   cd artifacts/api-server
  *   node dish-doctor.mjs
  *
- * Etapas: (a) Gemini genera 1 imagen · (b) @imgly carga y recorta un PNG ·
- * (c) subir+borrar un archivo dummy en el bucket con service_role ·
- * (d) INSERT+SELECT+DELETE en dish_images (revela esquema incompatible).
- * Coste: 1 imagen de Gemini (~0,036 €). No deja basura (borra lo que crea).
+ * Etapas: (a) Gemini genera 1 imagen · (b) subir+borrar un archivo dummy en el
+ * bucket con service_role · (c) INSERT+SELECT+DELETE en dish_images (revela
+ * esquema incompatible). Coste: 1 imagen de Gemini (~0,036 €). No deja basura.
+ * (Ya no hay etapa de recorte: se eliminó @imgly el 27/07/2026.)
  */
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
-import sharp from "sharp";
+
+// PNG transparente 2×2 mínimo (evita depender de sharp para el dummy).
+const DUMMY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEUlEQVR42mNkYPhfz0AEYBxVSFQGAGX/Af8Ksef4AAAAAElFTkSuQmCC",
+  "base64",
+);
 
 const BUCKET = "dish-images";
 const GEMINI_MODEL = "gemini-2.5-flash-image";
@@ -64,30 +69,19 @@ try {
   ok("(a) Gemini genera imagen", `(${rawPng.length} bytes)`);
 } catch (e) { ko("(a) Gemini genera imagen", e); }
 
-// ── (b) @imgly: cargar y recortar un PNG 10×10 ───────────────────────────────
-try {
-  const testPng = await sharp({ create: { width: 10, height: 10, channels: 4, background: { r: 200, g: 200, b: 200, alpha: 1 } } }).png().toBuffer();
-  const { removeBackground } = await import("@imgly/background-removal-node");
-  const cut = await removeBackground(new Blob([new Uint8Array(testPng)], { type: "image/png" }), { output: { format: "image/png" } });
-  const out = Buffer.from(await cut.arrayBuffer());
-  if (!out.length) throw new Error("recorte vacío");
-  ok("(b) @imgly carga y recorta", `(${out.length} bytes)`);
-} catch (e) { ko("(b) @imgly carga y recorta", e); }
-
-// ── (c) Storage: subir + borrar dummy con service_role ───────────────────────
+// ── (b) Storage: subir + borrar dummy con service_role ───────────────────────
 try {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY ausentes");
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const path = "_doctor-test.png";
-  const dummy = await sharp({ create: { width: 2, height: 2, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).png().toBuffer();
-  const { error: upErr } = await sb.storage.from(BUCKET).upload(path, dummy, { contentType: "image/png", upsert: true });
+  const { error: upErr } = await sb.storage.from(BUCKET).upload(path, DUMMY_PNG, { contentType: "image/png", upsert: true });
   if (upErr) throw new Error(`upload: ${upErr.message}`);
   await sb.storage.from(BUCKET).remove([path]);
-  ok("(c) Storage subir+borrar (service_role)");
-} catch (e) { ko("(c) Storage subir+borrar (service_role)", e); }
+  ok("(b) Storage subir+borrar (service_role)");
+} catch (e) { ko("(b) Storage subir+borrar (service_role)", e); }
 
-// ── (d) BD: INSERT + SELECT + DELETE en dish_images ──────────────────────────
+// ── (c) BD: INSERT + SELECT + DELETE en dish_images ──────────────────────────
 try {
   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
   const k = "_doctor--test";
@@ -101,8 +95,8 @@ try {
   await pool.query("DELETE FROM public.dish_images WHERE cache_key=$1", [k]);
   await pool.end();
   if (!rows.length) throw new Error("no se pudo releer la fila insertada");
-  ok("(d) BD insert/select/delete", `(columnas OK: ${Object.keys(rows[0]).join(", ")})`);
-} catch (e) { ko("(d) BD insert/select/delete", e); }
+  ok("(c) BD insert/select/delete", `(columnas OK: ${Object.keys(rows[0]).join(", ")})`);
+} catch (e) { ko("(c) BD insert/select/delete", e); }
 
 // ── Veredicto ────────────────────────────────────────────────────────────────
 const failed = results.filter((r) => !r.ok);

@@ -86,13 +86,16 @@ function descripcionImagen(dish: DishInput): string {
   return visible.join(", ") || dish.meal_name;
 }
 
-// ── Prompt maestro (docs/PROMPT_PLATOS.md — fondo gris, no traducir) ──────────
+// ── Prompt maestro (docs/PROMPT_PLATOS.md — sin recorte; no traducir) ─────────
+// Simplificado (27/07/2026): la foto se muestra como TARJETA (opción A), así que
+// no perseguimos un hex de fondo exacto ni «no vignette» (Gemini los ignora).
+// Recipiente FIJO = plato llano blanco (lo que Gemini devuelve bien y consistente).
 function buildPrompt(dish: DishInput): string {
   const desc = descripcionImagen(dish);
-  if (dish.is_drink) {
-    return `Professional food photography, perfect top-down overhead view, ${desc} in a clear glass seen from directly above, creamy frothy surface, photorealistic, soft even studio lighting, appetizing, high detail, completely isolated on a plain seamless medium warm grey background clearly distinct from the glass, no table, no props, no cutlery, no text, no shadows outside the glass, flat even lighting with no contact shadow beneath the glass, nothing else in frame, centered, square 1:1, ultra high resolution`;
-  }
-  return `Professional food photography, perfect top-down overhead view, ${desc}, served in a simple white ceramic bowl, photorealistic, soft even studio lighting, appetizing, high detail, completely isolated on a plain seamless medium warm grey background clearly distinct from the white bowl, no table, no props, no cutlery, no text, no shadows outside the bowl, flat even lighting with no contact shadow beneath the bowl, nothing else in frame, centered, square 1:1, ultra high resolution`;
+  const vessel = dish.is_drink
+    ? `${desc} in a clear glass seen from directly above, creamy frothy surface`
+    : `${desc}, served on a simple white plate`;
+  return `Professional food photography, perfect top-down overhead view, ${vessel}, photorealistic, soft even studio lighting, appetizing, high detail, neutral light studio background, no table, no props, no cutlery, no text, nothing else in frame, centered, square 1:1, ultra high resolution`;
 }
 
 // ── Generación + recorte ─────────────────────────────────────────────────────
@@ -119,19 +122,14 @@ async function generateWithGemini(prompt: string): Promise<Buffer> {
   return Buffer.from(d.data, "base64");
 }
 
-async function cropTransparent(raw: Buffer): Promise<Buffer> {
-  const { removeBackground } = await import("@imgly/background-removal-node");
-  const input = new Blob([new Uint8Array(raw)], { type: "image/png" }); // la versión Node NO acepta data-URLs
-  const blob = await removeBackground(input, { output: { format: "image/png" } });
-  return Buffer.from(await blob.arrayBuffer());
-}
+// (Sin recorte: la foto se sirve tal cual de Gemini. @imgly eliminado 27/07/2026.)
 
 // ── Deduplicación de peticiones en vuelo (misma clave → una sola generación) ──
 const inFlight = new Map<string, Promise<DishImageResult>>();
 
-// ── Semáforo: máx. 2 generaciones simultáneas (el recorte ONNX es pesado de CPU).
+// ── Semáforo: máx. 3 generaciones simultáneas (evita ráfagas contra Gemini).
 // Espera turno en vez de descartar → nunca deja un plato sin foto por concurrencia.
-const MAX_CONCURRENT_GEN = 2;
+const MAX_CONCURRENT_GEN = 3;
 let activeGen = 0;
 const genWaiters: Array<() => void> = [];
 async function acquireGenSlot(): Promise<void> {
@@ -190,16 +188,14 @@ async function generateAndStore(dish: DishInput, key: string): Promise<DishImage
   await acquireGenSlot();
   let stage = "gemini";
   try {
-    const raw = await generateWithGemini(buildPrompt(dish));
-    stage = "crop";
-    const cut = await cropTransparent(raw);
+    const raw = await generateWithGemini(buildPrompt(dish)); // sin recorte: se sube tal cual
     stage = "storage_config";
     const storage = getStorageClient();
     stage = "upload";
     const path = `${key}.png`;
     const { error: upErr } = await storage.storage
       .from(BUCKET)
-      .upload(path, cut, { contentType: "image/png", upsert: true });
+      .upload(path, raw, { contentType: "image/png", upsert: true });
     if (upErr) throw new Error(`Storage upload: ${upErr.message}`);
     const { data: pub } = storage.storage.from(BUCKET).getPublicUrl(path);
     const url = pub.publicUrl;

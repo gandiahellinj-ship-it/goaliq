@@ -40,9 +40,6 @@ onlyBuiltDependencies:
   - esbuild
   - msw
   - unrs-resolver
-  # Motores nativos del recorte de imágenes de plato (@imgly/background-removal-node)
-  - onnxruntime-node
-  - sharp
 
 # Nota (22/07/2026): aquí había ~80 vetos ('-') a los binarios nativos de
 # todas las plataformas excepto linux-x64 (config heredada de Replit). Rompían
