@@ -57,6 +57,9 @@ Thumbs.db
 # api-server local secrets (Spoonacular key, PORT, etc.) — never commit.
 artifacts/api-server/.env
 
+# Cadena de conexión de STAGING para el runner de migraciones — nunca commitear.
+artifacts/api-server/.env.staging
+
 
 # Fase 0 — salida de la vista previa de platos (local, no versionar)
 artifacts/api-server/dish-preview-output/

@@ -119,16 +119,22 @@ alter table public.ingredient_swaps  enable row level security;
 alter table public.workout_plans     enable row level security;
 alter table public.progress_logs     enable row level security;
 
+drop policy if exists "profiles: users manage own row" on public.profiles;
 create policy "profiles: users manage own row"
   on public.profiles for all using (auth.uid() = id) with check (auth.uid() = id);
+drop policy if exists "food_preferences: users manage own row" on public.food_preferences;
 create policy "food_preferences: users manage own row"
   on public.food_preferences for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "meal_plans: users manage own rows" on public.meal_plans;
 create policy "meal_plans: users manage own rows"
   on public.meal_plans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "ingredient_swaps: authenticated users can read" on public.ingredient_swaps;
 create policy "ingredient_swaps: authenticated users can read"
   on public.ingredient_swaps for select using (auth.role() = 'authenticated');
+drop policy if exists "workout_plans: users manage own rows" on public.workout_plans;
 create policy "workout_plans: users manage own rows"
   on public.workout_plans for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "progress_logs: users manage own rows" on public.progress_logs;
 create policy "progress_logs: users manage own rows"
   on public.progress_logs for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
@@ -169,6 +175,7 @@ create table if not exists public.consent_log (
 create index if not exists idx_consent_log_user on public.consent_log(user_id, consent_type);
 create index if not exists idx_consent_log_created on public.consent_log(created_at);
 alter table public.consent_log enable row level security;
+drop policy if exists "users_read_own_consents" on public.consent_log;
 create policy "users_read_own_consents" on public.consent_log for select using (auth.uid() = user_id);
 -- Sin políticas de UPDATE/DELETE = inmutable (solo service_role).
 
@@ -298,8 +305,10 @@ create table if not exists public.profile_change_events (
 create index if not exists profile_change_events_user_created_idx
   on public.profile_change_events (user_id, created_at desc);
 alter table public.profile_change_events enable row level security;
+drop policy if exists "Users can insert own profile change events" on public.profile_change_events;
 create policy "Users can insert own profile change events"
   on public.profile_change_events for insert with check (auth.uid() = user_id);
+drop policy if exists "Users can read own profile change events" on public.profile_change_events;
 create policy "Users can read own profile change events"
   on public.profile_change_events for select using (auth.uid() = user_id);
 
