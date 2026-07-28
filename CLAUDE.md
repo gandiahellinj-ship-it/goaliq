@@ -2,6 +2,16 @@
 
 Este archivo se lee AUTOMÁTICAMENTE al inicio de cada sesión. No esperes a que José lo pida.
 
+## Flujo de ramas (obligatorio desde 28/07/2026)
+
+- **Trabaja SIEMPRE en ramas `feature/…` creadas desde `staging`.** Cada tarea, su rama.
+- **PROHIBIDO hacer push o merge a `main`.** Eso lo hace José manualmente tras
+  probar en `staging`. Claude solo sube ramas `feature/…` a GitHub.
+- `main` = producción (lo que Replit publica). `staging` = integración/pruebas.
+- **PROHIBIDO usar credenciales del Supabase de PRODUCCIÓN en tests.** Los E2E
+  (carpeta `e2e/`) solo se ejecutan contra STAGING; su config aborta si apuntan
+  a producción.
+
 ## Regla suprema: el código manda
 
 El código implementado manda sobre cualquier documento (incluido este). Si un
