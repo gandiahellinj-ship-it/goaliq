@@ -1,6 +1,11 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Implementar la pipeline COMPLETA de imágenes de plato en producción (Fase 0 ya aprobada): bucket `dish-images` + tabla índice `dish_images` + función `getOrCreateDishImage` + endpoint bajo demanda + hook `useDishImage` con fade-in. Ver detalle en el punto 4 de la hoja de ruta. Empezar confirmando/creando el bucket de Storage y la tabla.
+**PRÓXIMA SESIÓN:** (a) Retomar el diagnóstico del bug de fotos de plato incorrectas — pendiente que José pegue la salida de `GET /api/dish-image/inspect-plan` (hipótesis viva: el plan guarda ingredientes desalineados con el nombre del plato, ver más abajo). (b) Arreglar el RGPD 500 (bloqueante). Trabajo en ramas `feature/…` desde `staging` (nuevo flujo, ver CLAUDE.md).
+
+## Configuración 28/07/2026 (rama feature/workflow-setup)
+- **Flujo de ramas establecido**: `staging` creada desde `main` y subida; se trabaja en `feature/…` desde `staging`; nunca push/merge a `main` (lo hace José). Reglas en CLAUDE.md.
+- **Tests de humo E2E (Playwright)**: paquete `e2e/` con 5 recorridos (registro, login, ver plan, marcar comida, borrar cuenta), MARCADOS pendientes de entorno staging (skip por defecto; la config aborta si apuntan a producción). Sin navegadores descargados aún. Config de staging: rellenar `e2e/.env` (ver `e2e/.env.example`).
+- **Esquema a replicar en el Supabase de STAGING**: ejecutar `supabase-schema.sql` + `artifacts/api-server/migrations/m9p2-rgpd-bloque1.sql` (+ `-seed.sql` para códigos beta) + crear la tabla `dish_images` + las tablas de versiones de plan (`meal_plan_versions`/`workout_plan_versions`, ver comentarios en `plan-versioning.ts`) + **la tabla `deletion_logs` que HOY FALTA** (ver bloqueante RGPD). Las demás (calendar_events, flex_days, workout_history, strength_logs, meal_logs, stripe_users, workoutx_exercises, profile_change_events) las auto-crea el servidor al arrancar apuntando al Supabase de staging.
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
 1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
@@ -24,7 +29,11 @@
 - Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
 
 ## 🔴 BLOQUEANTES antes de abrir el registro
-- **El borrado de cuenta RGPD (`DELETE /api/account`) devuelve HTTP 500** (descubierto 26/07/2026 al borrar un usuario de prueba en producción). Es **incumplimiento del art. 17 RGPD** (derecho de supresión) — NO es una nota al margen: si un usuario pide borrar su cuenta y falla, hay riesgo legal. **Arreglar y verificar (borrado en cascada real + confirmación) ANTES de permitir registros públicos.** Investigar la causa: la transacción del endpoint (insert deletion_log → clear beta code → DELETE FROM auth.users) falla en algún punto.
+- **El borrado de cuenta RGPD (`DELETE /api/account`) devuelve HTTP 500** — incumplimiento del art. 17. **CAUSA RAÍZ DIAGNOSTICADA (28/07/2026, solo diagnóstico, sin arreglar aún):**
+  - **Causa principal probable**: la transacción hace `INSERT INTO deletion_logs …` antes de borrar la cuenta, pero **la tabla `deletion_logs` NO se crea en ningún sitio** — no está en `supabase-schema.sql`, ni en las migraciones, ni en el código de arranque; solo existe el código que ESCRIBE en ella. Si la tabla no existe en la BD, ese INSERT falla → toda la transacción hace ROLLBACK → 500 en CADA borrado real.
+  - **Fragilidad secundaria**: `const { confirmation } = req.body` se ejecuta FUERA del try/catch; si la petición llega sin cuerpo, revienta con 500 antes de validar (esto es lo que provocó el 500 en la prueba con curl sin cuerpo).
+  - **Candidata a descartar**: que el rol de BD (`DATABASE_URL`/pooler) no tenga permiso para `DELETE FROM auth.users`.
+  - **Solución propuesta (a aplicar en rama feature/ tras aprobar)**: (1) crear la tabla `deletion_logs` (migración); (2) mover/guardar el parseo de `req.body` para devolver 400 limpio si falta el cuerpo; (3) confirmar la causa exacta EN STAGING enviando un DELETE con cuerpo correcto y leyendo el error del log (dirá "relation deletion_logs does not exist" → confirma la causa 1, o un error de permisos → confirma la candidata). **Arreglar y verificar antes de abrir registro.**
 
 ## Riesgos descubiertos (a revisar)
 - **Auto-regeneración de plan en la app antigua (24/07/2026).** `Workouts.tsx:205` tiene un `useEffect` que regenera el plan de entrenos con IA AUTOMÁTICAMENTE al abrir la pestaña si falta el plan o si algún ejercicio no tiene `exercise_id`. Un usuario real puede gastar una llamada de IA sin pedirlo, solo con navegar. **Choca con la decisión del 07/07 (tope de regeneraciones obligatorio).** Revisar antes de la beta: ¿respeta el tope esta vía automática? Nota: `/vision` NO regenera (solo lee), así que el riesgo es exclusivo de la app antigua — se extingue con el cambio de puerta, salvo que el onboarding restilado herede el patrón.
