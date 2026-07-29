@@ -1,6 +1,11 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** (a) bug de fotos de plato incorrectas (pendiente salida de `GET /api/dish-image/inspect-plan`). RGPD 500 ✅ ARREGLADO (29/07, en `staging`, ver abajo) — falta que José lo promocione a `main`. Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+**PRÓXIMA SESIÓN:** Promocionar a `main` el lote de `staging` (4 arreglos, ver abajo) cuando José quiera; y confirmación visual de una foto de plato regenerada (ver "Bug fotos de plato"). Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+
+## Bug fotos de plato incorrectas — ✅ CAUSA RAÍZ ENCONTRADA Y ARREGLADA (29/07/2026, en `staging`)
+**Causa (verificada con datos reales del plan de producción):** el campo `visual_ref` de cada ingrediente guarda la **CANTIDAD** ("un puñado", "2 tazas", "media rodaja"), NO una descripción visual. Y la foto se armaba SOLO con los `visual_ref` → a Gemini le llegaba un prompt sin nombres de comida y generaba platos arbitrarios (p.ej. el salmón tenía visual_ref "una pechuga mediana" → dibujaba pollo). Hipótesis 1 (colisión de caché) ya se había descartado con datos.
+**Arreglo (commit `feature/fix-fotos-plato-visual-ref`, fusionado a `staging`):** `descripcion_imagen` ahora = nombre del plato + NOMBRES de ingredientes (sin condimentos), ignorando `visual_ref`. Arregla todos los planes existentes sin regenerarlos. Al cambiar la descripción cambia la `cache_key` → las fotos se regeneran correctas bajo demanda. Verificado con `inspectDish` (código real) sobre platos reales.
+**PENDIENTE:** confirmación VISUAL — ver una foto regenerada (ocurre al pedirla con el backend nuevo: al promocionar a `main`+desplegar, o en staging generando un plan con claves de IA). Las filas viejas/erróneas de `dish_images` quedan huérfanas (limpieza opcional). Mejora futura opcional: que la generación del plan rellene `visual_ref` con una descripción visual de verdad (no la cantidad).
 
 ## RGPD 500 (borrado de cuenta) — ✅ ARREGLADO (29/07/2026, en `staging`)
 `DELETE /api/account` daba 500 por dos causas, ambas corregidas (rama `feature/fix-rgpd-borrado`, fusionada a `staging`, commit `723f4e0`):
