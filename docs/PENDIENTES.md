@@ -1,6 +1,12 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Entorno de staging TERMINADO y verificado (ver "Estado Repl de staging"). Siguiente trabajo real: (a) bug de fotos de plato incorrectas (pendiente salida de `GET /api/dish-image/inspect-plan`); (b) RGPD 500 (bloqueante). Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+**PRÓXIMA SESIÓN:** (a) bug de fotos de plato incorrectas (pendiente salida de `GET /api/dish-image/inspect-plan`). RGPD 500 ✅ ARREGLADO (29/07, en `staging`, ver abajo) — falta que José lo promocione a `main`. Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+
+## RGPD 500 (borrado de cuenta) — ✅ ARREGLADO (29/07/2026, en `staging`)
+`DELETE /api/account` daba 500 por dos causas, ambas corregidas (rama `feature/fix-rgpd-borrado`, fusionada a `staging`, commit `723f4e0`):
+1. `const { confirmation } = req.body` estaba FUERA del try/catch → un DELETE sin cuerpo (req.body undefined) reventaba sin control. Arreglado con `?? {}`.
+2. La tabla `deletion_logs` no se creaba en ningún sitio del servidor (solo existía en staging por `staging-setup.sql`). Se añadió su `CREATE TABLE IF NOT EXISTS` + RLS a `ensureSupabaseTablesReady()` (db-migrations.ts) → **se auto-crea en TODOS los entornos al arrancar, incluida producción en el próximo despliegue. Ya NO hace falta hotfix manual** (a diferencia de profile_change_events).
+Verificado contra staging: build OK + transacción de borrado real ejecutada (usuario `blckbtz96@` + su perfil borrados en cascada, registro de auditoría creado en `deletion_logs`). **PENDIENTE:** José promociona `staging`→`main`; al desplegar, la tabla se crea sola en producción. Opcional: prueba E2E por interfaz (queda la cuenta `gandiahellinj@` en staging para ello).
 
 ## Configuración 28/07/2026 (rama feature/workflow-setup)
 - **Flujo de ramas establecido**: `staging` creada desde `main` y subida; se trabaja en `feature/…` desde `staging`; nunca push/merge a `main` (lo hace José). Reglas en CLAUDE.md.
