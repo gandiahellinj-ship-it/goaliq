@@ -8,8 +8,17 @@
  *   or: node scripts/e2e-test.js
  */
 
-const TEST_EMAIL    = process.env.TEST_EMAIL    ?? "test-qa@goaliq.app";
-const TEST_PASSWORD = process.env.TEST_PASSWORD ?? "TestQA2026!";
+const TEST_EMAIL    = process.env.TEST_EMAIL ?? "test-qa@goaliq.app";
+// La contraseña NUNCA va escrita en el código (higiene de seguridad): debe
+// venir por variable de entorno. Sin ella, el script no se ejecuta.
+const TEST_PASSWORD = process.env.TEST_PASSWORD;
+if (!TEST_PASSWORD) {
+  console.error(
+    "❌ Falta la variable de entorno TEST_PASSWORD (contraseña del usuario de QA).\n" +
+    "   Defínela antes de ejecutar, p. ej.:  TEST_PASSWORD='...' pnpm run e2e",
+  );
+  process.exit(1);
+}
 
 function resolveApiBase() {
   const domain = process.env.REPLIT_DEV_DOMAIN;
