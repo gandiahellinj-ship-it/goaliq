@@ -1,11 +1,22 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** (a) Retomar el diagnóstico del bug de fotos de plato incorrectas — pendiente que José pegue la salida de `GET /api/dish-image/inspect-plan` (hipótesis viva: el plan guarda ingredientes desalineados con el nombre del plato, ver más abajo). (b) Arreglar el RGPD 500 (bloqueante). Trabajo en ramas `feature/…` desde `staging` (nuevo flujo, ver CLAUDE.md).
+**PRÓXIMA SESIÓN:** Rematar el Repl de staging — la app YA carga en su URL, pero al abrir da "Your NutriCoach artifact crashed" (error de JS en el frontend, SIN diagnosticar aún; falta ver la consola de ESA pestaña, no la de otra). Ver "Estado Repl de staging (29/07/2026)". Después: (a) bug de fotos de plato incorrectas (pendiente salida de `GET /api/dish-image/inspect-plan`); (b) RGPD 500 (bloqueante). Trabajo en ramas `feature/…` desde `staging`.
 
 ## Configuración 28/07/2026 (rama feature/workflow-setup)
 - **Flujo de ramas establecido**: `staging` creada desde `main` y subida; se trabaja en `feature/…` desde `staging`; nunca push/merge a `main` (lo hace José). Reglas en CLAUDE.md.
 - **Tests de humo E2E (Playwright)**: paquete `e2e/` con 5 recorridos (registro, login, ver plan, marcar comida, borrar cuenta), MARCADOS pendientes de entorno staging (skip por defecto; la config aborta si apuntan a producción). Sin navegadores descargados aún. Config de staging: rellenar `e2e/.env` (ver `e2e/.env.example`).
 - **Esquema del Supabase de STAGING**: ejecutar el archivo único **`staging-setup.sql`** (raíz del repo) en el SQL Editor de staging. Reúne, en orden, esquema base + RGPD + `dish_images` + versiones de plan + `deletion_logs` + `profile_change_events`. **Verificado el 28/07/2026 tabla por tabla** qué crea el servidor solo y qué no: `deletion_logs` y `profile_change_events` NO se auto-crean (estaban solo como comentario en el código → causaban el 500 del RGPD y fallos del enfriamiento). El resto (stripe_users, flex_days, workout_history, workoutx_exercises, calendar_events, meal_logs, y `strength_logs` perezosa) las crea el servidor al arrancar/usar.
+
+## Estado Repl de staging (29/07/2026) — casi listo, falta un fallo de JS
+**HECHO y verificado:**
+- Supabase de staging `goaliq-staging` (ref `qunzfhewlhgqoulmixfd`, región eu-west-3) creado; `staging-setup.sql` aplicado (13 tablas, 3 códigos beta, 9 políticas RLS). Se aplicó con el **runner** `artifacts/api-server/scripts/apply-staging-sql.mjs` (comando `corepack pnpm --filter @workspace/api-server db:staging`), TLS verificado con `supabase-ca.crt`, cerrojo anti-producción. Conexión (Session pooler) en `artifacts/api-server/.env.staging` (gitignored).
+- Hotfix de producción aplicado por José: `profile_change_events` creada en el Supabase REAL (enfriamiento 24h reparado).
+- Repl de staging creado (cuenta @blckbtz, importado de GitHub), puesto en rama **`staging`** (que ya NO lleva credenciales de producción en `.replit` — commit `e0975c5`).
+- **Secrets** del Repl puestos y verificados que apuntan a STAGING (no producción): `SUPABASE_URL`, `VITE_SUPABASE_URL`, `SUPABASE_ANON_KEY`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DATABASE_URL`. (Faltan por poner cuando toque: `ANTHROPIC_API_KEY`, `GOOGLE_GEMINI_API_KEY`.)
+- Arranque en el Repl (dos procesos, por Shell): backend `PORT=3001 corepack pnpm --filter @workspace/api-server dev`; frontend `PORT=8080 BASE_PATH=/ API_PROXY_TARGET=http://localhost:3001 corepack pnpm --filter @workspace/nutricoach dev`. El frontend (Vite) sirve todo y hace proxy de `/api` al backend. Backend conecta a staging OK (migraciones corren, "Server listening").
+- Puertos publicados en `.replit` del Repl: `8080 → external 80` (frontend), `3001 → external 3001`. **Ojo:** hubo que reiniciar el Repl (`kill 1`) para que aplicara el mapeo. La URL correcta del frontend se abre desde el panel "Ports" (icono abrir de la fila 8080); la URL `REPLIT_DEV_DOMAIN` con `-00-` apunta al backend y da 502 en `/`.
+
+**PENDIENTE (el remate):** la app carga pero **crashea en el navegador** ("Your NutriCoach artifact crashed" — modal de `@replit/vite-plugin-runtime-error-modal`). Falta ver el error REAL en la consola de la pestaña de la app (F12 → Console) — la vez anterior José pegó por error la consola de YouTube. Diagnóstico pendiente; probable env var de runtime o llamada inicial. Nada de esto toca `main`/producción.
 
 ## Hoja de ruta hacia la meta (fijada por José el 23/07/2026)
 1. [x] **Restilar el modal de login a beige** — HECHO Y EN PRODUCCIÓN (23/07/2026). Solo clases de color (tokens reales de index.css, clase goaliq-vision en el panel para que resuelvan), estados verificados en local por José y firma del modal confirmada en el JS publicado. Commit `334d761`.
