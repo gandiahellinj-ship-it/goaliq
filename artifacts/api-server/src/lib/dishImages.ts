@@ -55,11 +55,13 @@ export interface DishInput {
 // Condimentos no visibles tras cocinar (se omiten de la descripción/hash).
 const HIDDEN = /\b(sal|salt|aceite|oil|pimienta|pepper|ajo|garlic|vinagre|vinegar|especias?|spices?|agua|water)\b/i;
 
-/** Ingredientes VISIBLES: los que tienen visual_ref, o su nombre si no hay condimento. */
+/** Ingredientes VISIBLES para la foto: los NOMBRES de los alimentos, sin
+ *  condimentos ocultos. NO se usa `visual_ref`: en los planes reales ese campo
+ *  guarda la CANTIDAD ("un puñado", "2 tazas", "media rodaja"), no una
+ *  descripción visual — llegaba a Gemini sin nombres de comida y generaba fotos
+ *  arbitrarias (verificado con datos reales, 29/07/2026). Los nombres SÍ
+ *  describen el alimento ("filete de salmón", "brócoli", "aguacate"). */
 function visibleIngredients(ings: DishIngredient[]): string[] {
-  const withRef = ings.filter((i) => i.visual_ref?.trim()).map((i) => i.visual_ref!.trim());
-  if (withRef.length > 0) return withRef;
-  // Fallback (planes antiguos sin visual_ref): nombres, sin condimentos.
   return ings.map((i) => i.name?.trim()).filter((n): n is string => !!n && !HIDDEN.test(n));
 }
 
@@ -80,10 +82,15 @@ export function cacheKey(dish: DishInput): string {
   return `${normalizeName(dish.meal_name)}--${hash}`;
 }
 
-/** descripcion_imagen en inglés = ingredientes visibles (visual_ref) unidos. */
+/** descripcion_imagen = nombre del plato + ingredientes visibles. El nombre del
+ *  plato le da a Gemini el FORMATO ("Omelette de…", "Filete de…") y los nombres
+ *  de ingredientes sus COMPONENTES. Si no quedan ingredientes visibles (todo
+ *  condimento), basta con el nombre del plato, que ya es descriptivo. */
 function descripcionImagen(dish: DishInput): string {
   const visible = visibleIngredients(dish.ingredients);
-  return visible.join(", ") || dish.meal_name;
+  const name = dish.meal_name?.trim();
+  if (visible.length === 0) return name || "plato";
+  return name ? `${name}: ${visible.join(", ")}` : visible.join(", ");
 }
 
 /** Diagnóstico: qué descripción, prompt y clave produce un plato (sin generar). */
