@@ -44,7 +44,7 @@ Verificado contra staging: build OK + transacción de borrado real ejecutada (us
 - [x] Punto 2 — `docs/` traído de la rama a `main` + CLAUDE.md corregido (regla "el código manda", estado de ramas, colores beige reales). Commits `a15d119` y `5626bba`.
 - [x] Punto 3 — Instalación en Linux VERIFICADA Y CORREGIDA (22/07/2026): eliminados los ~80 vetos de binarios de `pnpm-workspace.yaml` (config heredada de Replit que solo permitía linux-x64), quitados los 3 parches win32 de nutricoach, fijado `packageManager` pnpm@10.33.2. Chequeo automático de GitHub Actions (`.github/workflows/linux-check.yml`) en TODAS las ramas, para siempre. Ambas ramas en verde 🟢. Commits `9ede2e6` + `1ad6756` (main), `c154c20` + `f7ca904` (rama). La fusión queda desbloqueada.
 - [ ] Punto 4 — Actualizar dependencias con avisos de seguridad (8 avisos, 3 altos). Rápido. **Tras la fusión.**
-- [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal, contraseña de prueba en `scripts/e2e-test.js`). Medio día. **Tras la fusión.**
+- [ ] Punto 5 — Limpieza de peso muerto (paquetes sin usar, ~40 componentes UI, logos 404, motor 3D en el paquete principal). Medio día. **Tras la fusión.** ✅ Sub-item RESUELTO (29/07): la contraseña de QA hardcodeada en `scripts/e2e-test.js` quitada (ahora exige `TEST_PASSWORD` por entorno, commit en `staging`) + la cuenta `test-qa@goaliq.app` borrada de producción por José (el leak del historial de Git queda inservible sin la cuenta).
 - Deuda mayor (tras la beta): duplicación en el servidor y doble camino de acceso a datos (RLS). Varios días, gradual.
 
 ## 🔴 BLOQUEANTES antes de abrir el registro
