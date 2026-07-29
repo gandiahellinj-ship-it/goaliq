@@ -177,4 +177,37 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     )
   `);
   await pool.query(`ALTER TABLE public.deletion_logs ENABLE ROW LEVEL SECURITY`);
+
+  // 7. profile_change_events — enfriamiento de 24h para cambios extremos de perfil
+  //    (peso/objetivo). La usan cooldown.ts (checkProfileChangeCooldown /
+  //    recordProfileChange) A TRAVÉS del cliente Supabase del usuario (su JWT),
+  //    no del pool de servicio → SÍ necesita políticas RLS (insertar/leer lo
+  //    propio). Su CREATE vivía solo como comentario en cooldown.ts → no se
+  //    creaba (por eso hubo que hacer hotfix manual en producción). Ahora se
+  //    auto-crea en todos los entornos al arrancar. Políticas idempotentes
+  //    (DROP+CREATE) para que no fallen en cada reinicio.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.profile_change_events (
+      id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+      changed_fields  TEXT[] NOT NULL,
+      source          TEXT NOT NULL CHECK (source IN ('onboarding_edit','profile_patch')),
+      created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS profile_change_events_user_created_idx
+      ON public.profile_change_events (user_id, created_at DESC)
+  `);
+  await pool.query(`ALTER TABLE public.profile_change_events ENABLE ROW LEVEL SECURITY`);
+  await pool.query(`
+    DROP POLICY IF EXISTS "Users can insert own profile change events" ON public.profile_change_events;
+    CREATE POLICY "Users can insert own profile change events"
+      ON public.profile_change_events FOR INSERT WITH CHECK (auth.uid() = user_id);
+  `);
+  await pool.query(`
+    DROP POLICY IF EXISTS "Users can read own profile change events" ON public.profile_change_events;
+    CREATE POLICY "Users can read own profile change events"
+      ON public.profile_change_events FOR SELECT USING (auth.uid() = user_id);
+  `);
 }
