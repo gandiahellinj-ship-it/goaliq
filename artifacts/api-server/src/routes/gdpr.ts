@@ -242,7 +242,9 @@ router.delete("/account", normalLimiter, async (req, res) => {
 
   const userId = (req.user as any).id;
   const userEmail = (req.user as any).username; // username = email in this project
-  const { confirmation } = req.body;
+  // Guard: a DELETE may arrive without a JSON body → req.body can be undefined.
+  // Destructuring undefined throws OUTSIDE the try/catch below → unhandled 500.
+  const { confirmation } = req.body ?? {};
 
   if (confirmation !== "DELETE_MY_ACCOUNT") {
     res.status(400).json({
@@ -319,7 +321,7 @@ router.delete("/account", normalLimiter, async (req, res) => {
     res.clearCookie("sid");
     res.json({ success: true, message: "Account deleted" });
   } catch (err) {
-    await client.query("ROLLBACK");
+    await client.query("ROLLBACK").catch(() => {});
     console.error("Delete account error:", err);
     res.status(500).json({ error: "Failed to delete account" });
   } finally {
