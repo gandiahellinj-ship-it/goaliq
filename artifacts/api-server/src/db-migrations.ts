@@ -158,4 +158,23 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
       END IF;
     END $$
   `);
+
+  // 6. deletion_logs — RGPD Art. 17 audit trail, written by DELETE /api/account
+  //    BEFORE the auth.users cascade. deleted_user_id has NO FK to auth.users on
+  //    purpose: the log must survive the user's deletion. RLS enabled with NO
+  //    policies → only the service/superuser pool can access it (this audit log
+  //    holds email + IP and must never be exposed to authenticated users via
+  //    PostgREST). Sin esta tabla, DELETE /api/account daba 500 (bug RGPD).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.deletion_logs (
+      id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      deleted_user_email TEXT,
+      deleted_user_id    UUID,
+      deletion_reason    TEXT,
+      deletion_method    TEXT,
+      metadata           JSONB,
+      created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`ALTER TABLE public.deletion_logs ENABLE ROW LEVEL SECURITY`);
 }
