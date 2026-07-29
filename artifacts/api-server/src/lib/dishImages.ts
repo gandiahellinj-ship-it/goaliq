@@ -113,9 +113,9 @@ export function inspectDish(dish: DishInput) {
 function buildPrompt(dish: DishInput): string {
   const desc = descripcionImagen(dish);
   const vessel = dish.is_drink
-    ? `${desc} in a clear glass seen from directly above, creamy frothy surface`
-    : `${desc}, served on a simple white plate`;
-  return `Professional food photography, perfect top-down overhead view, ${vessel}, photorealistic, soft even studio lighting, appetizing, high detail, flat even lighting on a uniform seamless plain neutral light grey background, no gradient, no table, no props, no cutlery, no text, nothing else in frame, centered, square 1:1, ultra high resolution`;
+    ? `the finished drink "${desc}" in a clear glass seen from directly above, creamy frothy surface`
+    : `a single finished, cooked and plated dish of "${desc}", with all the ingredients cooked and combined together and served as ONE cohesive dish on a simple white plate (creams and liquids integrated as a sauce over the food, never in a separate bowl)`;
+  return `Professional food photography, perfect top-down overhead view, ${vessel}, photorealistic, soft even studio lighting, appetizing, high detail, flat even lighting on a uniform seamless plain neutral light grey background, no gradient, no table, no props, no cutlery, no separate bowls or ramekins, no sauce on the side, no raw loose ingredients, no text, nothing else in frame, centered, square 1:1, ultra high resolution`;
 }
 
 // ── Generación + recorte ─────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ const inFlight = new Map<string, Promise<DishImageResult>>();
 
 // ── Semáforo: máx. 3 generaciones simultáneas (evita ráfagas contra Gemini).
 // Espera turno en vez de descartar → nunca deja un plato sin foto por concurrencia.
-const MAX_CONCURRENT_GEN = 3;
+const MAX_CONCURRENT_GEN = 6;
 let activeGen = 0;
 const genWaiters: Array<() => void> = [];
 async function acquireGenSlot(): Promise<void> {
