@@ -16,9 +16,25 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function initStripe() {
+  // Contexto del entorno — se registra SIEMPRE. Sin esto no hay forma de saber
+  // por qué Stripe no arranca en un despliegue al que no puedes entrar.
+  // Solo booleanos y nombres: nunca el valor de un secreto.
+  const stripeEnv = {
+    databaseUrl: Boolean(process.env.DATABASE_URL),
+    stripeSecretKey: Boolean(process.env.STRIPE_SECRET_KEY),
+    replitDeployment: process.env.REPLIT_DEPLOYMENT ?? null,
+    replitConnectors: Boolean(process.env.REPLIT_CONNECTORS_HOSTNAME),
+    replitDomains: process.env.REPLIT_DOMAINS ?? null,
+  };
+  logger.info({ stripeEnv }, "[stripe] arrancando — contexto del entorno");
+
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    logger.warn("DATABASE_URL not set — Stripe will be disabled.");
+    logger.error(
+      { stripeEnv },
+      "[stripe] NO ARRANCA: falta DATABASE_URL. Sin base de datos no hay cobro, " +
+        "ni webhook, ni sincronización. Todo lo relacionado con pagos queda inactivo.",
+    );
     return;
   }
 
@@ -43,22 +59,47 @@ async function initStripe() {
     const domain = process.env.REPLIT_DOMAINS?.split(",")[0];
     if (domain) {
       const webhookUrl = `https://${domain}/api/stripe/webhook`;
-      logger.info({ webhookUrl }, "Registering Stripe webhook...");
+      logger.info({ webhookUrl }, "[stripe] registrando webhook…");
       try {
-        await stripeSync.findOrCreateManagedWebhook(webhookUrl);
+        const hook = await stripeSync.findOrCreateManagedWebhook(webhookUrl);
+        logger.info({ webhookUrl, webhookId: hook?.id }, "[stripe] webhook REGISTRADO");
       } catch (err) {
-        logger.warn({ err }, "Webhook registration failed — continuing");
+        logger.error(
+          { err, webhookUrl },
+          "[stripe] el registro del webhook FALLÓ. Stripe no podrá avisar de pagos, " +
+            "altas ni bajas en este entorno.",
+        );
       }
+    } else {
+      // Antes esto se saltaba EN SILENCIO: sin dominio no se registraba el
+      // webhook y no quedaba ni una línea en el log. Fue justo lo que impidió
+      // diagnosticar el incidente del 20/08/2026.
+      logger.error(
+        { stripeEnv },
+        "[stripe] NO se registra el webhook: falta REPLIT_DOMAINS, así que no se " +
+          "puede construir su URL pública. Stripe no podrá avisar de pagos ni bajas.",
+      );
     }
 
-    logger.info("Starting Stripe backfill in background...");
+    logger.info("[stripe] lanzando sincronización en segundo plano…");
     stripeSync.syncBackfill().catch((err: unknown) => {
-      logger.error({ err }, "Stripe backfill error");
+      logger.error({ err }, "[stripe] la sincronización falló");
     });
 
-    logger.info("Stripe initialized successfully");
+    logger.info("[stripe] inicializado correctamente");
   } catch (err) {
-    logger.warn({ err }, "Stripe init skipped — credentials not available yet");
+    // Antes esto decía siempre "credentials not available yet", fuera cual fuera
+    // el error, y en nivel `warn`. Eso ocultó durante meses que producción NUNCA
+    // ha podido hablar con Stripe (incidente 20/08/2026). Ahora: nivel `error`,
+    // el error REAL incluido, y sin presuponer la causa.
+    logger.error(
+      { err, stripeEnv },
+      "[stripe] NO SE HA INICIALIZADO. Ni webhook ni sincronización: el cobro no " +
+        "funciona en este entorno. La causa real va en el campo `err`. " +
+        "Sospechosos habituales: no hay conexión de Stripe para este entorno " +
+        "(el conector de Replit distingue development y production, ver " +
+        "stripeClient.ts), o falta STRIPE_SECRET_KEY.",
+    );
   }
 }
 

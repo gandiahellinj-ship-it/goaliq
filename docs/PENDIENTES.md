@@ -1,11 +1,59 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN (actualizado 20/08/2026):**
-1. 🔴 **URGENTE — restaurar el webhook de Stripe de producción** (ver bloque abajo). Antes de nada, PARAR el backend del Repl de staging.
-2. Verificar en **staging** el Paso 1 (que Entrenos ya no genera plan solo). La prueba del 20/08 se hizo por error en producción.
-3. Decidir el arreglo de fondo del webhook (guarda de código + claves de Stripe separadas por entorno).
+**PRÓXIMA SESIÓN (actualizado 20/08/2026, tras cerrar el asunto de Stripe):**
+1. Verificar en **staging** el Paso 1 (que Entrenos ya no genera plan solo). La prueba del 20/08 se hizo por error en producción.
+2. Fusionar `feature/arranque-stripe-avisos` cuando José quiera (solo mensajes de arranque, sin cambio de comportamiento).
+3. Seguir con el plan de 5 pasos de `ESTADO.md` — el siguiente es el **Paso 2**: arreglar «sustituir ingrediente», que falla el 100 % de las veces.
+
+**Cerrado hoy:** el cobro en producción nunca ha funcionado (ver bloque abajo). Decisión: no se arregla en
+Replit; se rehace en la migración, como requisito antes de abrir el registro. El webhook huérfano de
+staging lo borra José a mano.
 
 Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+
+---
+
+## 🔴 EL COBRO EN PRODUCCIÓN NUNCA HA FUNCIONADO (confirmado 20/08/2026)
+
+**Requisito de bloqueo: esto debe estar resuelto ANTES de abrir el registro a usuarios reales.**
+
+**Qué sabemos, con la prueba que lo demuestra:** `GET /api/plans` en producción devuelve `{"plans":[]}`.
+Ese endpoint lee de `stripe.products` / `stripe.prices`. Que la consulta **funcione** prueba que las tablas
+existen (las migraciones sí corrieron); que estén **vacías** prueba que la sincronización con Stripe **nunca
+ha terminado**. En el arranque (`api-server/src/index.ts`) la sincronización va justo después de obtener las
+credenciales, así que el fallo está ahí: **`getStripeSync()` nunca ha conseguido credenciales en el
+despliegue de producción.**
+
+**Por qué staging sí pudo tocar Stripe y producción no:** `stripeClient.ts:29` decide qué conexión pedirle
+al conector de Replit según `REPLIT_DEPLOYMENT`. El Repl de staging arranca desde la Shell (variable sin
+definir) → pide la conexión de **development**, que existe y lleva claves de **test**. El despliegue Autoscale
+de producción vale `"1"` → pide la de **production**, que al parecer no está configurada → lanza y el error
+se tragaba en silencio.
+
+**Consecuencias reales:** en producción no hay webhook, no hay sincronización de suscripciones y no se
+procesa ningún evento de Stripe. Hoy no hace daño (modo test, sin usuarios de pago), pero **el día que se
+abra el registro, cualquiera podría pagar sin que la app se enterase.**
+
+**DECISIÓN de José (20/08/2026): NO se arregla la integración de Stripe dentro de Replit.** Toda esa pieza
+se rehará de forma estándar en la **migración fuera de Replit**. Lo único que se hace ahora es que el fallo
+deje de ser silencioso (ver abajo). El arreglo definitivo del cobro **forma parte de la migración y es
+requisito previo a abrir el registro**.
+
+**Lo que sí se ha hecho (rama `feature/arranque-stripe-avisos`):** el arranque ya no miente.
+- Se registra siempre una línea de contexto con qué variables ve (solo sí/no, nunca valores).
+- Si falta `REPLIT_DOMAINS`, ya no se salta el webhook **en silencio**: lo dice.
+- El `catch` general ya no acusa siempre a las credenciales: sale en nivel `error`, con la causa real
+  adjunta y diciendo explícitamente que **el cobro no funciona en ese entorno**.
+- Verificado ejecutando el servidor sin credenciales y con base de datos inalcanzable: los dos mensajes
+  nuevos salen como se espera.
+
+**Para la migración — qué NO repetir:**
+1. Que la URL pública del webhook dependa de una variable que pone el proveedor (`REPLIT_DOMAINS`).
+   Usar una variable propia y explícita.
+2. Que un fallo de arranque de la pasarela de pago se registre como `warn` con un mensaje inventado.
+3. Que el registro del webhook lo haga **cualquier** entorno al arrancar: con Autoscale, cada arranque en
+   frío lo reejecuta, y entornos que comparten cuenta de Stripe se borran el webhook unos a otros.
+4. Que producción y staging compartan cuenta y modo de Stripe.
 
 ---
 
@@ -24,22 +72,25 @@ dio por huérfano y lo eliminó. Registró el suyo apuntando a `picard.replit.de
 registrarse. *Cuánto importa depende de si producción está en modo prueba o real de Stripe — no verificado
 (el `.replit` de `main` lleva una `pk_test_`, ver ESTADO.md §4).*
 
-**Cómo se restaura (no requiere tocar el panel de Stripe):**
-1. **PARAR el backend del Repl de staging.** Cada arranque lo vuelve a borrar.
-2. **Republish** en el Repl de producción, sin cambiar código.
-3. Al arrancar, producción ve que su webhook no existe, limpia la referencia vieja, borra el de
-   `picard.replit.dev` y **crea uno nuevo**, guardando su nuevo secreto de firma en su propia BD. La
-   verificación de firma vuelve sola: el secreto NO está en ninguna variable de entorno.
-4. `syncBackfill()` (`index.ts:55`) se ejecuta también al arrancar y **recupera el estado perdido**.
-5. Comprobar en Stripe → Developers → Webhooks que existe el endpoint a
-   `https://nutrition-tracker-pwa.replit.app/api/stripe/webhook` en estado *enabled*.
+### ⚠️ CORRECCIÓN (20/08/2026, mismo día): el plan de restauración que había aquí ERA FALSO
 
-**Arreglo de fondo — PENDIENTE DE DECIDIR (dos, complementarios):**
-- **Código:** que el registro del webhook solo se ejecute si `REPLIT_DEPLOYMENT === "1"`. El Repl de staging
-  arranca desde la Shell (no es un despliegue) → dejaría de tocar Stripe. Dos líneas en `index.ts`.
-- **Configuración:** que staging tenga su propia clave de Stripe en **modo prueba** y producción la suya en
-  **modo real**. Los webhooks de cada modo son independientes y no podrían pisarse nunca. Resuelve además la
-  duda del `pk_test_` en producción.
+Este bloque decía que bastaba con hacer **Republish** en producción para que el webhook se recreara solo.
+**José lo hizo y no ocurrió nada.** El error de análisis fue mío: verifiqué la lógica de la librería
+(que efectivamente borra huérfanos y recrea) pero **di por hecho que el despliegue de producción podía
+hablar con Stripe**, y nunca lo comprobé. No puede — ver el bloque de arriba.
+
+**Por qué el Republish no podía funcionar:** el registro del webhook está DESPUÉS de obtener las
+credenciales dentro del mismo `try`. Si las credenciales fallan, no se ejecuta ni la limpieza de huérfanos
+ni la creación. Producción arrancó, sirvió datos con normalidad, y no tocó Stripe en absoluto.
+
+**Estado real:** el webhook de producción sigue sin existir, y **seguirá sin existir mientras el cobro se
+quede en Replit**. No se va a arreglar aquí (decisión de José): se rehace en la migración.
+
+**El webhook huérfano de staging (`picard.replit.dev`, activo, 0 entregas):** José lo borra a mano desde el
+panel de Stripe. **No hay ninguna razón para no hacerlo** — no guarda datos, nunca ha entregado nada, y
+producción no depende de él porque ni siquiera llega a Stripe. Único aviso: si algún día se vuelve a
+arrancar el backend del Repl de staging, **se recreará solo** (su base de datos aún guarda la referencia;
+al no encontrarlo en Stripe la limpia y crea uno nuevo). Es inofensivo, pero conviene saberlo.
 
 **Nota adicional:** la URL de staging NO está apuntada en ningún sitio. Se saca del Repl de staging, panel
 **Ports**, fila **8080**, icono de abrir (termina en `.picard.replit.dev`). La que lleva `-00-` es el

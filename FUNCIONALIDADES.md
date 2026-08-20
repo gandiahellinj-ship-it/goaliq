@@ -763,7 +763,8 @@ regenerará automáticamente al guardar" · `new_plan_30s` · `new_workout_plan_
 | `GET /api/dish-image/diagnose` | Diagnóstico: qué variables ve el servidor (sí/no, nunca el valor), esquema real de la tabla y conteo por estado |
 | `GET /api/dish-image/inspect-plan` | Inspecciona cada plato del plan del usuario: descripción, prompt, clave de caché y colisiones |
 | `POST /api/dish-image/reset` | Levanta el veto anti-bucle de un plato |
-| `GET /api/stripe/debug` | Depuración de Stripe (limitado a 5/min) |
+| `GET /api/debug` | Auditoría en vivo de Stripe para el usuario en sesión (limitado a 5/min). **Exige cabecera de sesión: abrirlo en el navegador devuelve `Unauthorized`.** La ruta es `/api/debug`, no `/api/stripe/debug` |
+| `GET /api/plans` | Planes de Stripe leídos de la BD. **Público, sin sesión.** Útil como sonda: si devuelve `{"plans":[]}` la sincronización con Stripe nunca ha corrido en ese entorno |
 | `GET /api/workoutx/sync-status` | Estado de la caché de ejercicios |
 | `POST /api/workoutx/force-sync` | Fuerza la resincronización (limitado a 2/min) |
 | `GET /api/qa` y `GET /api/qa/e2e` | Baterías de QA. **Solo existen fuera de producción** |
