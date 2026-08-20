@@ -65,14 +65,23 @@ Cuando José escriba `/cierre` o diga que termina:
 3. Haz commit con mensaje descriptivo en español y push a la rama en la que se esté trabajando (nunca fusionar ramas en un /cierre; la fusión es una tarea aparte que decide José).
 4. Confirma a José en una frase qué se guardó.
 
-## Estado de las ramas y despliegue (verificado el 23/07/2026)
+## Estado de las ramas y despliegue (verificado el 20/08/2026)
 
 - **`main`** = TODO el proyecto, fusionado y EN PRODUCCIÓN
   (https://nutrition-tracker-pwa.replit.app): portada beige, interfaz
-  `/vision` beige de 3 zonas (la DIRECCIÓN VISUAL DEFINITIVA, con datos de
-  muestra salvo suplementos/ajustes), app antigua aún viva en /dashboard
-  (se retirará en el paso 3 de la hoja de ruta), backend, y experimentos 3D
-  (rutas /test-*).
+  `/vision` beige de 3 zonas (la DIRECCIÓN VISUAL DEFINITIVA, **con DATOS
+  REALES en las 5 pestañas** desde el 24/07/2026 — corregido el 20/08: este
+  documento decía "datos de muestra" y era falso; `src/data.ts` ya no lo
+  importa nadie), app antigua aún viva en /dashboard (se retirará en el paso 3
+  de la hoja de ruta), backend, y experimentos 3D (rutas /test-*).
+- ⚠️ **MODO BETA ACTIVO, también en producción** (verificado 20/08/2026):
+  `isBetaMode()` (`src/lib/beta.ts`) devuelve `true` si `VITE_BETA_MODE` no
+  existe, y no está definida en ninguna parte. Consecuencia: el muro de pago
+  NO bloquea nada y la interfaz de precios/facturación está oculta. Tenerlo en
+  cuenta antes de afirmar nada sobre el cobro. Ver `FUNCIONALIDADES.md` §3.1.
+- **Documentos de referencia** (raíz): `ESTADO.md` (diagnóstico verificado del
+  estado real + plan de 5 pasos) y `FUNCIONALIDADES.md` (inventario funcional
+  completo para rediseñar la interfaz).
 - **`feature/layout-3-zonas`**: fusionada el 23/07/2026. Histórica — no
   trabajar en ella; no borrarla sin que José lo pida.
 - **Despliegue REAL**: GitHub `main` → en la Shell de Replit

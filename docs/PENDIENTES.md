@@ -1,6 +1,107 @@
 # GoalIQ — Pendientes y hoja de ruta
 
-**PRÓXIMA SESIÓN:** Promocionar a `main` el lote de `staging` (4 arreglos, ver abajo) cuando José quiera; y confirmación visual de una foto de plato regenerada (ver "Bug fotos de plato"). Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+**PRÓXIMA SESIÓN (actualizado 20/08/2026):**
+1. 🔴 **URGENTE — restaurar el webhook de Stripe de producción** (ver bloque abajo). Antes de nada, PARAR el backend del Repl de staging.
+2. Verificar en **staging** el Paso 1 (que Entrenos ya no genera plan solo). La prueba del 20/08 se hizo por error en producción.
+3. Decidir el arreglo de fondo del webhook (guarda de código + claves de Stripe separadas por entorno).
+
+Trabajo en ramas `feature/…` desde `staging`, se prueba en staging, y José promociona a `main`.
+
+---
+
+## 🔴 INCIDENTE 20/08/2026 — el webhook de Stripe de PRODUCCIÓN está borrado
+
+**Qué pasó:** al arrancar el Repl de **staging**, su servidor registró su propio webhook de Stripe y
+**borró el de producción**.
+
+**Causa raíz (verificada en el código de la librería):** `index.ts:47` llama a
+`findOrCreateManagedWebhook` de `stripe-replit-sync`. Esa función (`dist/index.js`, ~línea 2196) lista
+**todos los webhooks de la cuenta de Stripe** y borra los marcados como gestionados que **no estén en la
+base de datos de ESE entorno**. Staging arrancó con su propia BD (vacía), vio el webhook de producción, lo
+dio por huérfano y lo eliminó. Registró el suyo apuntando a `picard.replit.dev`.
+
+**Consecuencia:** producción no recibe eventos de Stripe. Pagos, altas, bajas y cancelaciones dejan de
+registrarse. *Cuánto importa depende de si producción está en modo prueba o real de Stripe — no verificado
+(el `.replit` de `main` lleva una `pk_test_`, ver ESTADO.md §4).*
+
+**Cómo se restaura (no requiere tocar el panel de Stripe):**
+1. **PARAR el backend del Repl de staging.** Cada arranque lo vuelve a borrar.
+2. **Republish** en el Repl de producción, sin cambiar código.
+3. Al arrancar, producción ve que su webhook no existe, limpia la referencia vieja, borra el de
+   `picard.replit.dev` y **crea uno nuevo**, guardando su nuevo secreto de firma en su propia BD. La
+   verificación de firma vuelve sola: el secreto NO está en ninguna variable de entorno.
+4. `syncBackfill()` (`index.ts:55`) se ejecuta también al arrancar y **recupera el estado perdido**.
+5. Comprobar en Stripe → Developers → Webhooks que existe el endpoint a
+   `https://nutrition-tracker-pwa.replit.app/api/stripe/webhook` en estado *enabled*.
+
+**Arreglo de fondo — PENDIENTE DE DECIDIR (dos, complementarios):**
+- **Código:** que el registro del webhook solo se ejecute si `REPLIT_DEPLOYMENT === "1"`. El Repl de staging
+  arranca desde la Shell (no es un despliegue) → dejaría de tocar Stripe. Dos líneas en `index.ts`.
+- **Configuración:** que staging tenga su propia clave de Stripe en **modo prueba** y producción la suya en
+  **modo real**. Los webhooks de cada modo son independientes y no podrían pisarse nunca. Resuelve además la
+  duda del `pk_test_` en producción.
+
+**Nota adicional:** la URL de staging NO está apuntada en ningún sitio. Se saca del Repl de staging, panel
+**Ports**, fila **8080**, icono de abrir (termina en `.picard.replit.dev`). La que lleva `-00-` es el
+backend y da 502. **Anotarla aquí la próxima vez.**
+
+---
+
+## Paso 1 del plan de ESTADO.md — HECHO, pendiente de verificar (20/08/2026)
+
+Rama `feature/cerrar-fugas-ia`, fusionada a `staging` (commit `13b6453`), subida a GitHub. **`main` sin tocar.**
+
+- **Entrenos:** fuera la regeneración automática del plan. Ahora hay botón "Generar plan" y, si el plan trae
+  ejercicios sin ficha, aviso + botón "Nuevo plan".
+- **Fotos de plato:** limitador propio (60 pet./min) + **cupo de 40 generaciones/día por usuario** en la tabla
+  `dish_image_quota`, que **se auto-crea al arrancar** (no hace falta SQL a mano).
+- `/api/diets/visualize` sometida al mismo cupo.
+- Un 429 ya no deja la tarjeta sin foto para siempre.
+
+**Revisado por Codex** (rol codereviewer): encontró 4 fallos reales, todos arreglados en el commit `c142f16`.
+
+**PENDIENTE DE VERIFICAR EN STAGING:**
+1. En el arranque del backend, que salga `supabase tables ready` (ahí se crea la tabla del cupo). Si sale un
+   error con `dish_image_quota`, el tope no funcionaría y — al estar hecho a prueba de fallos — **no se
+   generaría ninguna foto** (saldrían los círculos de iniciales).
+2. En **Entrenos** sin plan: que salga el botón "Generar plan" y **no pase nada** hasta pulsarlo.
+3. Que Comidas, Entrenos y Progreso en `/vision` no se vean distintos.
+
+⚠️ **Ojo:** en staging, pulsar "Generar plan" fallará y saldrá el error rojo — al Repl de staging le faltan
+`ANTHROPIC_API_KEY` y `GOOGLE_GEMINI_API_KEY` en los Secrets. Que el error salga limpio también es una
+comprobación válida. Por lo mismo, **el cupo de fotos no se puede probar de verdad** hasta poner la clave de
+Gemini allí.
+
+---
+
+## Documentos nuevos (20/08/2026)
+
+- **`ESTADO.md`** (raíz) — diagnóstico verificado: qué funciona, qué está roto, secretos, calidad medida, las
+  tres copias del proyecto en disco y un **plan priorizado de 5 pasos**. Es la foto de referencia.
+- **`FUNCIONALIDADES.md`** (raíz) — inventario funcional completo (16 secciones + Dudas) para rediseñar la
+  interfaz desde cero sin mirar el código.
+
+### Lo que sale de ahí y hay que decidir
+
+- 🔴 **Modo beta activo también en producción.** `VITE_BETA_MODE` no está definida en ningún sitio y por
+  defecto vale `true`: **el muro de pago no bloquea nada** y toda la interfaz de precios está oculta.
+  **Decidir si el rediseño se dibuja en modo beta o en modo comercial.**
+- 🔴 **«Sustituir ingrediente» falla el 100 % de las veces** (`/meals`). El servidor exige un campo `mealId`
+  que el navegador nunca envía; responde 500 seco porque no hay `try/catch` ni manejador de errores global.
+  Es el **Paso 2** del plan.
+- 🔴 **No existe recuperación de contraseña.** Quien pierde la contraseña pierde el acceso a sus datos de salud.
+- 🔴 **Lagunas legales con datos de salud:** sin banner de cookies, sin consentimiento separado del art. 9
+  RGPD, sin declarar los encargados del tratamiento (Anthropic, Google, Supabase, Stripe, OneSignal) ni las
+  transferencias internacionales. Los términos dicen "gratuita durante la beta" mientras hay un cobro de
+  19,99 €/mes montado (hoy latente, porque el modo beta lo oculta).
+- 🟡 **155 de las 574 claves de texto no las usa ninguna pantalla** — cuatro funciones completas escritas y
+  nunca conectadas (guía del plato, panel de Flex Days, acompañamiento del progreso, regeneración automática).
+- 🟡 **Rescatar material irreemplazable** (Paso 3 del plan): 72 MB de originales en
+  `C:\Users\Usuario\GoalIQ-Production\01-ASSETS` (vídeos y másteres que NO están en el proyecto), los 3
+  documentos de `D:\GoalIQ-Production\specs\`, y 5 ficheros sin commitear en `C:\Users\Usuario\goaliq`.
+  **La carpeta `design/` (21 MB) sigue sin versionar** — decidir si va a git o a respaldo externo.
+- 🟡 **Verificación externa pendiente:** el contraste final de `FUNCIONALIDADES.md` no se pudo hacer (Codex sin
+  cuota hasta el 18/09, Gemini sin cuota diaria). Repetirlo cuando vuelvan.
 
 ## Bug fotos de plato incorrectas — ✅ CAUSA RAÍZ ENCONTRADA Y ARREGLADA (29/07/2026, en `staging`)
 **Causa (verificada con datos reales del plan de producción):** el campo `visual_ref` de cada ingrediente guarda la **CANTIDAD** ("un puñado", "2 tazas", "media rodaja"), NO una descripción visual. Y la foto se armaba SOLO con los `visual_ref` → a Gemini le llegaba un prompt sin nombres de comida y generaba platos arbitrarios (p.ej. el salmón tenía visual_ref "una pechuga mediana" → dibujaba pollo). Hipótesis 1 (colisión de caché) ya se había descartado con datos.
