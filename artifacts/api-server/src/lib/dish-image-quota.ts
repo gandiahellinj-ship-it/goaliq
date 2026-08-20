@@ -11,57 +11,83 @@
 // legítimo (el primer usuario que abre un plan nuevo entero: 35 platos) y deja
 // el gasto máximo por usuario y día en ~1,44 €.
 //
-// LIMITACIÓN CONOCIDA: el contador vive en memoria del proceso. Se reinicia al
-// reiniciar el servidor y no se comparte entre instancias — igual que el
-// almacén por defecto de express-rate-limit, que ya usa el resto del servidor.
-// Si algún día hay varias instancias, esto pasa a la base de datos.
+// POR QUÉ EN LA BASE DE DATOS Y NO EN MEMORIA: un contador en memoria se
+// reinicia con cada despliegue (y aquí se despliega a menudo) y se multiplica
+// por el número de instancias en autoscale — o sea, no sería un tope real.
+// La reserva se hace con UN SOLO UPDATE condicional, que en PostgreSQL es
+// atómico: ni las ~35 peticiones simultáneas de la pantalla de comidas ni
+// varias instancias a la vez pueden saltárselo.
+import pg from "pg";
+import { logger } from "./logger";
 
 const MAX_GENERATIONS_PER_DAY = 40;
-const MAX_TRACKED_USERS = 5000; // cota de memoria; al superarla se barren los días viejos
 
-interface Entry {
-  day: string; // YYYY-MM-DD (UTC)
-  count: number;
+let _pool: pg.Pool | null = null;
+function getPool(): pg.Pool {
+  if (!_pool) _pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  return _pool;
 }
 
-const counters = new Map<string, Entry>();
-
-function todayKey(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-/** Barre las entradas de días anteriores (evita que el mapa crezca sin fin). */
-function sweep(day: string): void {
-  for (const [userId, entry] of counters) {
-    if (entry.day !== day) counters.delete(userId);
+/**
+ * Reserva UNA generación por adelantado, de forma ATÓMICA.
+ * Devuelve false si al usuario no le queda cupo hoy.
+ *
+ * Se reserva ANTES de llamar a Gemini, no se cuenta después: si se contara al
+ * terminar, las ~35 peticiones simultáneas de la pantalla de comidas pasarían
+ * todas la comprobación antes de que ninguna acabase y el tope no serviría.
+ *
+ * Quien reserve y NO acabe generando (acierto de caché, veto anti-bucle) debe
+ * devolver la reserva con `refundDishImageGeneration`.
+ *
+ * Si la base de datos falla, devuelve FALSE (no se genera). Es un guardián de
+ * gasto: ante la duda, no gastar. El frontend ya sabe pintar el círculo de
+ * iniciales cuando no hay foto, así que el usuario no ve nada roto.
+ */
+export async function tryReserveDishImageGeneration(userId: string): Promise<boolean> {
+  try {
+    const { rows } = await getPool().query(
+      `INSERT INTO public.dish_image_quota (user_id, day, count)
+       VALUES ($1, CURRENT_DATE, 1)
+       ON CONFLICT (user_id, day) DO UPDATE
+         SET count = public.dish_image_quota.count + 1
+         WHERE public.dish_image_quota.count < $2
+       RETURNING count`,
+      [userId, MAX_GENERATIONS_PER_DAY],
+    );
+    return rows.length > 0; // 0 filas = el WHERE del UPDATE no pasó = sin cupo
+  } catch (err) {
+    logger.error({ err, userId }, "[dish-image-quota] no se pudo reservar cupo — no se genera");
+    return false;
   }
 }
 
-function entryFor(userId: string): Entry {
-  const day = todayKey();
-  const existing = counters.get(userId);
-  if (existing && existing.day === day) return existing;
-
-  if (counters.size >= MAX_TRACKED_USERS) sweep(day);
-
-  const fresh: Entry = { day, count: 0 };
-  counters.set(userId, fresh);
-  return fresh;
+/** Devuelve una reserva que al final no gastó nada (acierto de caché, veto). */
+export async function refundDishImageGeneration(userId: string): Promise<void> {
+  try {
+    await getPool().query(
+      `UPDATE public.dish_image_quota
+       SET count = GREATEST(count - 1, 0)
+       WHERE user_id = $1 AND day = CURRENT_DATE`,
+      [userId],
+    );
+  } catch (err) {
+    // No es crítico: como mucho el usuario se queda con una generación de menos hoy.
+    logger.warn({ err, userId }, "[dish-image-quota] no se pudo devolver la reserva");
+  }
 }
 
-/** ¿Le queda cupo hoy a este usuario para generar una imagen nueva? */
-export function canGenerateDishImage(userId: string): boolean {
-  return entryFor(userId).count < MAX_GENERATIONS_PER_DAY;
-}
-
-/** Apunta una generación REAL (solo se llama cuando Gemini se ha usado). */
-export function noteDishImageGenerated(userId: string): void {
-  entryFor(userId).count += 1;
-}
-
-/** Cuántas generaciones le quedan hoy (para diagnóstico y cabeceras). */
-export function remainingDishImageGenerations(userId: string): number {
-  return Math.max(0, MAX_GENERATIONS_PER_DAY - entryFor(userId).count);
+/** Cuántas generaciones le quedan hoy (informativo, para el frontend y el log). */
+export async function remainingDishImageGenerations(userId: string): Promise<number> {
+  try {
+    const { rows } = await getPool().query(
+      "SELECT count FROM public.dish_image_quota WHERE user_id = $1 AND day = CURRENT_DATE",
+      [userId],
+    );
+    const used = rows[0]?.count ?? 0;
+    return Math.max(0, MAX_GENERATIONS_PER_DAY - used);
+  } catch {
+    return 0; // coherente con el fallo cerrado de la reserva
+  }
 }
 
 export { MAX_GENERATIONS_PER_DAY };

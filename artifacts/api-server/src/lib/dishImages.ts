@@ -219,8 +219,14 @@ export async function getOrCreateDishImage(
   }
 
   // 3) Deduplicación: si ya se está generando esta misma clave, reutiliza la promesa.
+  //    Quien se engancha recibe la misma foto pero con generated: false — el
+  //    coste ya lo asume quien lanzó la generación, así que no debe pagar cupo
+  //    dos veces (pasa cuando dos usuarios abren el mismo plato a la vez).
   const existing = inFlight.get(key);
-  if (existing) return existing;
+  if (existing) {
+    const shared = await existing;
+    return { ...shared, generated: false };
+  }
 
   const p = generateAndStore(dish, key).finally(() => inFlight.delete(key));
   inFlight.set(key, p);

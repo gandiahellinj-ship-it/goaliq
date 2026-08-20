@@ -1548,12 +1548,18 @@ export function useDishImage(meal: DishImageMeal | null | undefined) {
         headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ meal_name: meal!.name, ingredients: ings, is_drink: meal!.isDrink ?? false }),
       });
+      // 429 = ráfaga cortada por el limitador. NO es "este plato no tiene foto":
+      // si se devolviera null, staleTime Infinity lo cachearía y la tarjeta se
+      // quedaría sin imagen el resto de la sesión. Se lanza para reintentar.
+      if (res.status === 429) throw new Error("rate_limited");
       if (!res.ok) return null;
       const data = await res.json();
       return (data?.url as string | null) ?? null;
     },
     enabled,
     staleTime: Infinity, // una vez hay URL, no cambia
-    retry: false,
+    // Solo se reintenta el corte por ráfaga; cualquier otro fallo cae a iniciales.
+    retry: (failureCount, error) => error instanceof Error && error.message === "rate_limited" && failureCount < 3,
+    retryDelay: 5000,
   });
 }

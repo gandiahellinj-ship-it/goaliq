@@ -12,6 +12,7 @@ import {
   externalApiLimiter,
 } from "./middlewares/rate-limiters";
 import { WebhookHandlers } from "./webhookHandlers";
+import { tryReserveDishImageGeneration } from "./lib/dish-image-quota";
 
 const app: Express = express();
 
@@ -295,9 +296,19 @@ app.post("/api/diets/generate", aiBurstLimiter, aiLimiter, async (req, res) => {
 });
 
 // 2) POST /api/diets/visualize — genera una imagen 9:16 del plato con Gemini.
+// OJO: esta ruta es anterior a la pipeline de /api/dish-image y NO tiene caché.
+// El frontend de este repo no la llama (verificado 20/08/2026), pero mientras
+// exista se somete al MISMO cupo diario de generaciones que /api/dish-image;
+// si no, sería un agujero por el que saltarse el tope de gasto.
 app.post("/api/diets/visualize", aiBurstLimiter, aiLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const reservedQuota = await tryReserveDishImageGeneration(req.user.id);
+  if (!reservedQuota) {
+    logger.warn({ userId: req.user.id }, "diets/visualize: cupo diario de imágenes agotado");
+    res.status(429).json({ error: "Cupo diario de generación de imágenes agotado" });
     return;
   }
   try {
