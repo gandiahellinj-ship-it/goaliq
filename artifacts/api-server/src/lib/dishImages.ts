@@ -167,14 +167,30 @@ export interface DishImageResult {
   url: string | null;
   /** null si OK; si no, categoría del fallo (para no quedar ciegos). */
   error: string | null;
+  /** true SOLO si esta llamada gastó una generación de Gemini (cuesta dinero).
+   *  El acierto de caché es false: sirve para contar el cupo del usuario. */
+  generated: boolean;
+}
+
+/** Opciones de la llamada. */
+export interface DishImageOptions {
+  /** false = el usuario agotó su cupo diario: sirve caché, pero NO genera. */
+  allowGenerate?: boolean;
 }
 
 /**
  * Devuelve la URL pública de la foto del plato, generándola si no está en caché.
  * Nunca lanza: si algo falla, devuelve { url: null, error: <motivo> } y lo
  * registra (anti-bucle). Caché compartida entre todos los usuarios.
+ *
+ * El acierto de caché SIEMPRE se sirve, aunque el usuario haya agotado su cupo:
+ * no cuesta nada y no tiene sentido esconderle una foto que ya existe.
  */
-export async function getOrCreateDishImage(dish: DishInput): Promise<DishImageResult> {
+export async function getOrCreateDishImage(
+  dish: DishInput,
+  options: DishImageOptions = {},
+): Promise<DishImageResult> {
+  const { allowGenerate = true } = options;
   const key = cacheKey(dish);
 
   // 1) Caché: ¿ya existe (ready) o está vetado por fallos (anti-bucle)?
@@ -185,17 +201,24 @@ export async function getOrCreateDishImage(dish: DishInput): Promise<DishImageRe
     );
     if (rows.length > 0) {
       const row = rows[0];
-      if (row.status === "ready" && row.url) return { url: row.url, error: null }; // acierto → coste 0
+      // Acierto → coste 0. Se sirve siempre, con cupo o sin él.
+      if (row.status === "ready" && row.url) return { url: row.url, error: null, generated: false };
       if (row.status === "failed" && row.fail_count >= MAX_FAIL_ATTEMPTS) {
-        return { url: null, error: "vetado_por_fallos_previos" }; // anti-bucle
+        return { url: null, error: "vetado_por_fallos_previos", generated: false }; // anti-bucle
       }
     }
   } catch (err: any) {
     logger.error({ err, key }, "[dishImages] fallo leyendo caché (¿tabla dish_images existe?)");
-    return { url: null, error: `db_read: ${err?.message ?? err}` };
+    return { url: null, error: `db_read: ${err?.message ?? err}`, generated: false };
   }
 
-  // 2) Deduplicación: si ya se está generando esta misma clave, reutiliza la promesa.
+  // 2) Fallo de caché: aquí es donde se gasta dinero. Si no hay cupo, se corta.
+  //    El frontend ya sabe pintar el círculo de iniciales cuando url = null.
+  if (!allowGenerate) {
+    return { url: null, error: "cuota_diaria_agotada", generated: false };
+  }
+
+  // 3) Deduplicación: si ya se está generando esta misma clave, reutiliza la promesa.
   const existing = inFlight.get(key);
   if (existing) return existing;
 
@@ -228,7 +251,7 @@ async function generateAndStore(dish: DishInput, key: string): Promise<DishImage
       [key, url, dish.meal_name, COST_PER_IMAGE_EUR],
     );
     logger.info({ key }, "[dishImages] imagen generada y cacheada");
-    return { url, error: null };
+    return { url, error: null, generated: true };
   } catch (err: any) {
     // Anti-bucle: registra el fallo e incrementa el contador; tras 3 no se reintenta.
     const reason = `${stage}: ${err?.message ?? err}`;
@@ -243,7 +266,10 @@ async function generateAndStore(dish: DishInput, key: string): Promise<DishImage
     } catch (dbErr) {
       logger.error({ dbErr, key }, "[dishImages] fallo registrando el fallo");
     }
-    return { url: null, error: reason };
+    // generated: true a propósito — el intento ya salió hacia Gemini y puede
+    // haber costado. Contarlo evita que un usuario con fallos repetidos gaste
+    // sin tope antes de que salte el veto anti-bucle.
+    return { url: null, error: reason, generated: true };
   } finally {
     releaseGenSlot();
   }

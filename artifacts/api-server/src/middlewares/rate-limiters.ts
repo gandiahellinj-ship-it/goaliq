@@ -36,6 +36,24 @@ export const aiBurstLimiter = rateLimit({
   },
 });
 
+// 🔴 Dish Image Limiter — POST /api/dish-image (puede llamar a Gemini).
+// No usa aiLimiter (10/hora) a propósito: una pantalla de comidas pide la foto
+// de ~35 platos de golpe y casi todas se sirven de CACHÉ, con coste 0. Un tope
+// de 10/hora dejaría la pantalla sin fotos. El tope del GASTO real (las
+// generaciones) vive en lib/dish-image-quota.ts; esto solo frena las ráfagas.
+export const dishImageLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: 60, // suficiente para pintar un plan semanal entero desde caché
+  keyGenerator: userOrIp,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "rate_limit_exceeded",
+    message: "Too many dish image requests. Please slow down.",
+    retryAfter: 60,
+  },
+});
+
 // 🟡 External API Limiter — endpoints públicos a APIs externas (wger, gifs)
 export const externalApiLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto

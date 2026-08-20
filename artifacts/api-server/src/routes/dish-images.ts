@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { getOrCreateDishImage, diagnoseDishImages, resetFailedDish, inspectUserPlan, type DishInput } from "../lib/dishImages";
-import { normalLimiter } from "../middlewares/rate-limiters";
+import { normalLimiter, dishImageLimiter } from "../middlewares/rate-limiters";
+import {
+  canGenerateDishImage,
+  noteDishImageGenerated,
+  remainingDishImageGenerations,
+} from "../lib/dish-image-quota";
 
 const router: IRouter = Router();
 
@@ -51,7 +56,12 @@ router.post("/dish-image/reset", normalLimiter, async (req, res) => {
 // Devuelve { url } (string o null) de la foto del plato. Genera bajo demanda con
 // caché COMPARTIDA. Requiere sesión (evita que anónimos disparen generaciones que
 // cuestan dinero). Nunca bloquea nada: si no hay foto, url = null → iniciales.
-router.post("/dish-image", normalLimiter, async (req, res) => {
+//
+// DOS TOPES, porque protegen cosas distintas:
+//  · dishImageLimiter — ráfagas de PETICIONES (antes usaba normalLimiter: 100/min).
+//  · cupo diario de GENERACIONES (lib/dish-image-quota) — el gasto real en Gemini.
+//    El acierto de caché no consume cupo: no cuesta nada.
+router.post("/dish-image", dishImageLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -68,9 +78,18 @@ router.post("/dish-image", normalLimiter, async (req, res) => {
     ingredients,
     is_drink: Boolean(body.is_drink),
   };
-  const result = await getOrCreateDishImage(dish); // nunca lanza
+
+  const userId = req.user.id;
+  const allowGenerate = canGenerateDishImage(userId);
+  const result = await getOrCreateDishImage(dish, { allowGenerate }); // nunca lanza
+  if (result.generated) noteDishImageGenerated(userId);
+
+  if (!allowGenerate && result.error === "cuota_diaria_agotada") {
+    req.log.warn({ userId }, "[dish-image] cupo diario de generaciones agotado");
+  }
+
   // Devuelve también `error` (motivo del fallo) para diagnóstico — beta, sesión requerida.
-  res.json(result);
+  res.json({ ...result, remainingGenerations: remainingDishImageGenerations(userId) });
 });
 
 export default router;

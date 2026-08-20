@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useWorkoutPlan, useGenerateWorkoutPlan, useStrengthLogs, useSaveStrengthLog } from "@/lib/supabase-queries";
 import type { Exercise } from "@/lib/supabase-queries";
 import { motion, AnimatePresence } from "framer-motion";
@@ -194,28 +194,24 @@ export default function Workouts() {
 function WorkoutsContent() {
   const { data: workoutPlan, isLoading } = useWorkoutPlan();
   const generateMutation = useGenerateWorkoutPlan();
-  const hasTriggeredRegen = useRef(false);
   const t = useT();
   const { lang } = useLanguage();
 
   const todayName = new Date().toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
   const defaultDay = DAYS.find(d => d.id === todayName)?.id ?? "monday";
 
-  // Effect: auto-regen when no plan or missing exercise_ids
-  useEffect(() => {
-    if (isLoading || hasTriggeredRegen.current || generateMutation.isPending) return;
-
-    const needsRegen = !workoutPlan || (workoutPlan.days ?? []).some(day =>
-      day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
-    );
-
-    if (needsRegen) {
-      hasTriggeredRegen.current = true;
-      generateMutation.mutate({ lang });
-    }
-  }, [workoutPlan, isLoading]);
-
+  // La generación del plan SIEMPRE la pide el usuario (botón). Antes había aquí
+  // un useEffect que la disparaba solo al abrir la pantalla: gastaba una llamada
+  // de IA sin pedirla. Ver ESTADO.md §3.2a y DECISIONES (tope de regeneraciones).
   const [activeDay, setActiveDay] = useState(defaultDay);
+
+  // El plan viejo puede traer ejercicios sin `exercise_id` (sin GIF ni ficha).
+  // Antes esto regeneraba solo; ahora se avisa y decide el usuario.
+  const hasIncompleteExercises = Boolean(
+    workoutPlan?.days?.some(day =>
+      day.workout?.exercises?.some((ex: any) => !ex.exercise_id)
+    )
+  );
 
   if (isLoading) {
     return (
@@ -225,14 +221,39 @@ function WorkoutsContent() {
     );
   }
 
+  // Generando el primer plan (aún no hay nada que mostrar).
+  if (!workoutPlan && generateMutation.isPending) {
+    return (
+      <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
+        <Loader2 className="w-16 h-16 mb-5 animate-spin" style={{ color: "var(--giq-accent)" }} />
+        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
+          {t("generating_workout_plan")}
+        </p>
+      </div>
+    );
+  }
+
   if (!workoutPlan) {
     return (
       <div className="h-[75vh] flex flex-col items-center justify-center p-6 text-center max-w-sm mx-auto">
         <Dumbbell className="w-16 h-16 mb-5" style={{ color: "var(--giq-accent)" }} />
         <h2 className="text-2xl font-display font-black uppercase mb-2" style={{ color: "var(--giq-text-primary)" }}>{t("no_workout_plan")}</h2>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--giq-text-secondary)" }}>
+        <p className="text-sm leading-relaxed mb-6" style={{ color: "var(--giq-text-secondary)" }}>
           {t("complete_onboarding_workout")}
         </p>
+        <button
+          onClick={() => generateMutation.mutate({ lang })}
+          disabled={generateMutation.isPending}
+          className="rounded-xl px-6 py-3 text-sm font-bold disabled:opacity-60"
+          style={{ backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }}
+        >
+          {t("generate_plan")}
+        </button>
+        {generateMutation.isError && (
+          <p className="text-sm mt-4" style={{ color: "var(--giq-error)" }}>
+            {t("couldnt_create_plan")}
+          </p>
+        )}
       </div>
     );
   }
@@ -253,6 +274,27 @@ function WorkoutsContent() {
           </p>
         </div>
       </div>
+
+      {/* Plan con ejercicios sin ficha: se avisa y decide el usuario. NUNCA
+          se regenera solo — cada regeneración es una llamada de IA de pago. */}
+      {hasIncompleteExercises && (
+        <div
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border p-3"
+          style={{ borderColor: "var(--giq-border)", backgroundColor: "var(--giq-bg-card)" }}
+        >
+          <p className="text-sm" style={{ color: "var(--giq-text-secondary)" }}>
+            {t("workout_plan_incomplete")}
+          </p>
+          <button
+            onClick={() => generateMutation.mutate({ lang })}
+            disabled={generateMutation.isPending}
+            className="shrink-0 rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-60"
+            style={{ backgroundColor: "var(--giq-accent)", color: "var(--giq-accent-text)" }}
+          >
+            {generateMutation.isPending ? t("regenerating") : t("regenerate_plan")}
+          </button>
+        </div>
+      )}
 
       {/* Day Tabs — 7-column grid, fits all screen sizes */}
       <div className="grid grid-cols-7 gap-0.5 sm:gap-1 mb-4 sm:mb-6">
