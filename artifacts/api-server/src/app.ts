@@ -6,6 +6,7 @@ import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { authMiddleware } from "./middlewares/authMiddleware";
+import { errorHandler } from "./middlewares/errorHandler";
 import {
   aiLimiter,
   aiBurstLimiter,
@@ -449,5 +450,10 @@ app.post("/api/meals/validate", aiBurstLimiter, aiLimiter, async (req, res) => {
     return res.status(502).json({ error: "No se pudo validar la comida" });
   }
 });
+
+// ── Manejador de errores global (SIEMPRE el último de la cadena) ─────────────
+// Antes NO existía: cualquier error no capturado salía como un 500 seco, sin
+// registro. Ver middlewares/errorHandler.ts.
+app.use(errorHandler);
 
 export default app;

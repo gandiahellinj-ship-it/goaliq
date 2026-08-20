@@ -9,7 +9,8 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "qa": "node scripts/qa-test.js",
-    "e2e": "node scripts/e2e-test.js"
+    "e2e": "node scripts/e2e-test.js",
+    "test": "node --test artifacts/api-server/test/errorHandler.test.ts lib/api-zod/test/replace-ingredient.test.ts"
   },
   "private": true,
   "devDependencies": {

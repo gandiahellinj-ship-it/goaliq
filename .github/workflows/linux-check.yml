@@ -28,6 +28,9 @@ jobs:
       - name: Instalar dependencias (lockfile congelado)
         run: corepack pnpm install --frozen-lockfile
 
+      - name: Tests (runner incorporado de Node, sin dependencias)
+        run: corepack pnpm run test
+
       - name: Construir api-server (esbuild)
         run: corepack pnpm --filter @workspace/api-server build
 

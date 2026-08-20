@@ -74,6 +74,74 @@ Gemini allí.
 
 ---
 
+## Paso 2 del plan — «Sustituir ingrediente» ARREGLADO (20/08/2026)
+
+Rama `feature/fix-sustituir-ingrediente`, desde `staging`. **`main` sin tocar.**
+
+**No era un fallo, eran TRES encadenados.** El endpoint no ha funcionado nunca desde que se escribió:
+1. El esquema exigía un campo `mealId` que el navegador **nunca** ha enviado.
+2. Declaraba `mealPlanId` como número, cuando en Supabase es un **UUID (texto)**.
+3. El esquema de RESPUESTA era ficción: exigía `id`, `portionIdea` y `plateDistribution` (que no existen
+   en las comidas reales) y no admitía `snack_morning` ni `snack_afternoon`. Es decir: **aunque hubieras
+   arreglado la petición, reventaba igual al responder.**
+
+**Por qué nadie lo vio:** el `parse` estaba fuera de todo `try/catch` y **no había manejador de errores
+global**, así que salía un 500 seco, sin registro. El usuario veía "inténtalo de nuevo" y a otra cosa.
+
+**Qué se ha hecho:**
+- Corregidos los dos esquemas en `lib/api-zod/src/generated/api.ts` para que describan la realidad.
+  (Ese fichero dice "generado, no editar", pero el paquete que lo generaba — `lib/api-spec` — **está vacío**:
+  en la práctica se mantiene a mano. Queda avisado en un comentario dentro del propio fichero.)
+- El endpoint valida la entrada y devuelve **400 diciendo qué campo falla**, en vez de 500.
+- **Manejador de errores global nuevo** (`middlewares/errorHandler.ts`): a partir de ahora ninguna ruta
+  puede devolver un 500 mudo. Validación → 400 con detalle; cualquier otro fallo → 500 genérico con el
+  error completo en el registro del servidor y **sin filtrar detalles internos al cliente**.
+- Ya no se valida la respuesta: sale de nuestra propia base de datos y el cliente ni la usa (recarga el
+  plan). Validar de salida solo añadía una vía de fallo.
+
+**Efecto colateral bueno:** los errores de tipos de `api-server` bajan de **17 a 13**. Los 4 que
+desaparecen son exactamente los que señalaban este bug.
+
+### Tests — primeros del proyecto (27, y se ejecutan en CI)
+
+Hasta hoy el proyecto tenía **cero** pruebas automáticas. Se usa el runner incorporado de Node
+(`node --test`), **sin añadir ni una dependencia**. Comando: `corepack pnpm run test` desde la raíz.
+
+- `lib/api-zod/test/replace-ingredient.test.ts` — 16 pruebas. Incluye el **cuerpo exacto que envía el
+  navegador**; si alguien cambia el cliente y no el esquema, esto salta.
+- `artifacts/api-server/test/errorHandler.test.ts` — 11 pruebas. Incluye que el 500 **no filtre** la cadena
+  de conexión ni mensajes internos.
+
+**Comprobación de que sirven de algo:** ejecutadas contra el esquema ANTERIOR, **fallan 11 de 16**; con el
+arreglo pasan las 27. Los 5 que pasaban en ambos casos son los que comprueban que se siguen rechazando los
+cuerpos inválidos — es decir, las pruebas no pasan por casualidad.
+
+Añadidas al chequeo de GitHub Actions, antes de las construcciones.
+
+### ⚠️ PENDIENTE ANTES DE FUSIONAR A `main`
+
+**Falta la revisión de un lector independiente.** Hoy no había: Codex agotó cuota (vuelve el 18/09) y
+Gemini también. Cuando alguno recupere, pasarle este diff con rol de revisor **antes** de promocionar a
+`main`. En esta sesión Codex ya encontró 4 fallos reales en un cambio que yo daba por bueno, así que el
+paso no es decorativo.
+
+### CÓMO LO COMPRUEBA JOSÉ EN STAGING
+
+Necesitas una cuenta de staging **con plan de comidas ya generado**. Si no lo tienes, hace falta poner
+`ANTHROPIC_API_KEY` en los Secrets del Repl de staging para poder generarlo.
+
+1. Entra en **Comidas** (`/meals`) y elige un día con comidas.
+2. Pulsa para **cambiar un ingrediente** de cualquier plato y elige una alternativa.
+3. **Lo que debe pasar ahora:** el ingrediente cambia, se queda una marca de acierto un par de segundos y
+   el plato muestra el ingrediente nuevo.
+   **Lo que pasaba antes:** salía en rojo *"Swap failed. Please try again."*, siempre, sin excepción.
+4. Recarga la página: el cambio debe **seguir ahí** (se guarda en la base de datos, no solo en pantalla).
+5. Prueba también con un **tentempié** (media mañana o merienda). Ese caso fallaba por partida doble.
+
+Si algo sale mal, el mensaje ya no será mudo: dime qué texto aparece.
+
+---
+
 ## Documentos nuevos (20/08/2026)
 
 - **`ESTADO.md`** (raíz) — diagnóstico verificado: qué funciona, qué está roto, secretos, calidad medida, las

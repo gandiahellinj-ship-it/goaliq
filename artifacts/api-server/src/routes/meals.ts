@@ -247,12 +247,31 @@ router.post("/meals/replace-ingredient", aiBurstLimiter, aiLimiter, async (req, 
     res.status(401).json({ error: "Unauthorized" });
     return;
   }
-  const body = ReplaceIngredientBody.parse(req.body);
+  // Validación de ENTRADA (dato no fiable: viene de la red). Un cuerpo mal
+  // formado debe devolver 400 con explicación, nunca un 500 seco: antes el
+  // `parse` estaba fuera de todo try/catch y el error subía sin manejar.
+  const parsed = ReplaceIngredientBody.safeParse(req.body);
+  if (!parsed.success) {
+    req.log.warn(
+      { issues: parsed.error.issues },
+      "[meals] replace-ingredient: cuerpo inválido",
+    );
+    res.status(400).json({
+      error: "Cuerpo de la petición inválido",
+      details: parsed.error.issues.map((i) => ({
+        field: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return;
+  }
+  const body = parsed.data;
+  const mealPlanId = String(body.mealPlanId);
   const pool = getPool();
 
   const { rows } = await pool.query(
     `SELECT id, user_id, days FROM public.meal_plans WHERE id = $1 AND user_id = $2`,
-    [body.mealPlanId, req.user.id],
+    [mealPlanId, req.user.id],
   );
   const planData = rows[0];
 
@@ -275,7 +294,7 @@ router.post("/meals/replace-ingredient", aiBurstLimiter, aiLimiter, async (req, 
     db.from("food_preferences").select("allergies, disliked_foods").eq("user_id", req.user.id).maybeSingle(),
   ]);
 
-  const lang: "es" | "en" = req.body?.lang === "en" ? "en" : "es";
+  const lang: "es" | "en" = body.lang === "en" ? "en" : "es";
   const replacement = body.chosenReplacement
     ? { name: body.chosenReplacement.name, amount: body.chosenReplacement.amount, category: ingredient.category }
     : await replaceIngredientInMeal(
@@ -291,10 +310,16 @@ router.post("/meals/replace-ingredient", aiBurstLimiter, aiLimiter, async (req, 
 
   await pool.query(
     `UPDATE public.meal_plans SET days = $1::jsonb WHERE id = $2`,
-    [JSON.stringify(days), body.mealPlanId],
+    [JSON.stringify(days), mealPlanId],
   );
 
-  res.json(ReplaceIngredientResponse.parse(meal));
+  // Se devuelve la comida TAL CUAL, sin validar de salida. Sale de nuestra
+  // propia base de datos (dato fiable), el cliente ignora este cuerpo — solo
+  // recarga el plan — y validar aquí añadía una vía de fallo real: el esquema
+  // exigía campos inexistentes y reventaba incluso con la petición correcta.
+  // Mismo criterio que en GET /meals. `ReplaceIngredientResponse` queda como
+  // documentación del contrato.
+  res.json(meal);
 });
 
 // POST /meals/log — register a validated ("Mi comida real") meal.

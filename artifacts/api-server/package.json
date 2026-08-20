@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "db:staging": "node scripts/apply-staging-sql.mjs"
+    "db:staging": "node scripts/apply-staging-sql.mjs",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.81.0",
