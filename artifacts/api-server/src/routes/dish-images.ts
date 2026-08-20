@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { getOrCreateDishImage, diagnoseDishImages, resetFailedDish, inspectUserPlan, type DishInput } from "../lib/dishImages";
-import { normalLimiter } from "../middlewares/rate-limiters";
+import { normalLimiter, dishImageLimiter } from "../middlewares/rate-limiters";
+import {
+  tryReserveDishImageGeneration,
+  refundDishImageGeneration,
+  remainingDishImageGenerations,
+} from "../lib/dish-image-quota";
 
 const router: IRouter = Router();
 
@@ -51,7 +56,12 @@ router.post("/dish-image/reset", normalLimiter, async (req, res) => {
 // Devuelve { url } (string o null) de la foto del plato. Genera bajo demanda con
 // caché COMPARTIDA. Requiere sesión (evita que anónimos disparen generaciones que
 // cuestan dinero). Nunca bloquea nada: si no hay foto, url = null → iniciales.
-router.post("/dish-image", normalLimiter, async (req, res) => {
+//
+// DOS TOPES, porque protegen cosas distintas:
+//  · dishImageLimiter — ráfagas de PETICIONES (antes usaba normalLimiter: 100/min).
+//  · cupo diario de GENERACIONES (lib/dish-image-quota) — el gasto real en Gemini.
+//    El acierto de caché no consume cupo: no cuesta nada.
+router.post("/dish-image", dishImageLimiter, async (req, res) => {
   if (!req.isAuthenticated()) {
     res.status(401).json({ error: "Unauthorized" });
     return;
@@ -68,9 +78,24 @@ router.post("/dish-image", normalLimiter, async (req, res) => {
     ingredients,
     is_drink: Boolean(body.is_drink),
   };
-  const result = await getOrCreateDishImage(dish); // nunca lanza
+
+  const userId = req.user.id;
+  // Se RESERVA el cupo antes de llamar (ver dish-image-quota.ts: si se contara
+  // después, las ~35 peticiones simultáneas de la pantalla de comidas se
+  // saltarían el tope todas a la vez).
+  const reserved = await tryReserveDishImageGeneration(userId);
+  const result = await getOrCreateDishImage(dish, { allowGenerate: reserved }); // nunca lanza
+  // Si reservó pero no llegó a generar (acierto de caché, veto anti-bucle, o se
+  // enganchó a una generación que ya estaba en marcha), devuelve la reserva:
+  // solo se cobra lo que de verdad ha ido a Gemini.
+  if (reserved && !result.generated) await refundDishImageGeneration(userId);
+
+  if (!reserved) {
+    req.log.warn({ userId }, "[dish-image] cupo diario de generaciones agotado");
+  }
+
   // Devuelve también `error` (motivo del fallo) para diagnóstico — beta, sesión requerida.
-  res.json(result);
+  res.json({ ...result, remainingGenerations: await remainingDishImageGenerations(userId) });
 });
 
 export default router;

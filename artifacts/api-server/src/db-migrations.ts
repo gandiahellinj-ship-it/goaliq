@@ -210,4 +210,21 @@ export async function ensureSupabaseTablesReady(): Promise<void> {
     CREATE POLICY "Users can read own profile change events"
       ON public.profile_change_events FOR SELECT USING (auth.uid() = user_id);
   `);
+
+  // 8. dish_image_quota — cupo diario de generaciones de foto de plato por
+  //    usuario (lib/dish-image-quota.ts). Vive en la BD y no en memoria porque
+  //    un contador en memoria se reinicia en cada despliegue y se multiplica
+  //    por instancia en autoscale: no sería un tope real. La reserva se hace
+  //    con un UPDATE condicional atómico, así que ni las ~35 peticiones
+  //    simultáneas de la pantalla de comidas ni varias instancias lo saltan.
+  //    Sin políticas RLS: solo el pool superusuario del servidor la toca.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS public.dish_image_quota (
+      user_id  UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+      day      DATE NOT NULL DEFAULT CURRENT_DATE,
+      count    INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (user_id, day)
+    )
+  `);
+  await pool.query(`ALTER TABLE public.dish_image_quota ENABLE ROW LEVEL SECURITY`);
 }
